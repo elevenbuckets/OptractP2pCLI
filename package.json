@@ -1,0 +1,17 @@
+{
+  "name": "OptractP2pCLI",
+  "version": "1.0.0",
+  "description": "",
+  "main": "console.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "ascii-table": "0.0.9",
+    "figlet": "^1.2.1",
+    "pubsub-swarm": "^1.0.0"
+  }
+}
