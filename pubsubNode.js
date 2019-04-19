@@ -58,12 +58,14 @@ const summary =
 
 class PubSub extends EventEmitter 
 {
-	constructor(opts) {
+	constructor(options) {
+		super();
+
+		let opts = options || { gossip: {} };
 		this.gossip = gossip(opts.gossip);
   		this.id = this.gossip.keys.public; // should eventually use ETH address
   		this.swarm = swarm();
 		this.port  = opts.port || 0;
-		this.validators = opts.vkeys; // outside of ethereum key
 
 		this.join = (topic) =>
 		{
@@ -91,7 +93,7 @@ class PubSub extends EventEmitter
 
 		this.connectP2P = () =>
 		{
-			if (fs.existsSync(path.join(os.homedir, '.optract_keys')) {
+			if (fs.existsSync(path.join(os.homedir, '.optract_keys'))) {
 				opts.gossip.keys = require(path.join(os.homedir, '.optract_keys'));
 				this.gossip = gossip(opts.gossip);
 			} else {
@@ -100,6 +102,11 @@ class PubSub extends EventEmitter
 			}
 
   			this.id = this.gossip.keys.public; // should eventually use ETH address
+
+		  	this.gossip.on('message', (msg, info) => {
+				if (this.filterSeen(msg) && this.throttlePeer(info) && this.validateMsg(msg)) this.emit('message', msg);
+  			})
+
 			this.firstConn = false;
   			this.swarm.on('connection', (connection) => 
 			{
@@ -169,10 +176,6 @@ class PubSub extends EventEmitter
 		{
     			return this.gossip.publish(msg)
 		}
-
-	  	this.gossip.on('message', (msg, info) => {
-			if (this.filterSeen(msg) && this.throttlePeer(info) && this.validateMsg(msg)) this.emit('message', msg);
-  		})
 
   		this.swarm.listen(this.port);
 

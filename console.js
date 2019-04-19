@@ -2,11 +2,12 @@
 'use strict';
 
 const url = require('url');
-const cluster = require('cluster');
+//const cluster = require('cluster');
 const repl = require('repl');
 const figlet = require('figlet');
 const readline = require('readline');
 const AsciiTable = require('ascii-table');
+const PubSub = require('./pubsubNode.js');
 
 // ASCII Art!!!
 const ASCII_Art = (word) => {
@@ -30,10 +31,12 @@ const replEvalPromise = (cmd,ctx,filename,cb) => {
   return cb(null, result);
 }
 
+/*
 const initBIServer = (options) => {
 	cluster.setupMaster({exec: './pubsubNode.js'}); //BladeIron RPCServ
         return cluster.fork(options);
 }
+*/
 
 // Master password handling
 const askMasterPass = (resolve, reject) =>
@@ -70,5 +73,20 @@ const askMasterPass = (resolve, reject) =>
         }
 }
 
+/*
 if (cluster.isMaster) {
 }
+*/
+
+let app = new PubSub();
+let slogan = 'Optract';
+let r;
+
+ASCII_Art('Optract: Ops Console').then((art) => {
+        console.log(art);
+	r = repl.start({ prompt: `[-= ${slogan} =-]$ `, eval: replEvalPromise });
+        r.context = {app};
+        r.on('exit', () => {
+                console.log("\n\t" + 'Stopping CLI...');
+        });
+});
