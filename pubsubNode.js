@@ -93,12 +93,12 @@ class PubSub extends EventEmitter
 
 		this.connectP2P = () =>
 		{
-			if (fs.existsSync(path.join(os.homedir, '.optract_keys'))) {
-				opts.gossip.keys = require(path.join(os.homedir, '.optract_keys'));
+			if (fs.existsSync(path.join(os.homedir(), '.optract_keys'))) {
+				opts.gossip.keys = require(path.join(os.homedir(), '.optract_keys'));
 				this.gossip = gossip(opts.gossip);
 			} else {
 				this.gossip = gossip(opts.gossip);
-				fs.writeFileSync(path.join(os.homedir, '.optract_keys'), JSON.stringify(this.gossip.keys))
+				fs.writeFileSync(path.join(os.homedir(), '.optract_keys'), JSON.stringify(this.gossip.keys))
 			}
 
   			this.id = this.gossip.keys.public; // should eventually use ETH address
