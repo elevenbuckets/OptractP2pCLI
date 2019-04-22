@@ -109,14 +109,18 @@ class PubSub extends EventEmitter
 				//console.log('get Message'); console.dir(msg);
 				if (this.filterSeen(msg) && this.throttlePeer(msg.data)) {
 					this.emit('incomming', msg);
-					console.log('message passed filters, incomming event emitted...');
 				}
   			})
+
+			// default dummy incomming handler
+			this.on('incomming', (msg) => { 
+				console.log('message passed filters, incomming event emitted...');
+			});
 
 			this.firstConn = false;
   			this.swarm.on('connection', (connection) => 
 			{
-    				console.log('found ' + this.swarm.connected + ' connected to peer');
+    				console.log("\nFound " + this.swarm.connected + ' connected ' + (this.swarm.connected === 1 ? 'peer' : 'peers') );
     				let g = this.gossip.createPeerStream();
     				connection.pipe(g).pipe(connection);
 
