@@ -106,6 +106,7 @@ class PubSub extends EventEmitter
 			console.log('My ID: ' + this.id);
 
 		  	this.gossip.on('message', (msg, info) => {
+				console.log('get message'); console.dir(msg); console.log('peer info'); console.dir(info);
 				if (this.filterSeen(msg) && this.throttlePeer(info) && this.validateMsg(msg)) this.emit('message', msg);
   			})
 
@@ -176,7 +177,7 @@ class PubSub extends EventEmitter
 
 		this.publish = (msg) =>
 		{
-			if (typeof(msg) !== 'object') msg = { msg };
+			if (typeof(msg) !== 'object') msg = { data: msg }; // secure-gossip requires the key named "data" ...
     			return this.gossip.publish(msg)
 		}
 
