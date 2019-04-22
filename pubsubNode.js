@@ -106,7 +106,14 @@ class PubSub extends EventEmitter
 			console.log('My ID: ' + this.id);
 
 		  	this.gossip.on('message', (msg) => {
-				if (this.filterSeen(msg) && this.throttlePeer(msg) && this.validateMsg(msg)) this.emit('message', msg);
+				console.log('get Message'); console.dir(msg);
+				if (this.filterSeen(msg) && this.throttlePeer(msg) && this.validateMsg(msg)) {
+					this.emit('message', msg);
+				} else {
+					console.log('DEBUG: failed to pass msg filters');
+					console.log('RAW message:');
+					console.dir(msg);
+				}
   			})
 
 			this.firstConn = false;
