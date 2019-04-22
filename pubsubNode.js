@@ -174,6 +174,7 @@ class PubSub extends EventEmitter
 
 		this.publish = (msg) =>
 		{
+			if (typeof(msg) !== 'object') msg = { msg };
     			return this.gossip.publish(msg)
 		}
 
