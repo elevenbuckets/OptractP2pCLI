@@ -94,7 +94,8 @@ class PubSub extends EventEmitter
 		this.connectP2P = () =>
 		{
 			if (fs.existsSync(path.join(os.homedir(), '.optract_keys'))) {
-				opts.gossip.keys = require(path.join(os.homedir(), '.optract_keys'));
+				let b = fs.readFileSync(path.join(os.homedir(), '.optract_keys'));
+				opts.gossip.keys = JSON.parse(b.toString());
 				this.gossip = gossip(opts.gossip);
 			} else {
 				this.gossip = gossip(opts.gossip);
