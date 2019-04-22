@@ -106,13 +106,10 @@ class PubSub extends EventEmitter
 			console.log('My ID: ' + this.id);
 
 		  	this.gossip.on('message', (msg) => {
-				console.log('get Message'); console.dir(msg);
-				if (this.filterSeen(msg) && this.throttlePeer(msg.data) && this.validateMsg(msg.data.msg)) {
-					this.emit('message', msg);
-				} else {
-					console.log('DEBUG: failed to pass msg filters');
-					console.log('RAW message:');
-					console.dir(msg);
+				//console.log('get Message'); console.dir(msg);
+				if (this.filterSeen(msg) && this.throttlePeer(msg.data)) {
+					this.emit('incomming', msg);
+					console.log('message passed filters, incomming event emitted...');
 				}
   			})
 
@@ -145,6 +142,7 @@ class PubSub extends EventEmitter
 
 		this.filterSeen = (msg) =>
 		{
+			msg = JSON.stringify(msg);
 			let timeNow = Math.floor(Date.now()/1000);
 			let hashID = ethUtils.bufferToHex(ethUtils.sha256(Buffer.from(msg)));
 			if (typeof(this.seen.logs[hashID]) !== 'undefined' && timeNow - this.seen.logs[hashID] < 10000 ) {
@@ -159,14 +157,18 @@ class PubSub extends EventEmitter
 
 		this.throttlePeer = (info) =>
 		{
-			let timeNow = Math.floor(Date.now()/1000);
-			if (typeof(this.seen.seen[info.public]) !== 'undefined' && timeNow - this.seen.seen[info.public] < 3) {
-				this.seen.seen[info.public] = timeNow;
-				return false;
-			} else {
-				Object.keys(this.seen.seen).map((h) => { if (timeNow - this.seen.seen[h] > 25000) delete this.seen.seen[h]; });
-				this.seen.seen[info.public] = timeNow;
-				return true;
+			try {
+				let timeNow = Math.floor(Date.now()/1000);
+				if (typeof(this.seen.seen[info.public]) !== 'undefined' && timeNow - this.seen.seen[info.public] < 3) {
+					this.seen.seen[info.public] = timeNow;
+					return false;
+				} else {
+					Object.keys(this.seen.seen).map((h) => { if (timeNow - this.seen.seen[h] > 25000) delete this.seen.seen[h]; });
+					this.seen.seen[info.public] = timeNow;
+					return true;
+				}
+			} catch (err) {
+				console.trace(err); return false;
 			}
 		}
 
@@ -188,6 +190,14 @@ class PubSub extends EventEmitter
 		{
 			if (typeof(msg) !== 'object') msg = { data: {msg, public: this.id} }; // secure-gossip requires the key named "data" ...
     			return this.gossip.publish(msg)
+		}
+
+		this.setIncommingHandler = (func) => // func needs to take one args, which is msg object
+		{
+			if (typeof(func) !== 'function') { return false; }
+			this.removeAllListeners('incomming');
+			this.on('incomming', func);
+			return true;
 		}
 
   		this.swarm.listen(this.port);
