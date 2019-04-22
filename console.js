@@ -88,5 +88,7 @@ ASCII_Art('Optract: Ops Console').then((art) => {
         r.context = {app};
         r.on('exit', () => {
                 console.log("\n\t" + 'Stopping CLI...');
+		app.leave();
+		process.exit(0);
         });
 });

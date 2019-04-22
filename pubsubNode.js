@@ -105,15 +105,14 @@ class PubSub extends EventEmitter
   			this.id = this.gossip.keys.public; // should eventually use ETH address
 			console.log('My ID: ' + this.id);
 
-		  	this.gossip.on('message', (msg, info) => {
-				console.log('get message'); console.dir(msg); console.log('peer info'); console.dir(info);
-				if (this.filterSeen(msg) && this.throttlePeer(info) && this.validateMsg(msg)) this.emit('message', msg);
+		  	this.gossip.on('message', (msg) => {
+				if (this.filterSeen(msg) && this.throttlePeer(msg) && this.validateMsg(msg)) this.emit('message', msg);
   			})
 
 			this.firstConn = false;
   			this.swarm.on('connection', (connection) => 
 			{
-    				console.log('found + connected to peer');
+    				console.log('found ' + this.swarm.connected + ' connected to peer');
     				let g = this.gossip.createPeerStream();
     				connection.pipe(g).pipe(connection);
 
@@ -167,17 +166,20 @@ class PubSub extends EventEmitter
 		this.validateMsg = (msg) =>
 		{
 			// for now, only validate RLPx format, will also validate RLPx payload signature and confirm active membership via smart contract.
+			/*
 			try {
 				this.handleRLPx(fields)(msg);
 				return true;
 			} catch (err) {
 				return false;
 			}
+			*/
+			return true; // temp fix for testing
 		}
 
 		this.publish = (msg) =>
 		{
-			if (typeof(msg) !== 'object') msg = { data: msg }; // secure-gossip requires the key named "data" ...
+			if (typeof(msg) !== 'object') msg = { data: {msg, public: this.id} }; // secure-gossip requires the key named "data" ...
     			return this.gossip.publish(msg)
 		}
 
