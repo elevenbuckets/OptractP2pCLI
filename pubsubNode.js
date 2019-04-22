@@ -103,6 +103,7 @@ class PubSub extends EventEmitter
 			}
 
   			this.id = this.gossip.keys.public; // should eventually use ETH address
+			console.log('My ID: ' + this.id);
 
 		  	this.gossip.on('message', (msg, info) => {
 				if (this.filterSeen(msg) && this.throttlePeer(info) && this.validateMsg(msg)) this.emit('message', msg);
