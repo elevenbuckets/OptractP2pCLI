@@ -2,7 +2,6 @@
 'use strict';
 
 const url = require('url');
-//const cluster = require('cluster');
 const repl = require('repl');
 const figlet = require('figlet');
 const readline = require('readline');
@@ -30,13 +29,6 @@ const replEvalPromise = (cmd,ctx,filename,cb) => {
   }
   return cb(null, result);
 }
-
-/*
-const initBIServer = (options) => {
-	cluster.setupMaster({exec: './pubsubNode.js'}); //BladeIron RPCServ
-        return cluster.fork(options);
-}
-*/
 
 // Master password handling
 const askMasterPass = (resolve, reject) =>
@@ -73,12 +65,25 @@ const askMasterPass = (resolve, reject) =>
         }
 }
 
-/*
-if (cluster.isMaster) {
-}
-*/
-
-let app = new PubSub();
+//Main
+let app = new PubSub(
+{
+	port: 36689, 
+	dns: {
+		server: [
+			'discovery1.datprotocol.com',
+			'discovery2.datprotocol.com',
+		]
+	},
+	dht: { 
+		bootstrap: [ 
+			'bootstrap1.datprotocol.com:6881', 
+			'bootstrap2.datprotocol.com:6881', 
+			'bootstrap3.datprotocol.com:6881', 
+			'bootstrap4.datprotocol.com:6881' 
+		]
+	} 
+});
 let slogan = 'Optract';
 let r;
 

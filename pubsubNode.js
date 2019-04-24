@@ -61,11 +61,11 @@ class PubSub extends EventEmitter
 	constructor(options) {
 		super();
 
-		let opts = options || { gossip: {} };
+		let opts = { gossip: {}, ...options };
 		this.gossip = gossip(opts.gossip);
   		this.id = this.gossip.keys.public; // should eventually use ETH address
-  		this.swarm = swarm();
 		this.port  = opts.port || 0;
+  		this.swarm = swarm(opts);
 
 		this.join = (topic) =>
 		{
