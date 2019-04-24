@@ -68,7 +68,7 @@ const askMasterPass = (resolve, reject) =>
 //Main
 let app = new PubSub(
 {
-	port: 36689, 
+	port: 36689 + Math.floor(Math.random()*20), 
 	dns: {
 		server: [
 			'discovery1.datprotocol.com',
