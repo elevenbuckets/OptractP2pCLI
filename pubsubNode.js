@@ -62,11 +62,11 @@ class PubSub extends EventEmitter
 		super();
 
 		let opts = { gossip: {}, ...options };
-		this.gossip = gossip(opts.gossip);
-  		this.id = this.gossip.keys.public; // should eventually use ETH address
 		this.port  = opts.port || 0;
   		this.swarm = swarm(opts);
 		this.topicList = [];
+		this.firstConn = false;
+		this.initialized = false;
 
 		this.join = (topic) =>
 		{
@@ -120,7 +120,6 @@ class PubSub extends EventEmitter
 				console.log('message passed filters, incomming event emitted...');
 			});
 
-			this.firstConn = false;
   			this.swarm.on('connection', (connection) => 
 			{
     				console.log("\nFound " + this.swarm.connected + ' connected ' + (this.swarm.connected === 1 ? 'peer' : 'peers') );
@@ -132,6 +131,8 @@ class PubSub extends EventEmitter
       					this.emit('connected');
     				}
   			});
+
+			this.initialized = true;
 		}
 
 		// encode if packet is object, decode if it is RLPx
