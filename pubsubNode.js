@@ -110,7 +110,7 @@ class PubSub extends EventEmitter
 
 		  	this.gossip.on('message', (msg) => {
 				//console.log('get Message'); console.dir(msg);
-				if (this.filterSeen(msg) && this.throttlePeer(msg.data)) {
+				if (this.filterSeen(msg) && this.throttlePeer(msg.data) && this.validateMsg(msg.data) ) {
 					this.emit('incomming', msg);
 				}
   			})
@@ -181,9 +181,12 @@ class PubSub extends EventEmitter
 
 		this.validateMsg = (msg) =>
 		{
-			// TODO: things to check
 			// - msg requires to contain "topic"
+			if (typeof(msg.topic) === 'undefined') return false;
 			// - topic needs to be in this.topicList
+			if (typeof(this.topicList[msg.topic]) === 'undefined') return false;
+
+			// TODO: things to check
 			// - based on topic, msg should be specific encoded RLPx
 			// - all necessary RLP field tests
 			// - signature matches
