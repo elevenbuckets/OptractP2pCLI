@@ -66,25 +66,28 @@ class PubSub extends EventEmitter
   		this.id = this.gossip.keys.public; // should eventually use ETH address
 		this.port  = opts.port || 0;
   		this.swarm = swarm(opts);
+		this.topicList = [];
 
 		this.join = (topic) =>
 		{
   			if (!topic || typeof topic !== 'string') { throw new Error('topic must be set as a string') }
-			if (typeof this.topic !== 'undefined') this.leave();
-			this.topic = topic;
 			this.seen  = { init: Math.floor(Date.now()/1000), logs: {}, seen: {} };
-  			return this.swarm.join(this.topic);
+			this.topicList.push(topic);
+  			return this.swarm.join(topic);
 		}
 
-		this.leave = () =>
+		this.leave = (topic) =>
 		{
-			if (typeof this.topic === 'undefined') return true;
-			return this.swarm.leave(this.topic);
+			if (typeof this.topicList[topic] === 'undefined') return true;
+			delete this.topicList[topic];
+			return this.swarm.leave(topic);
 		}
 
 		this.stats = () =>
 		{
 			return {
+				topics: this.topicList,
+				peerseen: this.swarm._peersSeen,
 				connecting: this.swarm.connecting,
 				upcomming: this.swarm.queued,
 				connected: this.swarm.connected
@@ -178,21 +181,19 @@ class PubSub extends EventEmitter
 
 		this.validateMsg = (msg) =>
 		{
-			// for now, only validate RLPx format, will also validate RLPx payload signature and confirm active membership via smart contract.
-			/*
-			try {
-				this.handleRLPx(fields)(msg);
-				return true;
-			} catch (err) {
-				return false;
-			}
-			*/
-			return true; // temp fix for testing
+			// TODO: things to check
+			// - msg requires to contain "topic"
+			// - topic needs to be in this.topicList
+			// - based on topic, msg should be specific encoded RLPx
+			// - all necessary RLP field tests
+			// - signature matches
+			return true; // place holder
 		}
 
-		this.publish = (msg) =>
+		this.publish = (topic, msg) =>
 		{
-			if (typeof(msg) !== 'object') msg = { data: {msg, public: this.id} }; // secure-gossip requires the key named "data" ...
+			if (this.topicList[topic] === 'undefined') return false; 
+			msg = { data: {topic, msg, public: this.id} }; // secure-gossip requires the key named "data" ...
     			return this.gossip.publish(msg)
 		}
 
@@ -205,7 +206,6 @@ class PubSub extends EventEmitter
 		}
 
   		this.swarm.listen(this.port);
-
 	}
 }
 
