@@ -184,7 +184,7 @@ class PubSub extends EventEmitter
 			// - msg requires to contain "topic"
 			if (typeof(msg.topic) === 'undefined') return false;
 			// - topic needs to be in this.topicList
-			if (typeof(this.topicList[msg.topic]) === 'undefined') return false;
+			if (this.topicList.length === 0 || this.topicList.indexOf(msg.topic) === -1) return false;
 
 			// TODO: things to check
 			// - based on topic, msg should be specific encoded RLPx
@@ -195,7 +195,7 @@ class PubSub extends EventEmitter
 
 		this.publish = (topic, msg) =>
 		{
-			if (this.topicList[topic] === 'undefined') return false; 
+			if (this.topicList.length === 0 || this.topicList.indexOf(topic) === -1) return false; 
 			msg = { data: {topic, msg, public: this.id} }; // secure-gossip requires the key named "data" ...
     			return this.gossip.publish(msg)
 		}
