@@ -11,8 +11,10 @@
   "license": "ISC",
   "dependencies": {
     "ascii-table": "0.0.9",
+    "debug": "^4.1.1",
+    "discovery-swarm": "git+ssh://git@github.com/elevenbuckets/discovery-swarm.git",
     "ethereumjs-utils": "^5.2.5",
     "figlet": "^1.2.1",
-    "pubsub-swarm": "^1.0.0"
+    "secure-gossip": "^0.3.1"
   }
 }
