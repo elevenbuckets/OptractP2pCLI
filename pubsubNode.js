@@ -78,8 +78,8 @@ class PubSub extends EventEmitter
 
 		this.leave = (topic) =>
 		{
-			if (typeof this.topicList[topic] === 'undefined') return true;
-			delete this.topicList[topic];
+			if (this.topicList.indexOf(topic) === -1) return true;
+			this.topicList.splice(this.topicList.indexOf(topic), 1);
 			return this.swarm.leave(topic);
 		}
 
