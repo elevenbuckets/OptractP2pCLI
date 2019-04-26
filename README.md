@@ -20,4 +20,4 @@
     
   - To send message:
  
-    ``` app.publish('My message or RLPx') ```
+    ``` app.publish('Optract', 'My message or RLPx') ```
