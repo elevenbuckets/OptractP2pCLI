@@ -7,6 +7,7 @@ const figlet = require('figlet');
 const readline = require('readline');
 const AsciiTable = require('ascii-table');
 const PubSub = require('./pubsubNode.js');
+const KnifeIron = require('./KnifeIron.js');
 
 // ASCII Art!!!
 const ASCII_Art = (word) => {
@@ -66,7 +67,7 @@ const askMasterPass = (resolve, reject) =>
 }
 
 //Main
-let app = new PubSub(
+let app  = new PubSub(
 {
 	port: 45001 + Math.floor(Math.random()*20), 
 	dns: {
@@ -84,6 +85,29 @@ let app = new PubSub(
 		]
 	} 
 });
+
+app.eth = new KnifeIron(
+{
+	datadir:"/home/jasonlin/.ethereum",
+	rpcAddr:"https://rinkeby.infura.io/v3/abf050ddd1334730b9e8071ab1a09090",
+        defaultGasPrice:"20000000000",
+        gasOracleAPI:"https://ethgasstation.info/json/ethgasAPI.json",
+        condition:"sanity",
+	networkID:4,
+	passVault:"/home/jasonlin/.rinkeby/myArchive.bcup",
+	dapps: {
+		"OptractMedia": {
+			appName: "OptractMedia",
+   			artifactDir: "/home/jasonlin/Proj/Playground/OptractP2pCLI/dapps/OptractMedia/ABI",
+   			conditionDir: "/home/jasonlin/Proj/Playground/OptractP2pCLI/dapps/OptractMedia/Conditions",
+   			contracts: [{ ctrName: "BlockRegistry", conditions: ['Sanity'] }],
+   			account: "0xb440ea2780614b3c6a00e512f432785e7dfafa3e",
+   			database: "/home/jasonlin/Proj/ETH/11BE/Release/11BE/dapps/OptractMedia/DB",
+   			version: "1.0"
+		}
+	}
+});
+
 let slogan = 'Optract';
 let r;
 
