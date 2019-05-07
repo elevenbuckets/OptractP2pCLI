@@ -111,14 +111,20 @@ app.eth = new KnifeIron(
 let slogan = 'Optract';
 let r;
 
-ASCII_Art('Optract: Ops Console').then((art) => {
-        console.log(art);
-	r = repl.start({ prompt: `[-= ${slogan} =-]$ `, eval: replEvalPromise });
-        r.context = {app};
-        r.on('exit', () => {
-                console.log("\n\t" + 'Stopping CLI...');
-		app.leave();
-		app.swarm.close();
-		process.exit(0);
-        });
-});
+let stage = new Promise(askMasterPass)
+         .catch((err) => { process.exit(1); })
+         .then((answer) => { return app.eth.password(answer) });
+
+stage = stage.then(() => {
+	return ASCII_Art('Optract: Ops Console').then((art) => {
+	        console.log(art);
+		r = repl.start({ prompt: `[-= ${slogan} =-]$ `, eval: replEvalPromise });
+	        r.context = {app};
+	        r.on('exit', () => {
+	                console.log("\n\t" + 'Stopping CLI...');
+			app.leave();
+			app.swarm.close();
+			process.exit(0);
+	        });
+	});
+})
