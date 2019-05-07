@@ -56,6 +56,20 @@ const summary =
    	{name: 's', allowZero: true, length: 32, default: new Buffer([]) }
 ];
 
+const keyCheck = (obj) => (k) =>
+{
+	if (!k in obj) return false;
+	if (typeof(obj[k]) === 'undefined') return false;
+	if (obj[k] === null) return null;
+	return true;
+}
+
+const keyCheckNoNull = (obj) => (k) =>
+{
+	let rc = keyCheck(obj)(k);
+	return rc === null ? false : rc;
+}
+
 class PubSub extends EventEmitter 
 {
 	constructor(options) {
@@ -108,9 +122,9 @@ class PubSub extends EventEmitter
   			this.id = this.gossip.keys.public; // should eventually use ETH address
 			console.log('My ID: ' + this.id);
 
-		  	this.gossip.on('message', (msg) => {
+		  	this.gossip.on('message', (msg, info) => {
 				//console.log('get Message'); console.dir(msg);
-				if (this.filterSeen(msg) && this.throttlePeer(msg.data) && this.validateMsg(msg.data) ) {
+				if (this.filterSeen(msg) && this.throttlePeer(msg.data) && this.validateMsg(msg.data, info) ) {
 					this.emit('incomming', msg);
 				}
   			})
@@ -180,16 +194,31 @@ class PubSub extends EventEmitter
 			}
 		}
 
-		this.validateMsg = (msg) =>
+		this.validateMsg = (msg, info) =>
 		{
 			// - msg requires to contain "topic"
 			if (typeof(msg.topic) === 'undefined') return false;
 			// - topic needs to be in this.topicList
 			if (this.topicList.length === 0 || this.topicList.indexOf(msg.topic) === -1) return false;
 
-			// TODO: things to check
-			// - based on topic, msg should be specific encoded RLPx
-			// - all necessary RLP field tests
+			// - check encoded RLPx by topic match
+			if (msg.topic === 'Optract') {
+				try {
+					if (Buffer.isBuffer(msg.msg)) {
+						let rlpx = Buffer.from(msg.msg);
+						let rlp = this.handleRLPx(fields)(rlpx).toJSON(); // proper format;
+						return true;
+					} else if (info.public in this.validatorKeys) {
+						this.handleSnapshot(msg, info); // non-blocking
+						return true;
+					} else {
+						return false;
+					}
+				} catch (err) {
+					console.trace(err);
+					return false;
+				}
+			}
 			// - signature matches
 			return true; // place holder
 		}
