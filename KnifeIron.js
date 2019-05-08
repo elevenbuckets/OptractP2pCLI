@@ -137,7 +137,7 @@ class KnifeIron {
 	                        try {
 	                                passes = vaults.findEntriesByProperty('username', address)[0].getProperty('password');
 	                        } catch(err) {
-	                                console.log(err);
+	                                console.trace(err);
 	                                passes = undefined;
 	                        }
 	
@@ -844,7 +844,7 @@ class KnifeIron {
 	                });
 
 			if (Object.keys(allConditions).length === 0) throw `WARNING: NO condition defined for ${appSymbol}: ${contract}!!!`;
-			console.dir(allConditions); 
+			console.log(allConditions); 
 	                // loading conditions. there names needs to follow CastIron conventions to be recognized by queue, otherwise job will fail.
 			if (typeof(allConditions.GROUP_CONDITION) !== 'undefined') { // group condition (PoC)
 				console.log(`DEBUG: Group Condition found: ${appSymbol}_${allConditions.GROUP_CONDITION}`);
@@ -878,19 +878,8 @@ class KnifeIron {
                                 return [...output, condition];
                         }
 
-			// link default account if defined and managed
-			if (typeof(appConfigs.account) !== 'undefined') {
-				return this.managedAddress(appConfigs.account)
-					   .then((rc) => {
-						if (rc[appConfigs.account]) this.userWallet[appName] = appConfigs.account;
-					   })
-					   .then(() => {
-						return this.newApp(appName)(...__newAppHelper(ctrName)(condType));
-					   })
+			return this.newApp(appName)(...__newAppHelper(ctrName)(condType));
 
-			} else {
-				return this.newApp(appName)(...__newAppHelper(ctrName)(condType));
-			}
 		}
 
 		this.call = (appName) => (ctrName) => (callName) => (...args) =>
@@ -949,6 +938,7 @@ class KnifeIron {
 					      .then((jobObj) => { return this.processJobs([jobObj]).then(console.log) })
         				      .catch((err) => { console.trace(err); return Promise.reject(err); });
         		} catch (err) {
+                		console.trace(err);
                 		return Promise.reject(err);
         		}
 		}
@@ -974,6 +964,15 @@ class KnifeIron {
         		})
         		.catch((err) => { console.trace(err); return Promise.reject(err); })
 		}
+
+		this.linkAccount = (appName) => (address) =>
+		{
+			return this.managedAddress(address)
+				   .then((rc) => {
+					if (rc[address]) this.userWallet[appName] = address;
+					return rc;
+				   })
+		} 
 
 		// init
 		this.setup(cfgObj);

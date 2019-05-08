@@ -3,11 +3,11 @@
 
 const url = require('url');
 const repl = require('repl');
+const path = require('path');
 const figlet = require('figlet');
 const readline = require('readline');
 const AsciiTable = require('ascii-table');
-const PubSub = require('./pubsubNode.js');
-const KnifeIron = require('./KnifeIron.js');
+const PubSubNode = require('./pubsubNode.js');
 
 // ASCII Art!!!
 const ASCII_Art = (word) => {
@@ -67,7 +67,32 @@ const askMasterPass = (resolve, reject) =>
 }
 
 //Main
-let app  = new PubSub(
+const OptractMedia = require('./dapps/OptractMedia/OptractMedia.js');
+
+class OptractNode extends PubSubNode {
+	constructor(cfgObj) {
+		super(cfgObj);
+
+		this.appCfgs = require(path.join(cfgObj.dappdir, 'config.json')); // can become part of cfgObj
+		this.eth = new OptractMedia(this.appCfgs);
+		this.appName = this.eth.appName;
+
+		const mixins = 
+		[
+		   'call', 
+                   'sendTk',
+		   'ethNetStatus',
+		   'linkAccount',
+		   'password',
+                   'validPass',
+		   'allAccounts'
+		];		
+
+		mixins.map((f) => { if (typeof(this[f]) === 'undefined' && typeof(this.eth[f]) === 'function') this[f] = this.eth[f] })
+	}
+}
+
+const app = new OptractNode(
 {
 	port: 45001 + Math.floor(Math.random()*20), 
 	dns: {
@@ -83,23 +108,27 @@ let app  = new PubSub(
 			'bootstrap3.datprotocol.com:6881', 
 			'bootstrap4.datprotocol.com:6881' 
 		]
-	} 
+	},
+	dappdir: "/home/jasonlin/Proj/Playground/OptractP2pCLI/dapps"
 });
 
-const KICfgs = require('./dapps/config.json');
-app.eth = new KnifeIron(KICfgs);
-
-let slogan = 'Optract';
-let r;
+var r;
 
 let stage = new Promise(askMasterPass)
          .catch((err) => { process.exit(1); })
-         .then((answer) => { return app.eth.password(answer) });
+         .then((answer) => { return app.password(answer) })
+	 .then(app.validPass)
+         .then((rc) => { 
+		if (rc && typeof(app.appCfgs.dapps[app.appName].account) !== 'undefined') {
+			return app.linkAccount(app.appName)(app.appCfgs.dapps[app.appName].account).then(console.log);
+		}
+	 })
+	 .catch((err) => { console.trace(err); });
 
 stage = stage.then(() => {
 	return ASCII_Art('Optract: Ops Console').then((art) => {
 	        console.log(art);
-		r = repl.start({ prompt: `[-= ${slogan} =-]$ `, eval: replEvalPromise });
+		r = repl.start({ prompt: `[-= ${app.appName} =-]$ `, eval: replEvalPromise });
 	        r.context = {app};
 	        r.on('exit', () => {
 	                console.log("\n\t" + 'Stopping CLI...');
