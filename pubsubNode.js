@@ -5,6 +5,7 @@ const gossip = require('secure-gossip');
 const EventEmitter = require('events');
 const ethUtils = require('ethereumjs-utils');
 const bs58 = require('bs58');
+const MerkleTree = require('merkle_tree');
 
 // console-only packages, not for browsers
 const fs = require('fs');
@@ -244,10 +245,10 @@ class PubSub extends EventEmitter
                 // validator and merkleRoot related
                 this.makeMerkleTreeAndUploadRoot = () =>
 		{
-                        let initHeight = app.eth.ethNetStatus().blockHeight;
+                        let initHeight = this.eth.ethNetStatus().blockHeight;
 
                         // prepare merkle tree and make merkle root
-                        leaves = [];  // should collect leaves
+                        let leaves = [];  // should collect leaves
                         let merkleTree = this.makeMerkleTree(leaves);
 
                         // upload merkle tree to IPFS, if success then put on chain
@@ -270,6 +271,13 @@ class PubSub extends EventEmitter
 		}
 
                 // helper functions
+                this.makeMerkleTree = (leaves) => {
+                        let merkleTree = new MerkleTree();
+                        merkleTree.addLeaves(leaves);
+                        merkleTree.makeTree();
+                        return merkleTree;
+                }
+
                 // IPFS string need to convert to bytes32 in order to put in smart contract
                 this.IPFSstringtoBytes32 = (ipfsHash) =>
                 {

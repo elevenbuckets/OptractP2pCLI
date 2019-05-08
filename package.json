@@ -21,9 +21,9 @@
     "buttercup": "1.6.2",
     "ethereumjs-tx": "^1.3.7",
     "keythereum": "https://github.com/elevenbuckets/keythereum.git",
+    "merkle_tree": "git+ssh://git@github.com/elevenbuckets/merkle_tree.git",
     "node-fetch": "^1.7.3",
     "rpc-websockets": "^4.3.5",
-    "secure-gossip": "^0.3.1",
     "uuid": "^3.1.0",
     "web3": "^0.19",
     "web3-eth-abi": "^1.0.0-beta.37"
