@@ -878,6 +878,7 @@ class KnifeIron {
                                 return [...output, condition];
                         }
 
+			// link default account if defined and managed
 			if (typeof(appConfigs.account) !== 'undefined') {
 				return this.managedAddress(appConfigs.account)
 					   .then((rc) => {
@@ -920,12 +921,13 @@ class KnifeIron {
         		}	
 		}
 
-		this.sendTk = (appName) => (ctrName) => (callName) => (fromWallet) => (...__args) => (amount = null) =>
+		this.sendTk = (appName) => (ctrName) => (callName) => (...__args) => (amount = null) =>
                 {
                         let tkObj = {};
                         __args.map((i,j) => { tkObj = { ...tkObj, ['arg'+j]: i } });
                         let appArgs = Object.keys(tkObj).sort();
 			let gasAmount = (typeof(this.gasAmount) !== 'undefined') ? this.gasAmount : undefined;
+			let fromWallet = this.userWallet[appName]; 
 
 			try {
                 		if (typeof(gasAmount) === 'undefined') {
@@ -936,6 +938,7 @@ class KnifeIron {
 					}
 				}
         		} catch(err) {
+                		console.trace(err);
                         	return Promise.reject(`failed to determine gas amount, please specify it in this.gasAmount`);
         		}
 
