@@ -942,13 +942,37 @@ class KnifeIron {
                         	return Promise.reject(`failed to determine gas amount, please specify it in this.gasAmount`);
         		}
 
-        		console.log(`DEBUG: calling ${call} using gasAmount = ${gasAmount}`)
+        		console.log(`DEBUG: calling ${callName} using gasAmount = ${gasAmount}`)
 
         		try {
-                		return Promise.resolve(this.enqueueTk(appName, ctrName, callName, appArgs)(fromWallet, amount, gasAmount, tkObj));
+                		return Promise.resolve(this.enqueueTk(appName, ctrName, callName, appArgs)(fromWallet, amount, gasAmount, tkObj))
+					      .then((jobObj) => { return this.processJobs([jobObj]).then(console.log) })
+        				      .catch((err) => { console.trace(err); return Promise.reject(err); });
         		} catch (err) {
                 		return Promise.reject(err);
         		}
+		}
+
+		this.queueReceipts = (Q) => 
+		{
+        		let errRcds = {};
+        		let txhashes = this.rcdQ[Q].map((r) => {
+                		if (r.tx === '0x0000000000000000000000000000000000000000000000000000000000000000') {
+                        		errRcds[r.id] = r;
+                		}
+                		return r.tx;
+        		});
+
+        		return this.getReceipt(txhashes).then((rc) => {
+                		return rc.map((t,i) => {
+                        		if (i in errRcds) {
+                                		return { ... errRcds[i], ...t };
+                        		} else {
+                                		return t;
+                        		}
+                		})
+        		})
+        		.catch((err) => { console.trace(err); return Promise.reject(err); })
 		}
 
 		// init
