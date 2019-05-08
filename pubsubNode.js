@@ -241,12 +241,39 @@ class PubSub extends EventEmitter
 
   		this.swarm.listen(this.port);
 
+                // validator and merkleRoot related
+                this.makeMerkleTreeAndUploadRoot = () =>
+		{
+                        let initHeight = app.eth.ethNetStatus().blockHeight;
+
+                        // prepare merkle tree and make merkle root
+                        leaves = [];  // should collect leaves
+                        let merkleTree = this.makeMerkleTree(leaves);
+
+                        // upload merkle tree to IPFS, if success then put on chain
+                        let bklObj = {};  // should fill in values
+                        let stage = this.generateBlock();
+			stage = stage.then((rc) => {
+				console.log('IPFS Put Results'); console.dir(rc);
+                                return this.eth.sendTk('OptractMedia')('BlockRegistry')('submitMerkleRoot')(initHeight, merkleRoot, rc[0].hash)()
+			})
+			.catch((err) => { console.log(`ERROR in makeMerkleTreeAndUploadRoot`); console.trace(err); });
+
+			return stage;
+                }
+
+		this.generateBlock = (blkObj) =>
+		{
+		        // code here...
+		        let stage;
+			return stage;
+		}
 
                 // helper functions
                 // IPFS string need to convert to bytes32 in order to put in smart contract
                 this.IPFSstringtoBytes32 = (ipfsHash) =>
                 {
-                        // return bs58.decode(ipfsHash).toString('hex').slice(4);  // return string
+                        // return '0x'+bs58.decode(ipfsHash).toString('hex').slice(4);  // return string
                         return bs58.decode(ipfsHash).slice(2);  // return Buffer; slice 2 bytes = 4 hex  (the 'Qm' in front of hash)
                 }
 
