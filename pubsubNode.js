@@ -4,6 +4,7 @@ const swarm = require('discovery-swarm');
 const gossip = require('secure-gossip');
 const EventEmitter = require('events');
 const ethUtils = require('ethereumjs-utils');
+const bs58 = require('bs58');
 
 // console-only packages, not for browsers
 const fs = require('fs');
@@ -239,6 +240,38 @@ class PubSub extends EventEmitter
 		}
 
   		this.swarm.listen(this.port);
+
+
+                // helper functions
+                // IPFS string need to convert to bytes32 in order to put in smart contract
+                this.IPFSstringtoBytes32 = (ipfsHash) =>
+                {
+                        // return bs58.decode(ipfsHash).toString('hex').slice(4);  // return string
+                        return bs58.decode(ipfsHash).slice(2);  // return Buffer; slice 2 bytes = 4 hex  (the 'Qm' in front of hash)
+                }
+
+                this.Bytes32toIPFSstring = (hash) =>  // hash is a bytes32 Buffer
+                {
+                        return bs58.encode(Buffer.concat([Buffer.from([0x12, 0x20]), hash]))
+                }
+
+                this.genLeaf = (ipfs) =>  // just a dummy example right now
+                {
+                        let leafData =
+                        [
+                            0,  // nonce
+                            '0x' + this.IPFSstringtoBytes32(ipfs).toString('hex'),
+                            0,  // since
+                            0,  // agree
+                            0,  // disagree
+                            0x0,  // reply
+                            0x0,  // comment
+                        ]
+                        return this.eth.call('OptractMedia')('BlockRegistry')('calcLeaf')(...leafData).then((leaf) =>
+                        {
+                            console.log('leaf: ' + leaf);
+                        })
+                }
 	}
 }
 
