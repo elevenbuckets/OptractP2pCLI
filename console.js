@@ -113,12 +113,14 @@ class OptractNode extends PubSubNode {
                    'validPass',
 		   'allAccounts',
                    'connected',
+		   'makeMerkleTreeAndUploadRoot',
                    'configured'
 		];		
 
 		mixins.map((f) => { if (typeof(this[f]) === 'undefined' && typeof(Ethereum[f]) === 'function') this[f] = Ethereum[f] })
 		
 		this.currentTick = 0; //Just an epoch.
+		this.pending = {}; // format ??????
 
 		const observer = (sec = 3001) =>
 		{
