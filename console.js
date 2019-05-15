@@ -9,6 +9,7 @@ const readline = require('readline');
 const AsciiTable = require('ascii-table');
 const PubSubNode = require('./pubsubNode.js');
 const OptractMedia = require('./dapps/OptractMedia/OptractMedia.js');
+// const IPFS = require('./FileService.js');
 
 // ASCII Art!!!
 const ASCII_Art = (word) => {
@@ -140,10 +141,43 @@ class OptractNode extends PubSubNode {
 			// check ap balance (or nonce) ??????? 
 
 			// check signature <--- time consuming !!!
-			let packed = this.abi.encodeParameters( // mfield
-			  [ 'uint', 'address', 'bytes32', 'uint', 'bytes32'],
-			  []
-			)
+			// let packed = this.abi.encodeParameters( // mfields
+                        //   [ 'uint', 'address', 'bytes32', 'uint', 'bytes32'],  // nonce, eth_addr, article ipfs addr, since, comment ipfs addr
+			//   []
+			// )
+                        let rlpx = Buffer.from(msg.msg.data);
+			let rlp = this.handleRLPx(mfields)(rlpx).toJSON();
+			try {
+				data = this.handleRLPx(mfields)(rlpx); // decode
+                                account = ethUtils.bufferToHex(data.account);
+				if ( !('v' in data) || !('r' in data) || !('s' in data) ) {
+				        return;
+				} else if ( typeof(this.pending[this.currentTick][account]) === 'undefined' ) {
+				        this.pending[this.currentTick][account] = [];
+				} else if ( this.pending[this.currentTick][account].length === 12) {
+                                        console.log(`Max nonce reached (${account}): exceeds block limit of 12... ignored`);
+                                        return;
+                                }
+			} catch(err) {
+				console.trace(err);
+				return;
+			}
+		        let nonce = this.pending[this.currentTick][account].length;
+
+                        let sigout = {
+                                v: ethUtils.bufferToInt(data.v),
+                                r: data.r, s: data.s,
+                                nonce: nonce,
+                                account: data.account,
+                                content: data.content,
+                                since: data.since,
+                                comment: data.comment,
+                                netID: this.configs.networkID
+                        };
+		        if (this.verifySignature(sigout)){
+                                this.pending[this.currentTick].push(data);
+                        }
+
 			// store under this.pending[this.currentBlock]
 		})
 
@@ -155,7 +189,7 @@ class OptractNode extends PubSubNode {
 		observer(30000 + Math.floor(Math.random() * 10));
 
 		this.on('epoch', (currentTick) => {
-			 // update this.pending.past and create new this.pending.currnetTick 
+			 // update this.pending.past and create new this.pending.currentTick
 			 // AND: broadcast pending 
 			 // OR: trigger create merkle root
 			 //  when committing new block, additional logic to perform last sync or fallback to another witness also be executed here.
@@ -181,6 +215,7 @@ const app = new OptractNode(
 		]
 	},
 	dappdir: "/home/jasonlin/Proj/Playground/OptractP2pCLI/dapps"
+	// dappdir: "/home/kai/Work/project/OptractP2pCLI/dapps"
 });
 
 var r;

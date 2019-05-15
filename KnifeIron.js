@@ -302,6 +302,22 @@ class KnifeIron {
         		return signer === originAddress;
 		}
 
+                this.verifySignature = (sigObj) => //sigObj = {payload, v,r,s, networkID}
+                {
+                        let signer = '0x' +
+                              ethUtils.bufferToHex(
+                                ethUtils.sha3(
+                                  ethUtils.bufferToHex(
+                                        ethUtils.ecrecover(sigObj.payload, sigObj.v, sigObj.r, sigObj.s, sigObj.netID)
+                                  )
+                                )
+                              ).slice(26);
+
+                        console.log(`signer address: ${signer}`);
+
+                        return signer === ethUtils.bufferToHex(sigObj.originAddress);
+                }
+
 		this.addrEtherBalance = addr => { return this.web3.eth.getBalance(addr); }
 		this.byte32ToAddress = (b) => { return this.web3.toAddress(this.web3.toHex(this.web3.toBigNumber(String(b)))); };
 	        this.byte32ToDecimal = (b) => { return this.web3.toDecimal(this.web3.toBigNumber(String(b))); };
