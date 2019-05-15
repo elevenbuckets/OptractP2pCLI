@@ -11,35 +11,28 @@ const os = require('os');
 const path = require('path');
 
 // Common Bucket Tx
-const fields = 
+const pfields = 
 [
-	{name: 'nonce', length: 32, allowLess: true, default: new Buffer([]) },
-	{name: 'originAddress', length: 20, allowZero: true, default: new Buffer([]) },
-	{name: 'ipfsHash', length: 32, allowLess: true, default: new Buffer([]) },
-	{name: 'since', length: 32, allowLess: true, default: new Buffer([]) },
-	{name: 'reply', length: 32, allowLess: true, default: new Buffer([]) },
-	{name: 'comment', length: 32, allowLess: true, default: new Buffer([]) },
-	{name: 'score', length: 32, allowZero: true, default: new Buffer([]) }, // review only
-	{name: 'category', length: 32, allowLess: true, default: new Buffer([]) }, // new fields to be handled by ??? 
+        {name: 'nonce', length: 32, allowLess: true, default: new Buffer([]) },
+	{name: 'pending', length: 32, allowLess: true, default: new Buffer([]) },
+	{name: 'validator', length: 20, allowZero: true, default: new Buffer([]) },
+        {name: 'cache', length: 32, allowLess: true, default: new Buffer([]) }, // ipfs hash, containing JSON with IPFS hash that points to previous cache
+        {name: 'since', length: 32, allowLess: true, default: new Buffer([]) },
    	{name: 'v', allowZero: true, default: new Buffer([0x1c]) },
    	{name: 'r', allowZero: true, length: 32, default: new Buffer([]) },
    	{name: 's', allowZero: true, length: 32, default: new Buffer([]) }
 ];
 
-// Validator Only
-const active =
+const mfields =
 [
-	{name: 'validator', length: 20, allowZero: true, default: new Buffer([]) },
-	{name: 'originAddress', length: 20, allowZero: true, default: new Buffer([]) },
-	{name: 'ipfsHash', length: 32, allowLess: true, default: new Buffer([]) },
-	{name: 'since', length: 32, allowLess: true, default: new Buffer([]) },
-	{name: 'agree', length: 32, allowLess: true, default: new Buffer([]) },
-	{name: 'disagree', length: 32, allowLess: true, default: new Buffer([]) },
-	{name: 'score', length: 32, allowZero: true, default: new Buffer([]) }, // review only
-	{name: 'category', length: 32, allowLess: true, default: new Buffer([]) }, // new fields to be handled by ??? 
-   	{name: 'v', allowZero: true, default: new Buffer([0x1c]) },
-   	{name: 'r', allowZero: true, length: 32, default: new Buffer([]) },
-   	{name: 's', allowZero: true, length: 32, default: new Buffer([]) }
+        {name: 'nonce', length: 32, allowLess: true, default: new Buffer([]) },
+        {name: 'account', length: 20, allowZero: true, default: new Buffer([]) },
+        {name: 'content', length: 32, allowLess: true, default: new Buffer([]) }, // ipfs hash
+        {name: 'since', length: 32, allowLess: true, default: new Buffer([]) },
+        {name: 'comment', length: 32, allowLess: true, default: new Buffer([]) }, // ipfs hash, premium member only
+        {name: 'v', allowZero: true, default: new Buffer([0x1c]) },
+        {name: 'r', allowZero: true, length: 32, default: new Buffer([]) },
+        {name: 's', allowZero: true, length: 32, default: new Buffer([]) }
 ];
 
 const summary = 
@@ -124,9 +117,7 @@ class PubSub extends EventEmitter
 
 		  	this.gossip.on('message', (msg, info) => {
 				//console.log('get Message'); console.dir(msg);
-				if (this.filterSeen(msg) && this.throttlePeer(msg.data) && this.validateMsg(msg.data, info) ) {
-					this.emit('incomming', msg);
-				}
+				this.filterSeen(msg) && this.throttlePeer(msg.data) && this.validateMsg(msg.data, info); 
   			})
 
 			// default dummy incomming handler
@@ -206,27 +197,25 @@ class PubSub extends EventEmitter
 				try {
 					if (Buffer.isBuffer(msg.msg)) {
 						let rlpx = Buffer.from(msg.msg);
-						let rlp = this.handleRLPx(fields)(rlpx).toJSON(); // proper format;
-						return true;
-					} else if (info.public in this.validatorKeys) {
-						this.handleSnapshot(msg, info); // non-blocking
-						return true;
-					} else {
-						return false;
+
+						if (info.public in this.validatorKeys) {
+							let rlp = this.handleRLPx(pfields)(rlpx).toJSON(); // proper format;
+							this.emit('onpending', {topic: msg.topic, data: rlp}); 
+						} else {
+							let rlp = this.handleRLPx(mfields)(rlpx).toJSON(); // proper format;
+							this.emit('incomming', {topic: msg.topic, data: rlp});
+						}
 					}
 				} catch (err) {
 					console.trace(err);
-					return false;
 				}
 			}
-			// - signature matches
-			return true; // place holder
 		}
 
 		this.publish = (topic, msg) =>
 		{
 			if (this.topicList.length === 0 || this.topicList.indexOf(topic) === -1) return false; 
-			msg = { data: {topic, msg, public: this.id} }; // secure-gossip requires the key named "data" ...
+			msg = { data: {topic, msg} }; // secure-gossip requires the key named "data" ...
     			return this.gossip.publish(msg)
 		}
 

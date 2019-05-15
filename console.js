@@ -8,6 +8,7 @@ const figlet = require('figlet');
 const readline = require('readline');
 const AsciiTable = require('ascii-table');
 const PubSubNode = require('./pubsubNode.js');
+const OptractMedia = require('./dapps/OptractMedia/OptractMedia.js');
 
 // ASCII Art!!!
 const ASCII_Art = (word) => {
@@ -66,17 +67,42 @@ const askMasterPass = (resolve, reject) =>
         }
 }
 
-//Main
-const OptractMedia = require('./dapps/OptractMedia/OptractMedia.js');
+const asyncExec = (func) => { return setTimeout(func, 0) }
 
+// Common Tx
+const mfields =
+[
+        {name: 'nonce', length: 32, allowLess: true, default: new Buffer([]) },
+        {name: 'account', length: 20, allowZero: true, default: new Buffer([]) },
+        {name: 'content', length: 32, allowLess: true, default: new Buffer([]) }, // ipfs hash
+        {name: 'since', length: 32, allowLess: true, default: new Buffer([]) },
+        {name: 'comment', length: 32, allowLess: true, default: new Buffer([]) }, // ipfs hash, premium member only
+        {name: 'v', allowZero: true, default: new Buffer([0x1c]) },
+        {name: 'r', allowZero: true, length: 32, default: new Buffer([]) },
+        {name: 's', allowZero: true, length: 32, default: new Buffer([]) }
+];
+
+const pfields =
+[
+        {name: 'nonce', length: 32, allowLess: true, default: new Buffer([]) },
+        {name: 'pending', length: 32, allowLess: true, default: new Buffer([]) },
+        {name: 'validator', length: 20, allowZero: true, default: new Buffer([]) },
+        {name: 'cache', length: 32, allowLess: true, default: new Buffer([]) }, // ipfs hash, containing JSON with IPFS hash that points to previous cache
+        {name: 'since', length: 32, allowLess: true, default: new Buffer([]) },
+        {name: 'v', allowZero: true, default: new Buffer([0x1c]) },
+        {name: 'r', allowZero: true, length: 32, default: new Buffer([]) },
+        {name: 's', allowZero: true, length: 32, default: new Buffer([]) }
+];
+
+//Main
 class OptractNode extends PubSubNode {
 	constructor(cfgObj) {
 		super(cfgObj);
 
 		this.appCfgs = require(path.join(cfgObj.dappdir, 'config.json')); // can become part of cfgObj
-		this.eth = new OptractMedia(this.appCfgs);
-		this.appName = this.eth.appName;
+		this.appName = 'OptractMedia';
 
+		const Ethereum = new OptractMedia(this.appCfgs);
 		const mixins = 
 		[
 		   'call', 
@@ -85,10 +111,60 @@ class OptractNode extends PubSubNode {
 		   'linkAccount',
 		   'password',
                    'validPass',
-		   'allAccounts'
+		   'allAccounts',
+                   'connected',
+                   'configured'
 		];		
 
-		mixins.map((f) => { if (typeof(this[f]) === 'undefined' && typeof(this.eth[f]) === 'function') this[f] = this.eth[f] })
+		mixins.map((f) => { if (typeof(this[f]) === 'undefined' && typeof(Ethereum[f]) === 'function') this[f] = Ethereum[f] })
+		
+		this.currentBlock = 0; // Ethereum block No. just used as an epoch.
+
+		const observer = (sec = 3001) =>
+		{
+        		const __block_progress = () =>
+        		{
+				return this.ethNetStatus().then((stat) => 
+				{
+		                	if (stat.blockHeight !== 0 && (stat.blockHeight !== stat.highestBlock || stat.blockHeight > this.currentBlock)) {
+                				this.emit('ethstats', stat);
+		               			this.currentBlock = stat.blockHeight;
+                			} else if (stat.blockHeight === 0) {
+                        			this.emit('ethstats', stat);
+                			}
+				})
+        		}
+
+        		return setInterval(() =>
+        		{
+                		if (!this.connected() && this.configured()) {
+                        		return this.connect().then((rc) => {
+                                		return __block_progress();
+                        		})
+		                        .catch((err) => { console.log(`DEBUG: lost geth connections`); })
+                		} else if (this.connected()) {
+		                        return __block_progress();
+                		}
+        		}, sec);
+		}
+
+		// pubsub handler
+		this.connectP2P();
+		this.join('Optract');
+
+		this.setIncommingHandler((msg) => 
+		{
+			// check membership status
+			// check ap balance (or nonce)
+			// check signature
+			let packed = this.abi.encodeParameters(
+			  [ 'uint', 'address', 'bytes32', 'uint', 'bytes32'],
+			  []
+			)
+			// store under this.pending[this.currentBlock]
+		})
+	
+		//observer(8001);
 	}
 }
 
