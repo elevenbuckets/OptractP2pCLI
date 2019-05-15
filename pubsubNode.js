@@ -227,6 +227,14 @@ class PubSub extends EventEmitter
 			return true;
 		}
 
+                this.setOnpendingHandler = (func) =>
+                {
+			if (typeof(func) !== 'function') { return false; }
+			this.removeAllListeners('onpending');
+			this.on('onpending', func);
+                        return true;
+                }
+
   		this.swarm.listen(this.port);
 	}
 }
