@@ -4,7 +4,6 @@ const ethUtils = require('ethereumjs-utils');
 const KnifeIron = require('../../KnifeIron.js');
 //const leveldb  = require('level');
 const mkdirp = require('mkdirp');
-const util = require('util');
 
 // Helper functions, may go into bladeiron_api later
 const toBool = (str) =>
@@ -56,22 +55,6 @@ class OptractMedia extends KnifeIron {
                 super(cfgObj);
 
 		this.appName = 'OptractMedia';
-
-		// overloading, since we are using Infura, not local geth nor privnet
-		this.ethNetStatus = () =>
-		{
-			const pgb = util.promisify(this.web3.eth.getBlock);
-			return pgb('latest').then((...newblock) => {
-				console.dir(newblock);
-				let blockTime = newblock.timestamp; 
-				let blockHeight = newblock.number;
-				let highestBlock = blockHeight;
-				return { connected: true, blockHeight, blockTime, highestBlock };
-			}).catch((err) => {
-				console.trace(err);
-				return { connected: false, blockHeight: 0, blockTime: 0, highestBlock: 0};
-			})
-		}
 
 		// Packet handlers:
 		// Pending Pool ID example:

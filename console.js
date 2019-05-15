@@ -118,34 +118,14 @@ class OptractNode extends PubSubNode {
 
 		mixins.map((f) => { if (typeof(this[f]) === 'undefined' && typeof(Ethereum[f]) === 'function') this[f] = Ethereum[f] })
 		
-		this.currentBlock = 0; // Ethereum block No. just used as an epoch.
+		this.currentTick = 0; //Just an epoch.
 
 		const observer = (sec = 3001) =>
 		{
-        		const __block_progress = () =>
-        		{
-				return this.ethNetStatus().then((stat) => 
-				{
-		                	if (stat.blockHeight !== 0 && (stat.blockHeight !== stat.highestBlock || stat.blockHeight > this.currentBlock)) {
-                				this.emit('ethstats', stat);
-		               			this.currentBlock = stat.blockHeight;
-                			} else if (stat.blockHeight === 0) {
-                        			this.emit('ethstats', stat);
-                			}
-				})
-        		}
-
-        		return setInterval(() =>
-        		{
-                		if (!this.connected() && this.configured()) {
-                        		return this.connect().then((rc) => {
-                                		return __block_progress();
-                        		})
-		                        .catch((err) => { console.log(`DEBUG: lost geth connections`); })
-                		} else if (this.connected()) {
-		                        return __block_progress();
-                		}
-        		}, sec);
+        		return setInterval(() => { 
+				this.currentTick = Math.floor(Date.now() / 1000);
+				this.emit('epoch', { epoch: this.currentTick }) 
+			}, sec);
 		}
 
 		// pubsub handler
@@ -155,16 +135,29 @@ class OptractNode extends PubSubNode {
 		this.setIncommingHandler((msg) => 
 		{
 			// check membership status
-			// check ap balance (or nonce)
-			// check signature
-			let packed = this.abi.encodeParameters(
+			// check ap balance (or nonce) ??????? 
+
+			// check signature <--- time consuming !!!
+			let packed = this.abi.encodeParameters( // mfield
 			  [ 'uint', 'address', 'bytes32', 'uint', 'bytes32'],
 			  []
 			)
 			// store under this.pending[this.currentBlock]
 		})
+
+		this.setOnpendingHandler((msg) => 
+		{
+			// merge with own pending pool
+		})
 	
-		//observer(8001);
+		observer(30000 + Math.floor(Math.random() * 10));
+
+		this.on('epoch', (currentTick) => {
+			 // update this.pending.past and create new this.pending.currnetTick 
+			 // AND: broadcast pending 
+			 // OR: trigger create merkle root
+			 //  when committing new block, additional logic to perform last sync or fallback to another witness also be executed here.
+		});
 	}
 }
 
