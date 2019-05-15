@@ -208,6 +208,7 @@ class PubSub extends EventEmitter
 					}
 				} catch (err) {
 					console.trace(err);
+					// more (pubsub / gossip) peer management can be utilized to deal with bad behaviors...
 				}
 			}
 		}
@@ -227,13 +228,13 @@ class PubSub extends EventEmitter
 			return true;
 		}
 
-                this.setOnpendingHandler = (func) =>
-                {
+		this.setOnpendingHandler = (func) => // func needs to take one args, which is msg object
+		{
 			if (typeof(func) !== 'function') { return false; }
 			this.removeAllListeners('onpending');
 			this.on('onpending', func);
-                        return true;
-                }
+			return true;
+		}
 
   		this.swarm.listen(this.port);
 	}
