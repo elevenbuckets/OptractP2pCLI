@@ -672,7 +672,7 @@ class KnifeIron {
 							let jobWallet = this.userWallet[job.type];
 							let userBalance = this.web3.eth.getBalance(jobWallet);
 		
-							console.debug(` - Account: ${jobWallet}; Balance: ${userBalance} ETH`);
+                                                    console.debug(` - Account: ${jobWallet}; Balance: ${userBalance/1e18} ETH`);
 		
 							let gasCost = new BigNumber(job.txObj.gasLimit).times(this.gasPrice); 
 		
