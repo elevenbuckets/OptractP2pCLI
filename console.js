@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 'use strict';
 
-const url = require('url');
 const repl = require('repl');
 const path = require('path');
 const figlet = require('figlet');
@@ -10,6 +9,8 @@ const AsciiTable = require('ascii-table');
 const PubSubNode = require('./pubsubNode.js');
 const OptractMedia = require('./dapps/OptractMedia/OptractMedia.js');
 const IPFS = require('./FileService.js');
+const mr = require('@postlight/mercury-parser');
+const bs58 = require('bs58');
 
 // ASCII Art!!!
 const ASCII_Art = (word) => {
@@ -118,20 +119,40 @@ class OptractNode extends PubSubNode {
                    'connected',
 		   'makeMerkleTreeAndUploadRoot',
                    'configured',
-                   'memberStatus'
+                   'memberStatus',
+		   'unlockAndSign'
 		];		
 
-		mixins.map((f) => { if (typeof(this[f]) === 'undefined' && typeof(Ethereum[f]) === 'function') this[f] = Ethereum[f] })
+		mixins.map((f) => { if (typeof(this[f]) === 'undefined' && typeof(Ethereum[f]) === 'function') this[f] = Ethereum[f] });
+
+		this.networkID = Ethereum.networkID;
+		this.abi = Ethereum.abi;
+		this.userWallet = Ethereum.userWallet // FIXME!!!
 
 		// IPFS related
 		this.ipfs = FileServ.ipfs;
 
 		this.get = (ipfsPath) => { return this.ipfs.cat(ipfsPath) }; // returns promise that resolves into Buffer
 		this.put = (buffer)   => { return this.ipfs.add(buffer) }; // returns promise that resolves into JSON
+		
+		// IPFS string need to convert to bytes32 in order to put in smart contract
+                this.IPFSstringtoBytes32 = (ipfsHash) =>
+                {
+                         return '0x'+bs58.decode(ipfsHash).toString('hex').slice(4);  // return string
+                        //return bs58.decode(ipfsHash).slice(2);  // return Buffer; slice 2 bytes = 4 hex  (the 'Qm' in front of hash)
+                }
+
+                this.Bytes32toIPFSstring = (hash) =>  // hash is a bytes32 Buffer
+                {
+                        return bs58.encode(Buffer.concat([Buffer.from([0x12, 0x20]), hash]))
+                }
 
 		// Event related		
 		this.currentTick = 0; //Just an epoch.
 		this.pending = { past: {} }; // format ??????
+
+		// nonce counter (temporary fix for nodejs)
+		this.myNonce = 0;
 
 		const observer = (sec = 3001) =>
 		{
@@ -155,52 +176,85 @@ class OptractNode extends PubSubNode {
 		{
 			//TODO:
 			// check membership status
+
 			// check ap balance (or nonce) ???????
 
 			// check signature <--- time consuming !!!
 			let data = msg.data;
 			let account = ethUtils.bufferToHex(data.account);
-			try {
-				if ( !('v' in data) || !('r' in data) || !('s' in data) ) {
-				        return;
-				} else if ( typeof(this.pending[this.currentTick][account]) === 'undefined' ) {
-				        this.pending[this.currentTick][account] = [];
-				}
-				
-				if ( typeof(this.pending['past'][account]) !== 'undefined') {
-					if (this.pending['past'][account].length + this.pending[this.currentTick][account].length === 12) {
-                                        	console.log(`Max nonce reached (${account}): exceeds block limit of 12... ignored`);
-                                        	return;
+			this.memberStatus(account).then((rc) => { return rc[0] === 'active'; })
+			    .then((rc) => {
+				if (!rc) return; // check is member or not ... not yet checking different tiers of memberships.
+				try {
+					if ( !('v' in data) || !('r' in data) || !('s' in data) ) {
+					        return;
+					} else if ( typeof(this.pending[this.currentTick][account]) === 'undefined' ) {
+					        this.pending[this.currentTick][account] = [];
 					}
-				} else {
-					if (this.pending[this.currentTick][account].length === 12) {
-                                        	console.log(`Max nonce reached (${account}): exceeds block limit of 12... ignored`);
-                                        	return;
+					
+					if ( typeof(this.pending['past'][account]) !== 'undefined') {
+						if (this.pending['past'][account].length + this.pending[this.currentTick][account].length === 12) {
+	                                        	console.log(`Max nonce reached (${account}): exceeds block limit of 12... ignored`);
+	                                        	return;
+						}
+					} else {
+						if (this.pending[this.currentTick][account].length === 12) {
+	                                        	console.log(`Max nonce reached (${account}): exceeds block limit of 12... ignored`);
+	                                        	return;
+						}
 					}
+				} catch(err) {
+					console.trace(err);
+					return;
 				}
-			} catch(err) {
-				console.trace(err);
-				return;
-			}
+	
+			        let nonce = data.nonce; 
+				let _payload = this.abi.encodeParameters(
+					['uint', 'address', 'bytes32', 'uint', 'bytes32'],
+					[nonce, data.account, data.content, data.since, data.comment]
+				);
 
-		        let nonce = data.nonce;
-
-                        let sigout = {
-                                v: ethUtils.bufferToInt(data.v),
-                                r: data.r, s: data.s,
-                                nonce: nonce,
-                                account: data.account,
-                                content: data.content,
-                                since: data.since,
-                                comment: data.comment,
-                                netID: this.configs.networkID
-                        };
-		        if (this.verifySignature(sigout)){
-                                this.pending[this.currentTick][account].push(data);
-                        }
-
-			// store under this.pending[this.currentBlock]
+				let payload = ethUtils.hashPersonalMessage(Buffer.from(_payload));
+	                        let sigout = {
+					originAddress: account,
+	                                v: ethUtils.bufferToInt(data.v),
+	                                r: data.r, s: data.s,
+					payload,
+	                                netID: this.networkID
+	                        };
+			        if (this.verifySignature(sigout)){
+	                                this.pending[this.currentTick][account].push(data);
+	                        }
+			    })
 		})
+
+		this.newArticle = (url) => 
+		{
+			let account = this.userWallet[this.appName];
+			return mr.parse(url).then((result) => {
+				return this.put(Buffer.from(JSON.stringify(result))).then((out) => {
+					let content = this.IPFSstringtoBytes32(out[0].hash);
+					let comment = '0x0000000000000000000000000000000000000000000000000000000000000000'; // for now
+					let since = Math.floor(Date.now() / 1000);
+					let payload = this.abi.encodeParameters(
+						['uint', 'address', 'bytes32', 'uint', 'bytes32'],
+						[this.myNonce + 1, account, content, since, comment]
+					);
+
+					return this.unlockAndSign(account)(Buffer.from(payload)).then((sig) => {
+						let params = {
+							nonce: this.myNonce + 1,
+							account, content, comment, since,
+							v: Number(sig.v), r: sig.r, s: sig.s
+						};
+						let rlp = this.handleRLPx(mfields)(params);
+						this.publish('Optract', rlp.serialize());
+						this.myNonce = this.myNonce + 1;
+						return rlp;
+					}).catch((err) => { console.trace(err); })
+				})
+			});
+		}
 
 		this.setOnpendingHandler((msg) => 
 		{

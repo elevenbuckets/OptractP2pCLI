@@ -81,7 +81,7 @@ class KnifeIron {
                         return addr;
                 };
 
-		this.abi  = abi;
+		this.abi  = new abi.AbiCoder();
 		this.toHex = (input) => { return this.web3.toHex(input) };
 
 		this.CUE = { 'Web3': { 'ETH': {'sendTransaction': this.web3.eth.sendTransaction } }, 'Token': {} };
