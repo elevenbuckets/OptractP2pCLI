@@ -13,40 +13,40 @@ const path = require('path');
 // Common Bucket Tx
 const pfields = 
 [
-        {name: 'nonce', length: 32, allowLess: true, default: new Buffer([]) },
-	{name: 'pending', length: 32, allowLess: true, default: new Buffer([]) },
-	{name: 'validator', length: 20, allowZero: true, default: new Buffer([]) },
-        {name: 'cache', length: 32, allowLess: true, default: new Buffer([]) }, // ipfs hash, containing JSON with IPFS hash that points to previous cache
-        {name: 'since', length: 32, allowLess: true, default: new Buffer([]) },
-   	{name: 'v', allowZero: true, default: new Buffer([0x1c]) },
-   	{name: 'r', allowZero: true, length: 32, default: new Buffer([]) },
-   	{name: 's', allowZero: true, length: 32, default: new Buffer([]) }
+        {name: 'nonce', length: 32, allowLess: true, default: Buffer.from([]) },
+	{name: 'pending', length: 32, allowLess: true, default: Buffer.from([]) },
+	{name: 'validator', length: 20, allowZero: true, default: Buffer.from([]) },
+        {name: 'cache', length: 32, allowLess: true, default: Buffer.from([]) }, // ipfs hash, containing JSON with IPFS hash that points to previous cache
+        {name: 'since', length: 32, allowLess: true, default: Buffer.from([]) },
+   	{name: 'v', allowZero: true, default: Buffer.from([0x1c]) },
+   	{name: 'r', allowZero: true, length: 32, default: Buffer.from([]) },
+   	{name: 's', allowZero: true, length: 32, default: Buffer.from([]) }
 ];
 
 const mfields =
 [
-        {name: 'nonce', length: 32, allowLess: true, default: new Buffer([]) },
-        {name: 'account', length: 20, allowZero: true, default: new Buffer([]) },
-        {name: 'content', length: 32, allowLess: true, default: new Buffer([]) }, // ipfs hash
-        {name: 'since', length: 32, allowLess: true, default: new Buffer([]) },
-        {name: 'comment', length: 32, allowLess: true, default: new Buffer([]) }, // ipfs hash, premium member only
-        {name: 'v', allowZero: true, default: new Buffer([0x1c]) },
-        {name: 'r', allowZero: true, length: 32, default: new Buffer([]) },
-        {name: 's', allowZero: true, length: 32, default: new Buffer([]) }
+        {name: 'nonce', length: 32, allowLess: true, default: Buffer.from([]) },
+        {name: 'account', length: 20, allowZero: true, default: Buffer.from([]) },
+        {name: 'content', length: 32, allowLess: true, default: Buffer.from([]) }, // ipfs hash
+        {name: 'since', length: 32, allowLess: true, default: Buffer.from([]) },
+        {name: 'comment', length: 32, allowLess: true, default: Buffer.from([]) }, // ipfs hash, premium member only
+        {name: 'v', allowZero: true, default: Buffer.from([0x1c]) },
+        {name: 'r', allowZero: true, length: 32, default: Buffer.from([]) },
+        {name: 's', allowZero: true, length: 32, default: Buffer.from([]) }
 ];
 
 const summary = 
 [
-	{name: 'validator', length: 20, allowZero: true, default: new Buffer([]) },
-	{name: 'originAddress', length: 20, allowZero: true, default: new Buffer([]) },
-	{name: 'start', length: 32, allowLess: true, default: new Buffer([]) },
-	{name: 'end', length: 32, allowLess: true, default: new Buffer([]) },
-	{name: 'spend', length: 32, allowLess: true, default: new Buffer([]) },
-	{name: 'gain', length: 32, allowLess: true, default: new Buffer([]) },
-	{name: 'accuRewards', length: 32, allowLess: true, default: new Buffer([]) },
-   	{name: 'v', allowZero: true, default: new Buffer([0x1c]) },
-   	{name: 'r', allowZero: true, length: 32, default: new Buffer([]) },
-   	{name: 's', allowZero: true, length: 32, default: new Buffer([]) }
+	{name: 'validator', length: 20, allowZero: true, default: Buffer.from([]) },
+	{name: 'originAddress', length: 20, allowZero: true, default: Buffer.from([]) },
+	{name: 'start', length: 32, allowLess: true, default: Buffer.from([]) },
+	{name: 'end', length: 32, allowLess: true, default: Buffer.from([]) },
+	{name: 'spend', length: 32, allowLess: true, default: Buffer.from([]) },
+	{name: 'gain', length: 32, allowLess: true, default: Buffer.from([]) },
+	{name: 'accuRewards', length: 32, allowLess: true, default: Buffer.from([]) },
+   	{name: 'v', allowZero: true, default: Buffer.from([0x1c]) },
+   	{name: 'r', allowZero: true, length: 32, default: Buffer.from([]) },
+   	{name: 's', allowZero: true, length: 32, default: Buffer.from([]) }
 ];
 
 const keyCheck = (obj) => (k) =>

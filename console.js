@@ -9,7 +9,7 @@ const readline = require('readline');
 const AsciiTable = require('ascii-table');
 const PubSubNode = require('./pubsubNode.js');
 const OptractMedia = require('./dapps/OptractMedia/OptractMedia.js');
-// const IPFS = require('./FileService.js');
+const IPFS = require('./FileService.js');
 
 // ASCII Art!!!
 const ASCII_Art = (word) => {
@@ -73,26 +73,26 @@ const asyncExec = (func) => { return setTimeout(func, 0) }
 // Common Tx
 const mfields =
 [
-        {name: 'nonce', length: 32, allowLess: true, default: new Buffer([]) },
-        {name: 'account', length: 20, allowZero: true, default: new Buffer([]) },
-        {name: 'content', length: 32, allowLess: true, default: new Buffer([]) }, // ipfs hash
-        {name: 'since', length: 32, allowLess: true, default: new Buffer([]) },
-        {name: 'comment', length: 32, allowLess: true, default: new Buffer([]) }, // ipfs hash, premium member only
-        {name: 'v', allowZero: true, default: new Buffer([0x1c]) },
-        {name: 'r', allowZero: true, length: 32, default: new Buffer([]) },
-        {name: 's', allowZero: true, length: 32, default: new Buffer([]) }
+        {name: 'nonce', length: 32, allowLess: true, default: Buffer.from([]) },
+        {name: 'account', length: 20, allowZero: true, default: Buffer.from([]) },
+        {name: 'content', length: 32, allowLess: true, default: Buffer.from([]) }, // ipfs hash
+        {name: 'since', length: 32, allowLess: true, default: Buffer.from([]) },
+        {name: 'comment', length: 32, allowLess: true, default: Buffer.from([]) }, // ipfs hash, premium member only
+        {name: 'v', allowZero: true, default: Buffer.from([0x1c]) },
+        {name: 'r', allowZero: true, length: 32, default: Buffer.from([]) },
+        {name: 's', allowZero: true, length: 32, default: Buffer.from([]) }
 ];
 
 const pfields =
 [
-        {name: 'nonce', length: 32, allowLess: true, default: new Buffer([]) },
-        {name: 'pending', length: 32, allowLess: true, default: new Buffer([]) },
-        {name: 'validator', length: 20, allowZero: true, default: new Buffer([]) },
-        {name: 'cache', length: 32, allowLess: true, default: new Buffer([]) }, // ipfs hash, containing JSON with IPFS hash that points to previous cache
-        {name: 'since', length: 32, allowLess: true, default: new Buffer([]) },
-        {name: 'v', allowZero: true, default: new Buffer([0x1c]) },
-        {name: 'r', allowZero: true, length: 32, default: new Buffer([]) },
-        {name: 's', allowZero: true, length: 32, default: new Buffer([]) }
+        {name: 'nonce', length: 32, allowLess: true, default: Buffer.from([]) },
+        {name: 'pending', length: 32, allowLess: true, default: Buffer.from([]) },
+        {name: 'validator', length: 20, allowZero: true, default: Buffer.from([]) },
+        {name: 'cache', length: 32, allowLess: true, default: Buffer.from([]) }, // ipfs hash, containing JSON with IPFS hash that points to previous cache
+        {name: 'since', length: 32, allowLess: true, default: Buffer.from([]) },
+        {name: 'v', allowZero: true, default: Buffer.from([0x1c]) },
+        {name: 'r', allowZero: true, length: 32, default: Buffer.from([]) },
+        {name: 's', allowZero: true, length: 32, default: Buffer.from([]) }
 ];
 
 //Main
@@ -102,6 +102,8 @@ class OptractNode extends PubSubNode {
 
 		this.appCfgs = require(path.join(cfgObj.dappdir, 'config.json')); // can become part of cfgObj
 		this.appName = 'OptractMedia';
+
+		const FileServ = new IPFS(this.appCfgs.ipfs);
 
 		const Ethereum = new OptractMedia(this.appCfgs);
 		const mixins = 
@@ -119,14 +121,27 @@ class OptractNode extends PubSubNode {
 		];		
 
 		mixins.map((f) => { if (typeof(this[f]) === 'undefined' && typeof(Ethereum[f]) === 'function') this[f] = Ethereum[f] })
-		
+
+		// IPFS related
+		this.ipfs = FileServ.ipfs;
+
+		this.get = (ipfsPath) => { return this.ipfs.cat(ipfsPath) }; // returns promise that resolves into Buffer
+		this.put = (buffer)   => { return this.ipfs.add(buffer) }; // returns promise that resolves into JSON
+
+		// Event related		
 		this.currentTick = 0; //Just an epoch.
-		this.pending = {}; // format ??????
+		this.pending = { past: {} }; // format ??????
 
 		const observer = (sec = 3001) =>
 		{
-        		return setInterval(() => { 
+        		return setInterval(() => {
+			 	// update this.pending.past and create new this.pending.currentTick
+				if (this.currentTick !== 0) {
+					this.pending['past'] = { ...this.pending['past'], ...this.pending[this.currentTick] };
+					delete this.pending[this.currentTick];
+				}
 				this.currentTick = Math.floor(Date.now() / 1000);
+				this.pending[this.currentTick] = {};
 				this.emit('epoch', { epoch: this.currentTick }) 
 			}, sec);
 		}
@@ -137,32 +152,37 @@ class OptractNode extends PubSubNode {
 
 		this.setIncommingHandler((msg) => 
 		{
+			//TODO:
 			// check membership status
-			// check ap balance (or nonce) ??????? 
+			// check ap balance (or nonce) ???????
 
 			// check signature <--- time consuming !!!
-			// let packed = this.abi.encodeParameters( // mfields
-                        //   [ 'uint', 'address', 'bytes32', 'uint', 'bytes32'],  // nonce, eth_addr, article ipfs addr, since, comment ipfs addr
-			//   []
-			// )
-                        let rlpx = Buffer.from(msg.msg.data);
-			let rlp = this.handleRLPx(mfields)(rlpx).toJSON();
+			let data = msg.data;
+			let account = ethUtils.bufferToHex(data.account);
 			try {
-				data = this.handleRLPx(mfields)(rlpx); // decode
-                                account = ethUtils.bufferToHex(data.account);
 				if ( !('v' in data) || !('r' in data) || !('s' in data) ) {
 				        return;
 				} else if ( typeof(this.pending[this.currentTick][account]) === 'undefined' ) {
 				        this.pending[this.currentTick][account] = [];
-				} else if ( this.pending[this.currentTick][account].length === 12) {
-                                        console.log(`Max nonce reached (${account}): exceeds block limit of 12... ignored`);
-                                        return;
-                                }
+				}
+				
+				if ( typeof(this.pending['past'][account]) !== 'undefined') {
+					if (this.pending['past'][account].length + this.pending[this.currentTick][account].length === 12) {
+                                        	console.log(`Max nonce reached (${account}): exceeds block limit of 12... ignored`);
+                                        	return;
+					}
+				} else {
+					if (this.pending[this.currentTick][account].length === 12) {
+                                        	console.log(`Max nonce reached (${account}): exceeds block limit of 12... ignored`);
+                                        	return;
+					}
+				}
 			} catch(err) {
 				console.trace(err);
 				return;
 			}
-		        let nonce = this.pending[this.currentTick][account].length;
+
+		        let nonce = data.nonce;
 
                         let sigout = {
                                 v: ethUtils.bufferToInt(data.v),
@@ -175,7 +195,7 @@ class OptractNode extends PubSubNode {
                                 netID: this.configs.networkID
                         };
 		        if (this.verifySignature(sigout)){
-                                this.pending[this.currentTick].push(data);
+                                this.pending[this.currentTick][account].push(data);
                         }
 
 			// store under this.pending[this.currentBlock]
@@ -189,15 +209,14 @@ class OptractNode extends PubSubNode {
 		observer(30000 + Math.floor(Math.random() * 10));
 
 		this.on('epoch', (currentTick) => {
-			 // update this.pending.past and create new this.pending.currentTick
-			 // AND: broadcast pending 
-			 // OR: trigger create merkle root
-			 //  when committing new block, additional logic to perform last sync or fallback to another witness also be executed here.
+			 // Broadcast pending or trigger create merkle root.
+			 // When committing new block, additional logic to perform last sync or 
+			 // fallback to another witness also be executed here.
 		});
 	}
 }
 
-const app = new OptractNode(
+const appCfg = 
 {
 	port: 45001 + Math.floor(Math.random()*20), 
 	dns: {
@@ -216,23 +235,27 @@ const app = new OptractNode(
 	},
 	dappdir: "/home/jasonlin/Proj/Playground/OptractP2pCLI/dapps"
 	// dappdir: "/home/kai/Work/project/OptractP2pCLI/dapps"
-});
+};
 
+var app;
 var r;
+var title = 'Optract: Ops Console';
 
 let stage = new Promise(askMasterPass)
          .catch((err) => { process.exit(1); })
-         .then((answer) => { return app.password(answer) })
-	 .then(app.validPass)
+         .then((answer) => { app = new OptractNode(appCfg); app.password(answer); return app.validPass() })
          .then((rc) => { 
 		if (rc && typeof(app.appCfgs.dapps[app.appName].account) !== 'undefined') {
 			return app.linkAccount(app.appName)(app.appCfgs.dapps[app.appName].account).then(console.log);
+		} else {
+			//console.log(`WARNING: Read-Only Mode as Master Password is NOT unlocked!!!`);
+			title = 'Optract: Ops Console  [ RO ]';
 		}
 	 })
 	 .catch((err) => { console.trace(err); });
 
 stage = stage.then(() => {
-	return ASCII_Art('Optract: Ops Console').then((art) => {
+	return ASCII_Art(title).then((art) => {
 	        console.log(art);
 		r = repl.start({ prompt: `[-= ${app.appName} =-]$ `, eval: replEvalPromise });
 	        r.context = {app};
