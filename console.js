@@ -117,7 +117,8 @@ class OptractNode extends PubSubNode {
 		   'allAccounts',
                    'connected',
 		   'makeMerkleTreeAndUploadRoot',
-                   'configured'
+                   'configured',
+                   'memberStatus'
 		];		
 
 		mixins.map((f) => { if (typeof(this[f]) === 'undefined' && typeof(Ethereum[f]) === 'function') this[f] = Ethereum[f] })
