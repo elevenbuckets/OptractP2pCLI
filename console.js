@@ -105,7 +105,6 @@ class OptractNode extends PubSubNode {
 		this.appName = 'OptractMedia';
 
 		const FileServ = new IPFS(this.appCfgs.ipfs);
-
 		const Ethereum = new OptractMedia(this.appCfgs);
 		const mixins = 
 		[
@@ -127,7 +126,7 @@ class OptractNode extends PubSubNode {
 
 		this.networkID = Ethereum.networkID;
 		this.abi = Ethereum.abi;
-		this.userWallet = Ethereum.userWallet // FIXME!!!
+		this.userWallet = Ethereum.userWallet;
 
 		// IPFS related
 		this.ipfs = FileServ.ipfs;
@@ -153,65 +152,63 @@ class OptractNode extends PubSubNode {
 
 		// nonce counter (temporary fix for nodejs)
 		this.myNonce = 0;
+		this.myEpoch = 0;
 
 		const observer = (sec = 3001) =>
 		{
         		return setInterval(() => {
+				let _tick = Math.floor(Date.now() / 1000);
 			 	// update this.pending.past and create new this.pending.currentTick
 				if (this.currentTick !== 0) {
-					this.pending['past'] = { ...this.pending['past'], ...this.pending[this.currentTick] };
+					let _tmp = { ...this.pending[this.currentTick] };
 					delete this.pending[this.currentTick];
+					this.currentTick = _tick;
+					this.pending[this.currentTick] = {};
+					this.pending['past'] = { ...this.pending['past'], ..._tmp };
+
+					this.myEpoch = this.myEpoch + 1;
+					this.emit('epoch', { tick: this.currentTick, epoch: this.myEpoch }) 
+				} else {
+					this.currentTick = _tick;
+					this.pending[this.currentTick] = {};
 				}
-				this.currentTick = Math.floor(Date.now() / 1000);
-				this.pending[this.currentTick] = {};
-				this.emit('epoch', { epoch: this.currentTick }) 
 			}, sec);
 		}
 
 		// pubsub handler
 		this.connectP2P();
 		this.join('Optract');
+		this.expn = {};
+
+		const compare = (a,b) => { if (a.nonce > b.nonce) { return 1 } else { return -1 }; return 0 };
 
 		this.setIncommingHandler((msg) => 
 		{
-			//TODO:
-			// check membership status
-
-			// check ap balance (or nonce) ???????
-
-			// check signature <--- time consuming !!!
 			let data = msg.data;
 			let account = ethUtils.bufferToHex(data.account);
 			this.memberStatus(account).then((rc) => { return rc[0] === 'active'; })
 			    .then((rc) => {
 				if (!rc) return; // check is member or not ... not yet checking different tiers of memberships.
 				try {
+					if (typeof(this.expn[account]) === 'undefined') {
+						this.expn[account] = 0;
+					} else if (this.expn[account] >= 120) { 
+						return;
+					}
+
 					if ( !('v' in data) || !('r' in data) || !('s' in data) ) {
 					        return;
 					} else if ( typeof(this.pending[this.currentTick][account]) === 'undefined' ) {
 					        this.pending[this.currentTick][account] = [];
-					}
-					
-					if ( typeof(this.pending['past'][account]) !== 'undefined') {
-						if (this.pending['past'][account].length + this.pending[this.currentTick][account].length === 12) {
-	                                        	console.log(`Max nonce reached (${account}): exceeds block limit of 12... ignored`);
-	                                        	return;
-						}
-					} else {
-						if (this.pending[this.currentTick][account].length === 12) {
-	                                        	console.log(`Max nonce reached (${account}): exceeds block limit of 12... ignored`);
-	                                        	return;
-						}
 					}
 				} catch(err) {
 					console.trace(err);
 					return;
 				}
 	
-			        let nonce = data.nonce; 
 				let _payload = this.abi.encodeParameters(
 					['uint', 'address', 'bytes32', 'uint', 'bytes32'],
-					[nonce, data.account, data.content, data.since, data.comment]
+					[data.nonce, data.account, data.content, data.since, data.comment]
 				);
 
 				let payload = ethUtils.hashPersonalMessage(Buffer.from(_payload));
@@ -222,51 +219,101 @@ class OptractNode extends PubSubNode {
 					payload,
 	                                netID: this.networkID
 	                        };
+
 			        if (this.verifySignature(sigout)){
 	                                this.pending[this.currentTick][account].push(data);
+					this.pending[this.currentTick][account].sort(compare).splice(0, 120); //Max tx per block is capped at 120
 	                        }
 			    })
 		})
 
-		this.newArticle = (url) => 
+		this.newArticle = (url, _comment = NULL) => 
 		{
 			let account = this.userWallet[this.appName];
 			return mr.parse(url).then((result) => {
-				return this.put(Buffer.from(JSON.stringify(result))).then((out) => {
-					let content = this.IPFSstringtoBytes32(out[0].hash);
-					let comment = '0x0000000000000000000000000000000000000000000000000000000000000000'; // for now
-					let since = Math.floor(Date.now() / 1000);
-					let payload = this.abi.encodeParameters(
-						['uint', 'address', 'bytes32', 'uint', 'bytes32'],
-						[this.myNonce + 1, account, content, since, comment]
-					);
-
-					return this.unlockAndSign(account)(Buffer.from(payload)).then((sig) => {
-						let params = {
-							nonce: this.myNonce + 1,
-							account, content, comment, since,
-							v: Number(sig.v), r: sig.r, s: sig.s
-						};
-						let rlp = this.handleRLPx(mfields)(params);
-						this.publish('Optract', rlp.serialize());
-						this.myNonce = this.myNonce + 1;
-						return rlp;
-					}).catch((err) => { console.trace(err); })
-				})
-			});
+				if (_comment === NULL) {
+					return this.put(Buffer.from(JSON.stringify(result))).then((out) => {
+						let content = this.IPFSstringtoBytes32(out[0].hash);
+						let comment = '0x0000000000000000000000000000000000000000000000000000000000000000';
+						let since = Math.floor(Date.now() / 1000);
+						let payload = this.abi.encodeParameters(
+							['uint', 'address', 'bytes32', 'uint', 'bytes32'],
+							[this.myNonce + 1, account, content, since, comment]
+						);
+	
+						return this.unlockAndSign(account)(Buffer.from(payload)).then((sig) => {
+							let params = {
+								nonce: this.myNonce + 1,
+								account, content, comment, since,
+								v: Number(sig.v), r: sig.r, s: sig.s
+							};
+							let rlp = this.handleRLPx(mfields)(params);
+							this.publish('Optract', rlp.serialize());
+							this.myNonce = this.myNonce + 1;
+							return rlp;
+						}).catch((err) => { console.trace(err); })
+					})
+				} else {
+					let p = Promise.all(this.put(Buffer.from(JSON.stringify(result))), this.put(Buffer.from(String(_comment))));
+					return p.then((out) => {
+						let content = this.IPFSstringtoBytes32(out[0][0].hash);
+						let comment = this.IPFSstringtoBytes32(out[1][0].hash);
+						let since = Math.floor(Date.now() / 1000);
+						let payload = this.abi.encodeParameters(
+							['uint', 'address', 'bytes32', 'uint', 'bytes32'],
+							[this.myNonce + 1, account, content, since, comment]
+						);
+	
+						return this.unlockAndSign(account)(Buffer.from(payload)).then((sig) => {
+							let params = {
+								nonce: this.myNonce + 1,
+								account, content, comment, since,
+								v: Number(sig.v), r: sig.r, s: sig.s
+							};
+							let rlp = this.handleRLPx(mfields)(params);
+							this.publish('Optract', rlp.serialize());
+							this.myNonce = this.myNonce + 1;
+							return rlp;
+						}).catch((err) => { console.trace(err); })
+					})
+				}
+			}).catch((err) => { console.trace(err); });
 		}
 
 		this.setOnpendingHandler((msg) => 
 		{
 			// merge with own pending pool
+			// When committing new block, additional logic to perform last sync or 
+		 	// fallback to another witness also be executed here.
+		 	// Note that we don't have to filter self-sent message since it is already handled by pubsub
+
 		})
 	
-		observer(30000 + Math.floor(Math.random() * 10));
+		observer(30001);
 
-		this.on('epoch', (currentTick) => {
+		this.on('epoch', (tikObj) => {
 			 // Broadcast pending or trigger create merkle root.
-			 // When committing new block, additional logic to perform last sync or 
-			 // fallback to another witness also be executed here.
+			this.put(Buffer.from(JSON.stringify(this.pending['past']))).then((out) => {
+				let cache   = this.IPFSstringtoBytes32(out[0].hash);
+				let payload = this.abi.encodeParameters(
+					['uint', 'uint', 'address', 'bytes32', 'uint'],
+					[tikObj.epoch, 1, this.userWallet[this.appName], cache, tikObj.tick] //PoC code fixing pending block No to "1"
+				);
+
+				return this.unlockAndSign(account)(Buffer.from(payload)).then((sig) => {
+					let params = {
+						nonce: tikObj.epoch,
+						pending: 1,
+						validator: this.userWallet[this.appName],
+						cache, 
+						since: tickObj.tick,
+						v: Number(sig.v), r: sig.r, s: sig.s
+					};
+					let rlp = this.handleRLPx(pfields)(params);
+					this.publish('Optract', rlp.serialize());
+					console.dir(rlp);
+				}).catch((err) => { console.trace(err); })
+			})
 		});
 	}
 }
