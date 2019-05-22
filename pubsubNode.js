@@ -148,8 +148,8 @@ class PubSub extends EventEmitter
                                 ethUtils.defineProperties(m, fields, packet);
                                 return m;
                         } catch(err) {
-                                console.trace(err);
-                                return {};
+                                //console.trace(err);
+                                return null;
                         }
                 }
 
@@ -196,12 +196,12 @@ class PubSub extends EventEmitter
 			if (msg.topic === 'Optract') {
 				try {
 					let rlpx = Buffer.from(msg.msg);
-					let rlp;
+					let rlp = this.handleRLPx(mfields)(rlpx); // proper format;
 
-					try {
-						rlp = this.handleRLPx(mfields)(rlpx); // proper format;
+					if (rlp !== null) {
 						return this.emit('incomming', {topic: msg.topic, data: rlp});
-					} catch (err) {
+					} else {
+						console.log(`DEBUG: trying pfields:`)
 						rlp = this.handleRLPx(pfields)(rlpx); // proper format;
 						return this.emit('onpending', {topic: msg.topic, data: rlp});
 					}

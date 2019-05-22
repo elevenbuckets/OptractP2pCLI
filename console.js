@@ -318,10 +318,10 @@ class OptractNode extends PubSubNode {
 	                };
 
 			if (this.verifySignature(sigout)){
-				this.Bytes32toIPFSstring(cache).then((ipfsHash) => {
-					return this.get('/ipfs/' + ipfsHash).then((buf) => { return JSON.parse(Buffer.from(buf).toString()); })
-				})
+				let ipfsHash = this.Bytes32toIPFSstring(data.cache); console.log(`IPFS: ${ipfsHash}`);
+				this.get('/ipfs/' + ipfsHash).then((buf) => { return JSON.parse(Buffer.from(buf).toString()); })
 				.then((pending) => {
+					console.log(pending);
 					return this.mergeSnapShot(pending);
 				}).catch((err) => { console.log(`OnpendingHandler: `); console.trace(err); })
 			}
@@ -334,10 +334,10 @@ class OptractNode extends PubSubNode {
 			console.dir(remote);
 		}
 	
-		this.otimer = observer(3000000);
+		this.otimer = observer(150000);
 
 		this.on('epoch', (tikObj) => {
-			let account = this.userWallet[this.appName];
+			let account = this.userWallet[this.appName]; console.log(`onepoch: ${account}`);
 			 // Broadcast pending or trigger create merkle root.
 			this.put(Buffer.from(JSON.stringify(this.pending))).then((out) => {
 				let cache   = this.IPFSstringtoBytes32(out[0].hash);
