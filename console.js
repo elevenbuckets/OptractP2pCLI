@@ -111,7 +111,7 @@ class OptractNode extends PubSubNode {
 	constructor(cfgObj) {
 		super(cfgObj);
 
-		this.appCfgs = cfgObj // can become part of cfgObj
+		this.appCfgs = { ...config }; // can become part of cfgObj
 		this.appName = 'OptractMedia';
 
 		const FileServ = new IPFS(this.appCfgs.ipfs);
@@ -354,7 +354,7 @@ class OptractNode extends PubSubNode {
 	}
 }
 
-const appCfg = { ...config, port: 45001 + Math.floor(Math.random()*20) };
+const appCfg = { ...config.node, port: 45001 + Math.floor(Math.random()*20) };
 
 console.dir(appCfg);
 
