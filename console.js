@@ -171,7 +171,7 @@ class OptractNode extends PubSubNode {
 					Array.from(new Set([...Object.keys(this.pending['past']), ...Object.keys(_tmp)])).map((account) => {
 						if (typeof(this.pending['past'][account]) === 'undefined') this.pending['past'][account] = {};
 						if (typeof(_tmp[account]) === 'undefined') _tmp[account] = {};
-						this.pending['past'][account] = { this.pending['past'][account], ..._tmp[account] };
+						this.pending['past'][account] = { ...this.pending['past'][account], ..._tmp[account] };
 						this.expn[account] = Object.keys(this.pending['past'][account]).length;
 					});
 
@@ -313,6 +313,7 @@ class OptractNode extends PubSubNode {
 		this.otimer = observer(30001);
 
 		this.on('epoch', (tikObj) => {
+			let account = this.userWallet[this.appName];
 			 // Broadcast pending or trigger create merkle root.
 			this.put(Buffer.from(JSON.stringify(this.pending['past']))).then((out) => {
 				let cache   = this.IPFSstringtoBytes32(out[0].hash);
@@ -327,7 +328,7 @@ class OptractNode extends PubSubNode {
 						pending: 1,
 						validator: this.userWallet[this.appName],
 						cache, 
-						since: tickObj.tick,
+						since: tikObj.tick,
 						v: Number(sig.v), r: sig.r, s: sig.s
 					};
 					let rlp = this.handleRLPx(pfields)(params);
