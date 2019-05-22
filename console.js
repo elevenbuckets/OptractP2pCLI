@@ -153,6 +153,8 @@ class OptractNode extends PubSubNode {
 		// nonce counter (temporary fix for nodejs)
 		this.myNonce = 0;
 		this.myEpoch = 0;
+		this.expn = {};
+		this.lock = false;
 
 		const observer = (sec = 3001) =>
 		{
@@ -164,9 +166,16 @@ class OptractNode extends PubSubNode {
 					delete this.pending[this.currentTick];
 					this.currentTick = _tick;
 					this.pending[this.currentTick] = {};
-					this.pending['past'] = { ...this.pending['past'], ..._tmp };
 
-					this.myEpoch = this.myEpoch + 1;
+					this.lock = true;
+					Array.from(new Set([...Object.keys(this.pending['past']), ...Object.keys(_tmp)])).map((account) => {
+						if (typeof(this.pending['past'][account]) === 'undefined') this.pending['past'][account] = {};
+						if (typeof(_tmp[account]) === 'undefined') _tmp[account] = {};
+						this.pending['past'][account] = { this.pending['past'][account], ..._tmp[account] };
+						this.expn[account] = Object.keys(this.pending['past'][account]).length;
+					});
+
+					this.myEpoch = (this.currentTick - (this.currentTick % 300000)) / 300000;
 					this.emit('epoch', { tick: this.currentTick, epoch: this.myEpoch }) 
 				} else {
 					this.currentTick = _tick;
@@ -178,7 +187,6 @@ class OptractNode extends PubSubNode {
 		// pubsub handler
 		this.connectP2P();
 		this.join('Optract');
-		this.expn = {};
 
 		const compare = (a,b) => { if (a.nonce > b.nonce) { return 1 } else { return -1 }; return 0 };
 
@@ -199,7 +207,7 @@ class OptractNode extends PubSubNode {
 					if ( !('v' in data) || !('r' in data) || !('s' in data) ) {
 					        return;
 					} else if ( typeof(this.pending[this.currentTick][account]) === 'undefined' ) {
-					        this.pending[this.currentTick][account] = [];
+					        this.pending[this.currentTick][account] = {};
 					}
 				} catch(err) {
 					console.trace(err);
@@ -221,8 +229,7 @@ class OptractNode extends PubSubNode {
 	                        };
 
 			        if (this.verifySignature(sigout)){
-	                                this.pending[this.currentTick][account].push(data);
-					this.pending[this.currentTick][account].sort(compare).splice(0, 120); //Max tx per block is capped at 120
+	                                this.pending[this.currentTick][account][payload] = data;
 	                        }
 			    })
 		})
@@ -287,9 +294,23 @@ class OptractNode extends PubSubNode {
 		 	// fallback to another witness also be executed here.
 		 	// Note that we don't have to filter self-sent message since it is already handled by pubsub
 
+			// with new data structure, pending pool merging is easier..
+			// but now how do we prevent local race condition between new epoch past merge and onpending external past merge???
+			// 
+			//  Planning to use json-diff to identify tx that need to reverify signatures
+			//
+			if (this.lock === false) {
+				// determine if epoch matches upcoming local one
+				// leave only unseen tx
+				// store in this.snapshot[epoch]
+				// merge in next local merge
+			} else {
+				// wait for local merge done
+				// merge in next local merge
+			}
 		})
 	
-		observer(30001);
+		this.otimer = observer(30001);
 
 		this.on('epoch', (tikObj) => {
 			 // Broadcast pending or trigger create merkle root.
@@ -312,6 +333,7 @@ class OptractNode extends PubSubNode {
 					let rlp = this.handleRLPx(pfields)(params);
 					this.publish('Optract', rlp.serialize());
 					console.dir(rlp);
+					this.lock = false;
 				}).catch((err) => { console.trace(err); })
 			})
 		});
