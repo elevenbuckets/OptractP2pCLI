@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
+const fs = require('fs');
 const repl = require('repl');
 const path = require('path');
 const figlet = require('figlet');
@@ -12,6 +13,9 @@ const IPFS = require('./FileService.js');
 const mr = require('@postlight/mercury-parser');
 const bs58 = require('bs58');
 const diff = require('json-diff').diff;
+
+//configuration
+const config = JSON.parse(fs.readFileSync(path.join('./dapps', 'config.json')).toString()); // can become part of cfgObj
 
 // ASCII Art!!!
 const ASCII_Art = (word) => {
@@ -107,7 +111,7 @@ class OptractNode extends PubSubNode {
 	constructor(cfgObj) {
 		super(cfgObj);
 
-		this.appCfgs = require(path.join(cfgObj.dappdir, 'config.json')); // can become part of cfgObj
+		this.appCfgs = cfgObj // can become part of cfgObj
 		this.appName = 'OptractMedia';
 
 		const FileServ = new IPFS(this.appCfgs.ipfs);
@@ -176,7 +180,7 @@ class OptractNode extends PubSubNode {
 
 		//const compare = (a,b) => { if (a.nonce > b.nonce) { return 1 } else { return -1 }; return 0 };
 
-		this.incommingHandler((msg) => 
+		this.setIncommingHandler((msg) => 
 		{
 			let data = msg.data;
 			let account = ethUtils.bufferToHex(data.account);
@@ -278,7 +282,7 @@ class OptractNode extends PubSubNode {
 			}).catch((err) => { console.trace(err); });
 		}
 
-		this.onpendingHandler((msg) => 
+		this.setOnpendingHandler((msg) => 
 		{
 			// merge with own pending pool
 			let data = msg.data;
@@ -347,32 +351,12 @@ class OptractNode extends PubSubNode {
 				}).catch((err) => { console.trace(err); })
 			})
 		});
-
-		this.setIncommingHandler(this.incommingHandler);
-		this.setOnpendingHandler(this.onpendingHandler);
 	}
 }
 
-const appCfg = 
-{
-	port: 45001 + Math.floor(Math.random()*20), 
-	dns: {
-		server: [
-			'discovery1.datprotocol.com',
-			'discovery2.datprotocol.com',
-		]
-	},
-	dht: { 
-		bootstrap: [ 
-			'bootstrap1.datprotocol.com:6881', 
-			'bootstrap2.datprotocol.com:6881', 
-			'bootstrap3.datprotocol.com:6881', 
-			'bootstrap4.datprotocol.com:6881' 
-		]
-	},
-	dappdir: "/home/jasonlin/Proj/Playground/OptractP2pCLI/dapps"
-	// dappdir: "/home/kai/Work/project/OptractP2pCLI/dapps"
-};
+const appCfg = { ...config, port: 45001 + Math.floor(Math.random()*20) };
+
+console.dir(appCfg);
 
 var app;
 var r;
@@ -381,7 +365,7 @@ var title = 'Optract: Ops Console';
 let stage = new Promise(askMasterPass)
          .catch((err) => { process.exit(1); })
          .then((answer) => { app = new OptractNode(appCfg); app.password(answer); return app.validPass() })
-         .then((rc) => { 
+         .then((rc) => {
 		if (rc && typeof(app.appCfgs.dapps[app.appName].account) !== 'undefined') {
 			return app.linkAccount(app.appName)(app.appCfgs.dapps[app.appName].account).then(console.log);
 		} else {
@@ -389,10 +373,8 @@ let stage = new Promise(askMasterPass)
 			title = 'Optract: Ops Console  [ RO ]';
 		}
 	 })
-	 .catch((err) => { console.trace(err); });
-
-stage = stage.then(() => {
-	return ASCII_Art(title).then((art) => {
+	 .then(() => {
+	    return ASCII_Art(title).then((art) => {
 	        console.log(art);
 		r = repl.start({ prompt: `[-= ${app.appName} =-]$ `, eval: replEvalPromise });
 	        r.context = {app};
@@ -402,5 +384,6 @@ stage = stage.then(() => {
 			app.swarm.close();
 			process.exit(0);
 	        });
-	});
-})
+	    })
+	 })
+	 .catch((err) => { console.trace(err); })
