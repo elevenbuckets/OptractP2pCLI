@@ -229,11 +229,11 @@ class OptractNode extends PubSubNode {
 			    })
 		})
 
-		this.newArticle = (url, _comment = NULL) => 
+		this.newArticle = (url, _comment = null) => 
 		{
 			let account = this.userWallet[this.appName];
 			return mr.parse(url).then((result) => {
-				if (_comment === NULL) {
+				if (_comment === null) {
 					return this.put(Buffer.from(JSON.stringify(result))).then((out) => {
 						let content = this.IPFSstringtoBytes32(out[0].hash);
 						let comment = '0x0000000000000000000000000000000000000000000000000000000000000000';
