@@ -23,6 +23,7 @@
     "figlet": "^1.2.1",
     "ipfs": "^0.34.4",
     "ipfs-http-client": "^29.1.1",
+    "json-diff": "^0.5.4",
     "keythereum": "https://github.com/elevenbuckets/keythereum.git",
     "level": "^5.0.1",
     "node-fetch": "^1.7.3",

@@ -11,6 +11,7 @@ const OptractMedia = require('./dapps/OptractMedia/OptractMedia.js');
 const IPFS = require('./FileService.js');
 const mr = require('@postlight/mercury-parser');
 const bs58 = require('bs58');
+const diff = require('json-diff').diff;
 
 // ASCII Art!!!
 const ASCII_Art = (word) => {
@@ -69,7 +70,12 @@ const askMasterPass = (resolve, reject) =>
         }
 }
 
-const asyncExec = (func) => { return setTimeout(func, 0) }
+const missing = (a, b) => 
+{
+	let out  = diff(a,b);
+	let _tmp = out.filter((i) => { return i[0] === '+'});
+	return _tmp.map((i) => { return i[1] });
+}
 
 // Common Tx
 const mfields =
@@ -148,39 +154,19 @@ class OptractNode extends PubSubNode {
 
 		// Event related		
 		this.currentTick = 0; //Just an epoch.
-		this.pending = { past: {} }; // format ??????
-
-		// nonce counter (temporary fix for nodejs)
+		this.pending = {}; // format ??????
+		this.newblock = {};
 		this.myNonce = 0;
 		this.myEpoch = 0;
-		this.expn = {};
 		this.lock = false;
 
 		const observer = (sec = 3001) =>
 		{
+			this.lock = true;
         		return setInterval(() => {
-				let _tick = Math.floor(Date.now() / 1000);
-			 	// update this.pending.past and create new this.pending.currentTick
-				if (this.currentTick !== 0) {
-					let _tmp = { ...this.pending[this.currentTick] };
-					delete this.pending[this.currentTick];
-					this.currentTick = _tick;
-					this.pending[this.currentTick] = {};
-
-					this.lock = true;
-					Array.from(new Set([...Object.keys(this.pending['past']), ...Object.keys(_tmp)])).map((account) => {
-						if (typeof(this.pending['past'][account]) === 'undefined') this.pending['past'][account] = {};
-						if (typeof(_tmp[account]) === 'undefined') _tmp[account] = {};
-						this.pending['past'][account] = { ...this.pending['past'][account], ..._tmp[account] };
-						this.expn[account] = Object.keys(this.pending['past'][account]).length;
-					});
-
-					this.myEpoch = (this.currentTick - (this.currentTick % 300000)) / 300000;
-					this.emit('epoch', { tick: this.currentTick, epoch: this.myEpoch }) 
-				} else {
-					this.currentTick = _tick;
-					this.pending[this.currentTick] = {};
-				}
+				this.currentTick = Math.floor(Date.now() / 1000);
+				this.myEpoch = (this.currentTick - (this.currentTick % 300000)) / 300000;
+				this.emit('epoch', { tick: this.currentTick, epoch: this.myEpoch }) 
 			}, sec);
 		}
 
@@ -188,35 +174,36 @@ class OptractNode extends PubSubNode {
 		this.connectP2P();
 		this.join('Optract');
 
-		const compare = (a,b) => { if (a.nonce > b.nonce) { return 1 } else { return -1 }; return 0 };
+		//const compare = (a,b) => { if (a.nonce > b.nonce) { return 1 } else { return -1 }; return 0 };
 
 		this.setIncommingHandler((msg) => 
 		{
 			let data = msg.data;
 			let account = ethUtils.bufferToHex(data.account);
+
 			this.memberStatus(account).then((rc) => { return rc[0] === 'active'; })
 			    .then((rc) => {
 				if (!rc) return; // check is member or not ... not yet checking different tiers of memberships.
 				try {
-					if (typeof(this.expn[account]) === 'undefined') {
-						this.expn[account] = 0;
-					} else if (this.expn[account] >= 120) { 
-						return;
-					}
-
 					if ( !('v' in data) || !('r' in data) || !('s' in data) ) {
 					        return;
 					} else if ( typeof(this.pending[this.currentTick][account]) === 'undefined' ) {
-					        this.pending[this.currentTick][account] = {};
+					        this.pending[this.currentTick][account] = { txhash: [], txdata: {} };
+					} else if (this.pending[account]['txhash'].length >= 120) {
+					        return;
 					}
 				} catch(err) {
 					console.trace(err);
 					return;
 				}
 	
+				let nonce = ethUtils.bufferToInt(data.nonce);
+				let since = ethUtils.bufferToInt(data.since);
+				let content = ethUtils.bufferToHex(data.content);
+				let comment = ethUtils.bufferToHex(data.comment);
 				let _payload = this.abi.encodeParameters(
 					['uint', 'address', 'bytes32', 'uint', 'bytes32'],
-					[data.nonce, data.account, data.content, data.since, data.comment]
+					[nonce, account, content, since, comment]
 				);
 
 				let payload = ethUtils.hashPersonalMessage(Buffer.from(_payload));
@@ -229,7 +216,11 @@ class OptractNode extends PubSubNode {
 	                        };
 
 			        if (this.verifySignature(sigout)){
-	                                this.pending[this.currentTick][account][payload] = data;
+					let pack = msg.data.serialize();
+					let txhash = ethUtils.bufferToHex(ethUtils.sha256sum(pack));
+	                                this.pending[account]['txhash'].push(txhash);
+					this.pending[account]['txhash'] = Array.from(new Set(this.pending[account]['txhash'])).sort();
+	                                this.pending[account]['txdata'][txhash] = {payload, msg: pack};
 	                        }
 			    })
 		})
@@ -290,43 +281,61 @@ class OptractNode extends PubSubNode {
 		this.setOnpendingHandler((msg) => 
 		{
 			// merge with own pending pool
-			// When committing new block, additional logic to perform last sync or 
-		 	// fallback to another witness also be executed here.
-		 	// Note that we don't have to filter self-sent message since it is already handled by pubsub
+			let data = msg.data;
+			if ( !('v' in data) || !('r' in data) || !('s' in data) ) {
+			        return;
+			}
 
-			// with new data structure, pending pool merging is easier..
-			// but now how do we prevent local race condition between new epoch past merge and onpending external past merge???
-			// 
-			//  Planning to use json-diff to identify tx that need to reverify signatures
-			//
-			if (this.lock === false) {
-				// determine if epoch matches upcoming local one
-				// leave only unseen tx
-				// store in this.snapshot[epoch]
-				// merge in next local merge
-			} else {
-				// wait for local merge done
-				// merge in next local merge
+			let account = ethUtils.bufferToHex(data.validator);
+			let cache = ethUtils.bufferToHex(data.cache);
+			let nonce = ethUtils.bufferToInt(data.nonce);
+			let since = ethUtils.bufferToInt(data.since);
+			let pending = ethUtils.bufferToInt(data.pending);
+			// TODO: validate signature against a list of validator address from smart contract
+			let _payload = this.abi.encodeParameters(
+				['uint', 'uint', 'address', 'bytes32', 'uint'],
+				[nonce, pending, account, cache, since] //PoC code fixing pending block No to "1"
+			);
+			let payload = ethUtils.hashPersonalMessage(Buffer.from(_payload));
+	                let sigout = {
+				originAddress: account,
+	                        v: ethUtils.bufferToInt(data.v),
+	                        r: data.r, s: data.s,
+				payload,
+	                        netID: this.networkID
+	                };
+
+			if (this.verifySignature(sigout)){
+				this.Bytes32toIPFSstring(cache).then((ipfsHash) => {
+					return this.get('/ipfs/' + ipfsHash).then((buf) => { return JSON.parse(Buffer.from(buf).toString()); })
+				})
+				return this.mergeSnapShot(pending);
 			}
 		})
+
+		this.mergeSnapShot = (remote) =>
+		{
+			// debug
+			console.dir(remote);
+		}
 	
 		this.otimer = observer(30001);
 
 		this.on('epoch', (tikObj) => {
 			let account = this.userWallet[this.appName];
 			 // Broadcast pending or trigger create merkle root.
-			this.put(Buffer.from(JSON.stringify(this.pending['past']))).then((out) => {
+			this.put(Buffer.from(JSON.stringify(this.pending))).then((out) => {
 				let cache   = this.IPFSstringtoBytes32(out[0].hash);
 				let payload = this.abi.encodeParameters(
 					['uint', 'uint', 'address', 'bytes32', 'uint'],
-					[tikObj.epoch, 1, this.userWallet[this.appName], cache, tikObj.tick] //PoC code fixing pending block No to "1"
+					[tikObj.epoch, 1, account, cache, tikObj.tick] //PoC code fixing pending block No to "1"
 				);
 
 				return this.unlockAndSign(account)(Buffer.from(payload)).then((sig) => {
 					let params = {
 						nonce: tikObj.epoch,
 						pending: 1,
-						validator: this.userWallet[this.appName],
+						validator: account,
 						cache, 
 						since: tikObj.tick,
 						v: Number(sig.v), r: sig.r, s: sig.s

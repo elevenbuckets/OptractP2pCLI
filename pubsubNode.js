@@ -197,13 +197,14 @@ class PubSub extends EventEmitter
 				try {
 					if (Buffer.isBuffer(msg.msg)) {
 						let rlpx = Buffer.from(msg.msg);
+						let rlp;
 
-						if (info.public in this.validatorKeys) {
-							let rlp = this.handleRLPx(pfields)(rlpx).toJSON(); // proper format;
-							this.emit('onpending', {topic: msg.topic, data: rlp}); 
-						} else {
-							let rlp = this.handleRLPx(mfields)(rlpx).toJSON(); // proper format;
+						try {
+							rlp = this.handleRLPx(mfields)(rlpx); // proper format;
 							this.emit('incomming', {topic: msg.topic, data: rlp});
+						} catch (err) { 
+							rlp = this.handleRLPx(pfields)(rlpx); // proper format;
+							this.emit('onpending', {topic: msg.topic, data: rlp});
 						}
 					}
 				} catch (err) {
