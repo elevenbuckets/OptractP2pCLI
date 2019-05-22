@@ -13,6 +13,7 @@ const IPFS = require('./FileService.js');
 const mr = require('@postlight/mercury-parser');
 const bs58 = require('bs58');
 const diff = require('json-diff').diff;
+const ethUtils = require('ethereumjs-utils');
 
 //configuration
 const config = JSON.parse(fs.readFileSync(path.join('./dapps', 'config.json')).toString()); // can become part of cfgObj
@@ -129,7 +130,8 @@ class OptractNode extends PubSubNode {
 		   'makeMerkleTreeAndUploadRoot',
                    'configured',
                    'memberStatus',
-		   'unlockAndSign'
+		   'unlockAndSign',
+		   'verifySignature'
 		];		
 
 		mixins.map((f) => { if (typeof(this[f]) === 'undefined' && typeof(Ethereum[f]) === 'function') this[f] = Ethereum[f] });
@@ -182,6 +184,7 @@ class OptractNode extends PubSubNode {
 
 		this.setIncommingHandler((msg) => 
 		{
+
 			let data = msg.data;
 			let account = ethUtils.bufferToHex(data.account);
 
@@ -204,7 +207,10 @@ class OptractNode extends PubSubNode {
 				let nonce = ethUtils.bufferToInt(data.nonce);
 				let since = ethUtils.bufferToInt(data.since);
 				let content = ethUtils.bufferToHex(data.content);
-				let comment = ethUtils.bufferToHex(data.comment);
+				let comment = ethUtils.bufferToHex(data.comment); 
+
+				if (comment === '0x') comment = '0x0000000000000000000000000000000000000000000000000000000000000000';
+
 				let _payload = this.abi.encodeParameters(
 					['uint', 'address', 'bytes32', 'uint', 'bytes32'],
 					[nonce, account, content, since, comment]
@@ -221,10 +227,12 @@ class OptractNode extends PubSubNode {
 
 			        if (this.verifySignature(sigout)){
 					let pack = msg.data.serialize();
-					let txhash = ethUtils.bufferToHex(ethUtils.sha256sum(pack));
+					let txhash = ethUtils.bufferToHex(ethUtils.sha256(pack));
 	                                this.pending[account]['txhash'].push(txhash);
 					this.pending[account]['txhash'] = Array.from(new Set(this.pending[account]['txhash'])).sort();
 	                                this.pending[account]['txdata'][txhash] = {payload, msg: pack};
+
+					console.log(`DEBUG:`); console.dir(msg);
 	                        }
 			    })
 		})
@@ -326,7 +334,7 @@ class OptractNode extends PubSubNode {
 			console.dir(remote);
 		}
 	
-		this.otimer = observer(30001);
+		this.otimer = observer(3000000);
 
 		this.on('epoch', (tikObj) => {
 			let account = this.userWallet[this.appName];

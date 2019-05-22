@@ -195,19 +195,15 @@ class PubSub extends EventEmitter
 			// - check encoded RLPx by topic match
 			if (msg.topic === 'Optract') {
 				try {
-					if (Buffer.isBuffer(msg.msg)) {
-						let rlpx = Buffer.from(msg.msg);
-						let rlp;
+					let rlpx = Buffer.from(msg.msg);
+					let rlp;
 
-						try {
-							console.log('PUBSUB: trying mfield') 
-							rlp = this.handleRLPx(mfields)(rlpx); // proper format;
-							this.emit('incomming', {topic: msg.topic, data: rlp});
-						} catch (err) {
-							console.log('PUBSUB: trying pfield') 
-							rlp = this.handleRLPx(pfields)(rlpx); // proper format;
-							this.emit('onpending', {topic: msg.topic, data: rlp});
-						}
+					try {
+						rlp = this.handleRLPx(mfields)(rlpx); // proper format;
+						return this.emit('incomming', {topic: msg.topic, data: rlp});
+					} catch (err) {
+						rlp = this.handleRLPx(pfields)(rlpx); // proper format;
+						return this.emit('onpending', {topic: msg.topic, data: rlp});
 					}
 				} catch (err) {
 					console.trace(err);
