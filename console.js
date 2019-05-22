@@ -191,8 +191,8 @@ class OptractNode extends PubSubNode {
 				try {
 					if ( !('v' in data) || !('r' in data) || !('s' in data) ) {
 					        return;
-					} else if ( typeof(this.pending[this.currentTick][account]) === 'undefined' ) {
-					        this.pending[this.currentTick][account] = { txhash: [], txdata: {} };
+					} else if ( typeof(this.pending[account]) === 'undefined' ) {
+					        this.pending[account] = { txhash: [], txdata: {} };
 					} else if (this.pending[account]['txhash'].length >= 120) {
 					        return;
 					}
@@ -313,13 +313,16 @@ class OptractNode extends PubSubNode {
 				this.Bytes32toIPFSstring(cache).then((ipfsHash) => {
 					return this.get('/ipfs/' + ipfsHash).then((buf) => { return JSON.parse(Buffer.from(buf).toString()); })
 				})
-				return this.mergeSnapShot(pending);
+				.then((pending) => {
+					return this.mergeSnapShot(pending);
+				}).catch((err) => { console.log(`OnpendingHandler: `); console.trace(err); })
 			}
 		})
 
 		this.mergeSnapShot = (remote) =>
 		{
 			// debug
+			console.log(`Remote snapshot received ...`);
 			console.dir(remote);
 		}
 	
