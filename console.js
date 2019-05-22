@@ -176,7 +176,7 @@ class OptractNode extends PubSubNode {
 
 		//const compare = (a,b) => { if (a.nonce > b.nonce) { return 1 } else { return -1 }; return 0 };
 
-		this.setIncommingHandler((msg) => 
+		this.incommingHandler((msg) => 
 		{
 			let data = msg.data;
 			let account = ethUtils.bufferToHex(data.account);
@@ -278,7 +278,7 @@ class OptractNode extends PubSubNode {
 			}).catch((err) => { console.trace(err); });
 		}
 
-		this.setOnpendingHandler((msg) => 
+		this.onpendingHandler((msg) => 
 		{
 			// merge with own pending pool
 			let data = msg.data;
@@ -342,11 +342,14 @@ class OptractNode extends PubSubNode {
 					};
 					let rlp = this.handleRLPx(pfields)(params);
 					this.publish('Optract', rlp.serialize());
-					console.dir(rlp);
+					//console.dir(rlp);
 					this.lock = false;
 				}).catch((err) => { console.trace(err); })
 			})
 		});
+
+		this.setIncommingHandler(this.incommingHandler);
+		this.setOnpendingHandler(this.onpendingHandler);
 	}
 }
 
