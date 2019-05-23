@@ -229,7 +229,7 @@ class OptractNode extends PubSubNode {
 					let pack = msg.data.serialize();
 					let txhash = ethUtils.bufferToHex(ethUtils.sha256(pack));
 	                                this.pending['txhash'][account].push(txhash);
-					this.pending['txhash'][account] = Array.from(new Set(this.pending[account])).sort();
+					this.pending['txhash'][account] = Array.from(new Set(this.pending['txhash'][account])).sort();
 	                                this.pending['txdata'][txhash]  = pack;
 	                                this.pending['payload'][txhash] = payload;
 
