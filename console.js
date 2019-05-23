@@ -373,6 +373,8 @@ class OptractNode extends PubSubNode {
 		}
 
 		this.on('epoch', (tikObj) => {
+			if (Object.keys(this.pending['payload']).length === 0) return;
+
 			let account  = this.userWallet[this.appName];
 			let snapshot = this.packSnap(); 
 
