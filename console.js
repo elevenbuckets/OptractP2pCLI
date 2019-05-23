@@ -224,6 +224,7 @@ class OptractNode extends PubSubNode {
 					payload,
 	                                netID: this.networkID
 	                        };
+				console.dir(sigout);
 
 			        if (this.verifySignature(sigout)){
 					let pack = msg.data.serialize();
@@ -336,6 +337,7 @@ class OptractNode extends PubSubNode {
 						r: data.r, s: data.s,
 						netID: this.networkID // FIXME: we need to include networkID in snapshot
 					}
+					console.dir(sigout);
 	
 					if (this.verifySignature(sigout)){
 						let pack = remote[2][idx]; let payload = remote[1][idx];
