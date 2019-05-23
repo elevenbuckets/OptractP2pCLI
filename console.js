@@ -9,7 +9,8 @@ const readline = require('readline');
 const AsciiTable = require('ascii-table');
 const PubSubNode = require('./pubsubNode.js');
 const OptractMedia = require('./dapps/OptractMedia/OptractMedia.js');
-const IPFS = require('./FileService.js');
+//const IPFS = require('./FileService.js');
+const ipfsClient = require('ipfs-http-client');
 const mr = require('@postlight/mercury-parser');
 const bs58 = require('bs58');
 const diff = require('json-diff').diff;
@@ -115,7 +116,7 @@ class OptractNode extends PubSubNode {
 		this.appCfgs = { ...config }; // can become part of cfgObj
 		this.appName = 'OptractMedia';
 
-		const FileServ = new IPFS(this.appCfgs.ipfs);
+		//const FileServ = new IPFS(this.appCfgs.ipfs);
 		const Ethereum = new OptractMedia(this.appCfgs);
 		const mixins = 
 		[
@@ -141,7 +142,8 @@ class OptractNode extends PubSubNode {
 		this.userWallet = Ethereum.userWallet;
 
 		// IPFS related
-		this.ipfs = FileServ.ipfs;
+		//this.ipfs = FileServ.ipfs;
+		this.ipfs = new ipfsClient('ipfs.infura.io', '5001', {protocol: 'https'})
 
 		this.get = (ipfsPath) => { return this.ipfs.cat(ipfsPath) }; // returns promise that resolves into Buffer
 		this.put = (buffer)   => { return this.ipfs.add(buffer) }; // returns promise that resolves into JSON
