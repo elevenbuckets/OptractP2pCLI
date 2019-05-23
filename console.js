@@ -378,8 +378,9 @@ class OptractNode extends PubSubNode {
 			let account  = this.userWallet[this.appName];
 			let snapshot = this.packSnap(); 
 
-			// Broadcast pending or trigger create merkle root.
-			this.put(Buffer.from([Buffer.from(snapshot[0]), Buffer.from(snapshot[1]), Buffer.from(snapshot[2])])).then((out) => {
+			// Need to create fixed length buffer and concat elements with just a little bit padding... still need works
+			//this.put(Buffer.from([Buffer.from(snapshot[0]), Buffer.from(snapshot[1]), Buffer.from(snapshot[2])])).then((out) => {
+			this.put(Buffer.from(JSON.stringify(snapshot))).then((out) => {
 				let cache  = this.IPFSstringtoBytes32(out[0].hash);
 				let payload = this.abi.encodeParameters(
 					['uint', 'uint', 'address', 'bytes32', 'uint'],
