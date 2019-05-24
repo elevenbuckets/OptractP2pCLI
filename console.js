@@ -310,7 +310,7 @@ class OptractNode extends PubSubNode {
 			if (this.verifySignature(sigout)){
 				let ipfsHash = this.Bytes32toIPFSstring(data.cache); console.log(`Snapshot IPFS: ${ipfsHash}`);
 				let p = [
-					this.get(ipfsHash).then((buf) => { return JSON.parse(Buffer.from(buf).toString()) }),
+					this.get(ipfsHash).then((buf) => { return JSON.parse(buf.toString()) }),
 					this.packSnap()
 				];
 
@@ -323,12 +323,14 @@ class OptractNode extends PubSubNode {
 			}
 		})
 
+		this.parseMsgRLPx = (mRLPx) => { return this.handleRLPx(mfields)(mRLPx); }
+
 		this.mergeSnapShot = (remote, dhashs) =>
 		{
 			dhashs.map((thash) => {
 				return setTimeout((hash) => {
 					let idx = remote[0].indexOf(hash);
-					let data = this.handleRLPx(mfields)(remote[2][idx]);
+					let data = this.handleRLPx(mfields)(Buffer.from(remote[2][idx]));
 					let account = ethUtils.bufferToHex(data.account);
 					let sigout = {
 						originAddress: account,
@@ -337,14 +339,17 @@ class OptractNode extends PubSubNode {
 						r: data.r, s: data.s,
 						netID: this.networkID // FIXME: we need to include networkID in snapshot
 					}
-					console.dir(sigout);
 	
 					if (this.verifySignature(sigout)){
-						let pack = remote[2][idx]; let payload = remote[1][idx];
+						if (typeof(this.pending['txhash'][account]) === 'undefined') {
+							this.pending['txhash'][account] = [];
+						}
+
+						let pack = Buffer.from(remote[2][idx]); let payload = Buffer.from(remote[1][idx]);
 		                                this.pending['txhash'][account].push(hash);
-						this.pending['txhash'][account] = Array.from(new Set(this.pending[account])).sort();
+						this.pending['txhash'][account] = Array.from(new Set(this.pending['txhash'][account])).sort();
 		                                this.pending['txdata'][hash]  = pack;
-		                                this.pending['payload'][txhash] = payload;
+		                                this.pending['payload'][thash] = payload;
 	
 						console.log(`INFO: Got ${hash} by ${account} from snapshot`); 
 					}
