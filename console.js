@@ -78,8 +78,19 @@ const askMasterPass = (resolve, reject) =>
 
 const missing = (a, b) => 
 {
-	let out = diff(a.sort(), b.sort());
-	if (out.length === 0) return [];
+	a.sort(); 
+	b.sort();
+
+	console.log('MISSING DEBUG:');
+	console.dir(a);
+	console.dir(b);
+
+	let out = diff(a, b);
+
+	console.log('DIFF:');
+	console.dir(out);
+
+	if (!out || out.length === 0) return [];
 	let _tmp = out.filter((i) => { return i[0] === '+'});
 	return _tmp.map((i) => { return i[1] });
 }
@@ -144,7 +155,7 @@ class OptractNode extends PubSubNode {
 
 		// IPFS related
 		//this.ipfs = FileServ.ipfs;
-		this.ipfs = new ipfsClient('ipfs.infura.io', '5001', {protocol: 'https'})
+		this.ipfs = new ipfsClient('127.0.0.1', '5001', {protocol: 'http'})
 
 		this.get = (ipfsPath) => { return this.ipfs.cat(ipfsPath) }; // returns promise that resolves into Buffer
 		this.put = (buffer)   => { return this.ipfs.add(buffer) }; // returns promise that resolves into JSON
@@ -319,7 +330,9 @@ class OptractNode extends PubSubNode {
 					let pending = results[0];
 					let mystats = results[1];
 					if (pending[0].length === 0) return;
-					let acquire = missing(mystats[0], pending[0]); console.dir(acquire);
+					let acquire = missing(mystats[0], pending[0]);
+					if (acquire.length === 0 ) return; 
+					console.dir(acquire);
 					this.mergeSnapShot(pending, acquire);
 				}).catch((err) => { console.log(`OnpendingHandler: `); console.trace(err); })
 			}
@@ -351,7 +364,7 @@ class OptractNode extends PubSubNode {
 		                                this.pending['txhash'][account].push(hash);
 						this.pending['txhash'][account] = Array.from(new Set(this.pending['txhash'][account])).sort();
 		                                this.pending['txdata'][hash]  = pack;
-		                                this.pending['payload'][thash] = payload;
+		                                this.pending['payload'][hash] = payload;
 	
 						console.log(`INFO: Got ${hash} by ${account} from snapshot`); 
 					}
@@ -382,10 +395,9 @@ class OptractNode extends PubSubNode {
 		}
 
 		this.on('epoch', (tikObj) => {
-			if (Object.keys(this.pending['payload']).length === 0) return;
-
 			let account  = this.userWallet[this.appName];
 			let snapshot = this.packSnap(); 
+			if (snapshot[0].length === 0) return;
 
 			// Need to create fixed length buffer and concat elements with just a little bit padding... still need works
 			//this.put(Buffer.from([Buffer.from(snapshot[0]), Buffer.from(snapshot[1]), Buffer.from(snapshot[2])])).then((out) => {
