@@ -317,6 +317,7 @@ class OptractNode extends PubSubNode {
 				Promise.all(p).then((results) => {
 					let pending = results[0];
 					let mystats = results[1];
+					if (pending[0].length === 0) return;
 					let acquire = missing(mystats[0], pending[0]); console.dir(acquire);
 					this.mergeSnapShot(pending, acquire);
 				}).catch((err) => { console.log(`OnpendingHandler: `); console.trace(err); })
