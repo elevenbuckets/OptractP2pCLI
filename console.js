@@ -78,7 +78,7 @@ const askMasterPass = (resolve, reject) =>
 
 const missing = (a, b) => 
 {
-	let out  = diff(a,b);
+	let out = diff(a.sort(), b.sort());
 	if (out.length === 0) return [];
 	let _tmp = out.filter((i) => { return i[0] === '+'});
 	return _tmp.map((i) => { return i[1] });
