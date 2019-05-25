@@ -103,7 +103,7 @@ class PubSub extends EventEmitter
 
 		  	this.gossip.on('message', (msg, info) => {
 				//console.log('get Message'); console.dir(msg);
-				this.filterSeen(msg) && this.throttlePeer(msg.data) && this.validateMsg(msg.data, info); 
+				this.filterSeen(msg) && this.throttlePeer(info) && this.validateMsg(msg.data, info); 
   			})
 
 			// default dummy incomming handler
