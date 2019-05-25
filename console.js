@@ -327,13 +327,13 @@ class OptractNode extends PubSubNode {
 				];
 
 				Promise.all(p).then((results) => {
-					let pending = results[0];
-					let mystats = results[1];
+					let pending = results[0]; console.dir(pending);
+					let mystats = results[1]; console.dir(mystats);
 					if (pending[0].length === 0) return;
-					let acquire = missing(mystats[0], pending[0]);
+					let acquire = missing([...mystats[0]], [...pending[0]]); // pass in duplicates
 					if (acquire.length === 0 ) return; 
-					console.dir(acquire);
-					this.mergeSnapShot(pending, acquire);
+					console.dir(acquire); console.dir(pending); console.dir(mystats);
+					this.mergeSnapShot(pending, acquire); console.log('after missing'); 
 				}).catch((err) => { console.log(`OnpendingHandler: `); console.trace(err); })
 			}
 		})
@@ -342,6 +342,7 @@ class OptractNode extends PubSubNode {
 
 		this.mergeSnapShot = (remote, dhashs) =>
 		{
+			console.log('in merge snapshot');
 			dhashs.map((thash) => {
 				return setTimeout((hash) => {
 					let idx = remote[0].indexOf(hash);
