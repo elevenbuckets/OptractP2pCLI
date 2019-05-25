@@ -179,9 +179,19 @@ class OptractNode extends PubSubNode {
 		this.myNonce = 0;
 		this.myEpoch = 0;
 
+		this.ipfsSwarms = [
+			"/ipfs/Qmd5QhvVUdYa7LPnyKsWvVTi2iz2sa7XeGLdGc2eC9Fecm",
+			"/ipfs/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ",
+			"/ipfs/QmanMqJfywyBDAFej6GKyb967jBy7drBkeFDT66t3mKhgD",
+			"/ipfs/QmXUZGsV4jPUNqTQPZpV6fg8z3ivPgoi6FVBWF3wP6Boyj"
+		];
+
 		const observer = (sec = 300000) =>
 		{
         		return setInterval(() => {
+				this.ipfsSwarms.map((s) => { 
+					return setTimeout((peer) => { this.ipfs.swarm.connect(peer).catch((err) => { true }) }, 0, s); 
+				});
 				this.currentTick = Math.floor(Date.now() / 1000);
 				this.myEpoch = (this.currentTick - (this.currentTick % 300)) / 300;
 				this.emit('epoch', { tick: this.currentTick, epoch: this.myEpoch }) 
