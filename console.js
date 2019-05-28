@@ -81,14 +81,14 @@ const missing = (a, b) =>
 	a.sort(); 
 	b.sort();
 
-	console.log('MISSING DEBUG:');
-	console.dir(a);
-	console.dir(b);
+	//console.log('MISSING DEBUG:');
+	//console.dir(a);
+	//console.dir(b);
 
 	let out = diff(a, b);
 
-	console.log('DIFF:');
-	console.dir(out);
+	//console.log('DIFF:');
+	//console.dir(out);
 
 	if (!out || out.length === 0) return [];
 	let _tmp = out.filter((i) => { return i[0] === '+'});
@@ -246,7 +246,7 @@ class OptractNode extends PubSubNode {
 					payload,
 	                                netID: this.networkID
 	                        };
-				console.dir(sigout);
+				//console.dir(sigout);
 
 			        if (this.verifySignature(sigout)){
 					let pack = msg.data.serialize();
@@ -279,8 +279,8 @@ class OptractNode extends PubSubNode {
 						let params = {
 							nonce: this.myNonce + 1,
 							account, content, badge, since,
-							v: Number(sig.v), r: sig.r, s: sig.s
-						};
+							v: sig.v, r: sig.r, s: sig.s
+						}; 
 						let rlp = this.handleRLPx(mfields)(params);
 						this.publish('Optract', rlp.serialize());
 						this.myNonce = this.myNonce + 1;
@@ -337,13 +337,12 @@ class OptractNode extends PubSubNode {
 				];
 
 				Promise.all(p).then((results) => {
-					let pending = results[0]; console.dir(pending);
-					let mystats = results[1]; console.dir(mystats);
+					let pending = results[0]; 
+					let mystats = results[1]; 
 					if (pending[0].length === 0) return;
 					let acquire = missing([...mystats[0]], [...pending[0]]); // pass in duplicates
 					if (acquire.length === 0 ) return; 
-					console.dir(acquire); console.dir(pending); console.dir(mystats);
-					this.mergeSnapShot(pending, acquire); console.log('after missing'); 
+					this.mergeSnapShot(pending, acquire); 
 				}).catch((err) => { console.log(`OnpendingHandler: `); console.trace(err); })
 			}
 		})
@@ -352,7 +351,7 @@ class OptractNode extends PubSubNode {
 
 		this.mergeSnapShot = (remote, dhashs) =>
 		{
-			console.log('in merge snapshot');
+			console.log('Merging snapshot');
 			dhashs.map((thash) => {
 				return setTimeout((hash) => {
 					let idx = remote[0].indexOf(hash);
@@ -410,15 +409,13 @@ class OptractNode extends PubSubNode {
 			let snapshot = this.packSnap(); 
 			if (snapshot[0].length === 0) return;
 
-			// Need to create fixed length buffer and concat elements with just a little bit padding... still need works
-			//this.put(Buffer.from([Buffer.from(snapshot[0]), Buffer.from(snapshot[1]), Buffer.from(snapshot[2])])).then((out) => {
 			this.put(Buffer.from(JSON.stringify(snapshot))).then((out) => {
 				let cache  = this.IPFSstringtoBytes32(out[0].hash);
 				let payload = this.abi.encodeParameters(
 					['uint', 'uint', 'address', 'bytes32', 'uint'],
 					[tikObj.epoch, 1, account, cache, tikObj.tick] //PoC code fixing pending block No to "1"
 				);
-
+	
 				return this.unlockAndSign(account)(Buffer.from(payload)).then((sig) => {
 					let params = {
 						nonce: tikObj.epoch,
@@ -426,11 +423,11 @@ class OptractNode extends PubSubNode {
 						validator: account,
 						cache, 
 						since: tikObj.tick,
-						v: Number(sig.v), r: sig.r, s: sig.s
+						v: sig.v, r: sig.r, s: sig.s
 					};
 					let rlp = this.handleRLPx(pfields)(params);
 					this.publish('Optract', rlp.serialize());
-					//console.dir(rlp);
+					console.log(`Local snapshot ${out[0].hash} sent`);
 				}).catch((err) => { console.trace(err); })
 			})
 		});

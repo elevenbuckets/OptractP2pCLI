@@ -189,7 +189,9 @@ class PubSub extends EventEmitter
 					} else {
 						console.log(`DEBUG: trying pfields:`)
 						rlp = this.handleRLPx(pfields)(rlpx); // proper format;
-						return this.emit('onpending', {topic: msg.topic, data: rlp});
+						if (rlp !== null) {
+							return this.emit('onpending', {topic: msg.topic, data: rlp});
+						}
 					}
 				} catch (err) {
 					console.trace(err);
