@@ -180,32 +180,58 @@ class OptractNode extends PubSubNode {
 		this.myEpoch = 0;
 
 		this.ipfsSwarms = [
-			"/ipfs/Qmaisz6NMhDB51cCvNWa1GMS7LU1pAxdF4Ld6Ft9kZEP2a",
+			"/ipfs/QmSoLPppuBtQSGwKDZT2M73ULpjvfd3aZ6ha4oFGL1KrGM",
+			"/ipfs/QmSoLV4Bbm51jM9C4gDYZQ9Cy3U6aXMJDAbzgu2fzaDs64",
+			"/ipfs/QmSoLSafTMBsPKadTEgaXctDQVcqN88CNLHXMkTNwMKPnu",
+			"/ipfs/QmSoLer265NRgSp2LA3dPaeykiS1J6DifTC88f5uVQKNAd",
 			"/ipfs/Qmd5QhvVUdYa7LPnyKsWvVTi2iz2sa7XeGLdGc2eC9Fecm",
 			"/ipfs/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ",
 			"/ipfs/QmanMqJfywyBDAFej6GKyb967jBy7drBkeFDT66t3mKhgD",
 			"/ipfs/QmXUZGsV4jPUNqTQPZpV6fg8z3ivPgoi6FVBWF3wP6Boyj"
 		];
 
+		this.ipfsStats = {};
+
+		const __ipfsConnect = () =>
+		{
+			this.ipfs.id().then((output) => {
+				let myid = '/ipfs/' + output.id;
+				this.ipfsSwarms.map((s) => {
+					if (s === myid) return this.ipfsStats[s] = 'this node';
+					this.ipfsStats[s] = 'unknown';
+					return setTimeout((peer) => { 
+						this.ipfs.swarm.connect(peer)
+						    .then((rc) => { this.ipfsStats[peer] = 'success' })
+						    .catch((err) => { this.ipfsStats[peer] = 'not connected' }) 
+					}, 0, s); 
+				});
+			});
+		}
+
 		const observer = (sec = 300000) =>
 		{
         		return setInterval(() => {
-				this.ipfsSwarms.map((s) => { 
-					return setTimeout((peer) => { 
-						this.ipfs.swarm.connect(peer)
-						    .then((rc) => { console.log(rc.Strings[0]) })
-						    .catch((err) => { true }) 
-					}, 0, s); 
-				});
+				__ipfsConnect();
 				this.currentTick = Math.floor(Date.now() / 1000);
 				this.myEpoch = (this.currentTick - (this.currentTick % 300)) / 300;
 				this.emit('epoch', { tick: this.currentTick, epoch: this.myEpoch }) 
 			}, sec);
 		}
 
+		this.reports = () =>
+                {
+                        return {
+				pubsub:	this.stats(),
+				ipfs: this.ipfsStats,
+				ethereum: this.ethNetStatus(),
+				throttle: this.seen.seen
+			};
+                }
+
 		// pubsub handler
 		this.connectP2P();
 		this.join('Optract');
+		__ipfsConnect();
 
 		//const compare = (a,b) => { if (a.nonce > b.nonce) { return 1 } else { return -1 }; return 0 };
 
