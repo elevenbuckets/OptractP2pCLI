@@ -32,5 +32,9 @@
     "uuid": "^3.1.0",
     "web3": "^0.19",
     "web3-eth-abi": "^1.0.0-beta.37"
+  },
+  "devDependencies": {
+    "electron": "^5.0.2",
+    "electron-builder": "^20.41.0"
   }
 }

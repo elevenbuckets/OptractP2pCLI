@@ -180,6 +180,7 @@ class OptractNode extends PubSubNode {
 		this.myEpoch = 0;
 
 		this.ipfsSwarms = [
+			"/ipfs/Qmaisz6NMhDB51cCvNWa1GMS7LU1pAxdF4Ld6Ft9kZEP2a",
 			"/ipfs/Qmd5QhvVUdYa7LPnyKsWvVTi2iz2sa7XeGLdGc2eC9Fecm",
 			"/ipfs/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ",
 			"/ipfs/QmanMqJfywyBDAFej6GKyb967jBy7drBkeFDT66t3mKhgD",
@@ -190,7 +191,11 @@ class OptractNode extends PubSubNode {
 		{
         		return setInterval(() => {
 				this.ipfsSwarms.map((s) => { 
-					return setTimeout((peer) => { this.ipfs.swarm.connect(peer).catch((err) => { true }) }, 0, s); 
+					return setTimeout((peer) => { 
+						this.ipfs.swarm.connect(peer)
+						    .then((rc) => { console.log(rc.Strings[0]) })
+						    .catch((err) => { true }) 
+					}, 0, s); 
 				});
 				this.currentTick = Math.floor(Date.now() / 1000);
 				this.myEpoch = (this.currentTick - (this.currentTick % 300)) / 300;
