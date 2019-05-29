@@ -293,7 +293,7 @@ if (isMainThread) {
 						// Using Worker Threads to work with keythereum
 	                                        return new Promise((resolve, reject) => {
         	                                        const worker = new Worker('./worker.js', { workerData: 
-								{addr, passes, datadir: this.datadir, data: msgSHA256Buffer, networkID: this.networkID} });
+								{addr, passes, datadir: this.configs.datadir, data: msgSHA256Buffer, networkID: this.networkID} });
                 	                                worker.on('message', (sig) => {
 								let sigbuf = { s: Buffer.from(sig.s), r: Buffer.from(sig.r), v: Number(sig.v) };
 								resolve(sigbuf);
