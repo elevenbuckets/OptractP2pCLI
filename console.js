@@ -470,7 +470,7 @@ class OptractNode extends PubSubNode {
 	}
 }
 
-const appCfg = { ...config.node, port: 45001 + Math.floor(Math.random()*20) };
+const appCfg = { ...config.node, port: 45054 };
 
 console.dir(appCfg);
 
