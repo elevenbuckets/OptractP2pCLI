@@ -140,7 +140,6 @@ class OptractNode extends PubSubNode {
                    'validPass',
 		   'allAccounts',
                    'connected',
-		   'makeMerkleTreeAndUploadRoot',
                    'configured',
                    'memberStatus',
 		   'unlockAndSign',
@@ -417,6 +416,63 @@ class OptractNode extends PubSubNode {
 			// but this time we will keep tx that did not go into block.
 		}
 	
+		this.makeMerkleTreeAndUploadRoot = () =>
+                {
+                        // Currently, we will group all block data into single JSON and publish it on IPFS
+                        let blkObj =  {myEpoch: this.myEpoch, data: {} };
+                        let leaves = [];
+
+                        // is this block data structure good enough?
+			let snapshot = this.packSnap();
+		        if (snapshot[1].length === 0) return;
+		        leaves = [...snapshot[1]];
+		        blkObj.data = leaves;
+                        // Object.keys(this.pending[blkObj.myEpoch]).map((addr) => {
+                        //         if (this.pending[blkObj.myEpoch][addr].length === 0) return;
+
+                        //         let out = this.uniqRLP(addr);
+                        //         blkObj.data[addr] = out.data;
+                        //         leaves = [ ...leaves, ...out.leaves ];
+                        // });
+
+                        console.log(`DEBUG: Final Leaves for myEpoch = ${blkObj.myEpoch}:`); console.dir(leaves);
+
+                        let merkleTree = this.makeMerkleTree(leaves);
+                        let merkleRoot = ethUtils.bufferToHex(merkleTree.getMerkleRoot());
+                        console.log(`Block Merkle Root: ${merkleRoot}`);
+
+                        let stage = this.generateBlock(blkObj);
+                        stage = stage.then((rc) => {
+                                console.log('IPFS Put Results'); console.dir(rc);
+                                return this.sendTk(this.appName)('BlockRegistry')('submitMerkleRoot')(blkObj.myEpoch, merkleRoot, rc[0].hash)();
+                        })
+                        .catch((err) => { console.log(`ERROR in makeMerkleTreeAndUploadRoot`); console.trace(err); });
+
+                        return stage;
+                }
+
+                this.generateBlock = (blkObj) =>
+                {
+                        let database = app.appCfgs.dapps[app.appName].database;
+                        const __genBlockBlob = (blkObj) => (resolve, reject) =>
+                        {
+                                fs.writeFile(path.join(database, String(blkObj.myEpoch), 'blockBlob'), JSON.stringify(blkObj), (err) => {
+                                        if (err) return reject(err);
+                                        resolve(path.join(database, String(blkObj.myEpoch), 'blockBlob'));
+                                })
+                        }
+
+                        let stage = new Promise(__genBlockBlob(blkObj));
+                        stage = stage.then((blockBlobPath) =>
+                        {
+                                console.log(`Local block data cache: ${blockBlobPath}`);
+                                return this.ipfsPut(blockBlobPath);
+                        })
+                        .catch((err) => { console.log(`ERROR in generateBlock`); console.trace(err); });
+
+                        return stage;
+                }
+
 		this.otimer = observer(150000);
 
 		this.packSnap = (sortTxs = false) =>
