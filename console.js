@@ -68,7 +68,7 @@ const askMasterPass = (resolve, reject) =>
 //Main
 let app = new PubSub(
 {
-	port: 45001 + Math.floor(Math.random()*20), 
+	port: 45054,
 	dns: {
 		server: [
 			'discovery1.datprotocol.com',
@@ -84,6 +84,7 @@ let app = new PubSub(
 		]
 	} 
 });
+app.join('Optract');
 let slogan = 'Optract';
 let r;
 

@@ -85,6 +85,8 @@ class PubSub extends EventEmitter
 		this.stats = () =>
 		{
 			return {
+				topics: this.topic,
+				peerseen: this.swarm._peersSeen,
 				connecting: this.swarm.connecting,
 				upcomming: this.swarm.queued,
 				connected: this.swarm.connected
