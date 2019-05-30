@@ -78,8 +78,8 @@ const askMasterPass = (resolve, reject) =>
 
 const missing = (a, b) => 
 {
-	//a.sort(); 
-	//b.sort();
+	a.sort(); 
+	b.sort();
 
 	//console.log('MISSING DEBUG:');
 	//console.dir(a);
