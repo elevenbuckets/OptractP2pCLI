@@ -78,8 +78,8 @@ const askMasterPass = (resolve, reject) =>
 
 const missing = (a, b) => 
 {
-	a.sort(); 
-	b.sort();
+	//a.sort(); 
+	//b.sort();
 
 	//console.log('MISSING DEBUG:');
 	//console.dir(a);
@@ -411,11 +411,15 @@ class OptractNode extends PubSubNode {
 					}
 				}, 0, thash);
 			})
+
+			// generate & commit merkle root here when the time is up.
+			// when new block is committed, need to "diff" new block with local pending. 
+			// but this time we will keep tx that did not go into block.
 		}
 	
 		this.otimer = observer(150000);
 
-		this.packSnap = () =>
+		this.packSnap = (sortTxs = false) =>
 		{
 			let _tmp = { ...this.pending };
 			let _tdt = { ..._tmp.txdata }; 
@@ -424,7 +428,8 @@ class OptractNode extends PubSubNode {
 
 			let txhs = []; let txdt = []; let txpd = []; 
 
-			Object.values(_ths).map((a) => { 
+			Object.keys(_ths).sort().map((acc) => { 
+				let a = sortx ? _ths[acc].sort() : _ths[acc];
 				txhs = [...txhs, ...a];
 				a.map((h) => {
 					txpd = [ ...txpd, _tpd[h] ];
