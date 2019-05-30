@@ -429,7 +429,7 @@ class OptractNode extends PubSubNode {
 			let txhs = []; let txdt = []; let txpd = []; 
 
 			Object.keys(_ths).sort().map((acc) => { 
-				let a = sortx ? _ths[acc].sort() : _ths[acc];
+				let a = sortTxs ? _ths[acc].sort() : _ths[acc];
 				txhs = [...txhs, ...a];
 				a.map((h) => {
 					txpd = [ ...txpd, _tpd[h] ];
