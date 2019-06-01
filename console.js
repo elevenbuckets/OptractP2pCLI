@@ -15,6 +15,7 @@ const mr = require('@postlight/mercury-parser');
 const bs58 = require('bs58');
 const diff = require('json-diff').diff;
 const ethUtils = require('ethereumjs-utils');
+const MerkleTree = require('merkle_tree');
 
 //configuration
 const config = JSON.parse(fs.readFileSync(path.join('./dapps', 'config.json')).toString()); // can become part of cfgObj
@@ -163,7 +164,7 @@ class OptractNode extends PubSubNode {
                 this.IPFSstringtoBytes32 = (ipfsHash) =>
                 {
                         // return '0x'+bs58.decode(ipfsHash).toString('hex').slice(4);  // return string
-                        return ethUtils.bufferToHex(bs58.decode(ipfsHash).slice(2));  // return Buffer; slice 2 bytes = 4 hex  (the 'Qm' in front of hash)
+                        return ethUtils.bufferToHex(bs58.decode(ipfsHash).slice(2));  // slice 2 bytes = 4 hex  (the 'Qm' in front of hash)
                 }
 
                 this.Bytes32toIPFSstring = (hash) =>  // hash is a bytes32 Buffer
@@ -424,9 +425,9 @@ class OptractNode extends PubSubNode {
 
                         // is this block data structure good enough?
 			let snapshot = this.packSnap();
-		        if (snapshot[1].length === 0) return;
-		        leaves = [...snapshot[1]];
-		        blkObj.data = leaves;
+		        if (snapshot[0].length === 0) return;
+		        leaves = [...snapshot[0]];
+		        blkObj.data = snapshot;
                         // Object.keys(this.pending[blkObj.myEpoch]).map((addr) => {
                         //         if (this.pending[blkObj.myEpoch][addr].length === 0) return;
 
@@ -444,11 +445,20 @@ class OptractNode extends PubSubNode {
                         let stage = this.generateBlock(blkObj);
                         stage = stage.then((rc) => {
                                 console.log('IPFS Put Results'); console.dir(rc);
-                                return this.sendTk(this.appName)('BlockRegistry')('submitMerkleRoot')(blkObj.myEpoch, merkleRoot, rc[0].hash)();
+                                let ipfscid = this.IPFSstringtoBytes32(rc[0].hash);
+                                console.log('IPFS CID: ' + ipfscid);
+                                return this.sendTk(this.appName)('BlockRegistry')('submitMerkleRoot')(blkObj.myEpoch, merkleRoot, ipfscid)();
                         })
                         .catch((err) => { console.log(`ERROR in makeMerkleTreeAndUploadRoot`); console.trace(err); });
 
                         return stage;
+                }
+
+                this.makeMerkleTree = (leaves) => {
+                        let merkleTree = new MerkleTree();
+                        merkleTree.addLeaves(leaves);
+                        merkleTree.makeTree();
+                        return merkleTree;
                 }
 
                 this.generateBlock = (blkObj) =>
@@ -456,9 +466,14 @@ class OptractNode extends PubSubNode {
                         let database = app.appCfgs.dapps[app.appName].database;
                         const __genBlockBlob = (blkObj) => (resolve, reject) =>
                         {
-                                fs.writeFile(path.join(database, String(blkObj.myEpoch), 'blockBlob'), JSON.stringify(blkObj), (err) => {
+                                // fs.writeFile(path.join(database, String(blkObj.myEpoch), 'blockBlob'), JSON.stringify(blkObj), (err) => {
+                                //         if (err) return reject(err);
+                                //         resolve(path.join(database, String(blkObj.myEpoch), 'blockBlob'));
+                                // })
+                                // manually mkdir `${database}` for now
+                                fs.writeFile(path.join(database, 'blockBlob'), JSON.stringify(blkObj), (err) => {
                                         if (err) return reject(err);
-                                        resolve(path.join(database, String(blkObj.myEpoch), 'blockBlob'));
+                                        resolve(path.join(database, 'blockBlob'));
                                 })
                         }
 
@@ -466,11 +481,27 @@ class OptractNode extends PubSubNode {
                         stage = stage.then((blockBlobPath) =>
                         {
                                 console.log(`Local block data cache: ${blockBlobPath}`);
-                                return this.ipfsPut(blockBlobPath);
+                                return this.put(fs.readFileSync(blockBlobPath));
                         })
                         .catch((err) => { console.log(`ERROR in generateBlock`); console.trace(err); });
 
                         return stage;
+                }
+
+                this.getBlockData = (sblockNo) => {
+                        return this.call(this.appName)('BlockRegistry')('getBlockInfo')(sblockNo).then( (rc) => {
+                                console.log('- sblock no: ' + sblockNo);
+                                console.log('- eth block height:' + rc[0]);
+                                console.log('- merkle root: ' + rc[1]);
+                                console.log('- IPFS CID: ' + rc[2]);
+                                console.log('- IPFS CID: ' + this.Bytes32toIPFSstring(Buffer.from(rc[2].slice(2), 'hex')))
+                        })
+                }
+
+                this.getPrevBlockData = () => {
+                        return this.call(this.appName)('BlockRegistry')('getBlockNo')().then( (sblockNo) =>{
+                                return this.getBlockData(sblockNo-1);
+                        })
                 }
 
 		this.otimer = observer(150000);
