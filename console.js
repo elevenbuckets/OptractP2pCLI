@@ -239,7 +239,7 @@ class OptractNode extends PubSubNode {
 
 		this.setIncommingHandler((msg) => 
 		{
-
+			//TODO: filter duplication post by same sender.
 			let data = msg.data;
 			let account = ethUtils.bufferToHex(data.account);
 
@@ -264,6 +264,25 @@ class OptractNode extends PubSubNode {
 				let content = ethUtils.bufferToHex(data.content);
 				let ticket = ethUtils.bufferToHex(data.ticket); 
 
+				if (content === '0x') {
+					content = '0x0000000000000000000000000000000000000000000000000000000000000000';
+					if (refleaf === '0x') return;
+				}
+
+				if (ticket !== '0x') {
+					if (refleaf === '0x') return;
+				}
+
+				if (refleaf !== '0x') {
+					// verify refleaf in refblock
+					if (ticket !== '0x') {
+						// verify ticket in refblock + 1 
+						// & ticket:[refleaf] won 
+						// & refleaf won
+					}
+				}
+
+				if (refleaf === '0x') refleaf = '0x0000000000000000000000000000000000000000000000000000000000000000';
 				if (ticket === '0x') ticket = '0x0000000000000000000000000000000000000000000000000000000000000000';
 
 				let _payload = this.abi.encodeParameters(
@@ -352,7 +371,7 @@ class OptractNode extends PubSubNode {
 				return __msgTx(result, {ticket, refleaf, refblock, account});
 			} else {
 				let content = '0x0000000000000000000000000000000000000000000000000000000000000000';
-				return __inner_msgTx(content, txData);
+				return __inner_msgTx(content, {ticket, refleaf, refblock, account});
 			}
 		} 
 
@@ -366,7 +385,7 @@ class OptractNode extends PubSubNode {
 				return __msgTx(result, {ticket, refleaf, refblock, account});
 			} else {
 				let content = '0x0000000000000000000000000000000000000000000000000000000000000000';
-				return __inner_msgTx(content, txData);
+				return __inner_msgTx(content, {ticket, refleaf, refblock, account});
 			}
 		}
 
