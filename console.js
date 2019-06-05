@@ -274,11 +274,12 @@ class OptractNode extends PubSubNode {
 				}
 
 				if (refleaf !== '0x') {
-					// verify refleaf in refblock
+					//TODO: verify refleaf in refblock
+
 					if (ticket !== '0x') {
-						// verify ticket in refblock + 1 
-						// & ticket:[refleaf] won 
-						// & refleaf won
+						// TODO: verify ticket in refblock + 1 
+						//     & ticket:[refleaf] won 
+						//     & refleaf won
 					}
 				}
 
