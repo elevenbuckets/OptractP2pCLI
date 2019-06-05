@@ -81,14 +81,7 @@ const missing = (a, b) =>
 	a.sort(); 
 	b.sort();
 
-	//console.log('MISSING DEBUG:');
-	//console.dir(a);
-	//console.dir(b);
-
 	let out = diff(a, b);
-
-	//console.log('DIFF:');
-	//console.dir(out);
 
 	if (!out || out.length === 0) return [];
 	let _tmp = out.filter((i) => { return i[0] === '+'});
@@ -356,7 +349,8 @@ class OptractNode extends PubSubNode {
 			let refblock = 0;
 
 			return mr.parse(url).then((result) => {
-				//TODO: adding tags & replace result.contnet with just article hash identifier 
+				result['tag'] = tag;
+				result.content = ethUtils.bufferToHex(ethUtils.sha256(Buffer.from(result.content)));
 				return __msgTx(result, {ticket, refleaf, refblock, account});
 			}).catch((err) => { console.trace(err); })
 		}
