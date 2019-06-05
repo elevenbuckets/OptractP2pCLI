@@ -100,8 +100,10 @@ const mfields =
 [
         {name: 'nonce', length: 32, allowLess: true, default: Buffer.from([]) },
         {name: 'account', length: 20, allowZero: true, default: Buffer.from([]) },
-        {name: 'content', length: 32, allowLess: true, default: Buffer.from([]) }, // ipfs hash
-        {name: 'badge', length: 32, allowLess: true, default: Buffer.from([]) }, // erc-721 unique id, only valid if activated
+        {name: 'content', length: 32, allowLess: true, default: Buffer.from([]) },   // ipfs hash (content or comment)
+        {name: 'ticket', length: 32, allowLess: true, default: Buffer.from([]) },    // 1st vote winning txhash (block No. must be 2nd vote block - 1)
+        {name: 'refblock', length: 32, allowLess: true, default: Buffer.from([]) },  // 1st/2nd vote (claim) block
+        {name: 'refleaf', length: 32, allowLess: true, default: Buffer.from([]) },   // 1st/2nd vote (claim) txhash
         {name: 'since', length: 32, allowLess: true, default: Buffer.from([]) },
         {name: 'v', allowZero: true, default: Buffer.from([0x1c]) },
         {name: 'r', allowZero: true, length: 32, default: Buffer.from([]) },
@@ -260,13 +262,13 @@ class OptractNode extends PubSubNode {
 				let nonce = ethUtils.bufferToInt(data.nonce);
 				let since = ethUtils.bufferToInt(data.since);
 				let content = ethUtils.bufferToHex(data.content);
-				let badge = ethUtils.bufferToHex(data.badge); 
+				let ticket = ethUtils.bufferToHex(data.ticket); 
 
-				if (badge === '0x') badge = '0x0000000000000000000000000000000000000000000000000000000000000000';
+				if (ticket === '0x') ticket = '0x0000000000000000000000000000000000000000000000000000000000000000';
 
 				let _payload = this.abi.encodeParameters(
-					['uint', 'address', 'bytes32', 'uint', 'bytes32'],
-					[nonce,  account,  content,  since,  badge]
+					['uint', 'address', 'bytes32', 'bytes32', 'uint', 'bytes32', 'uint'],
+					[nonce,  account,  content, ticket, refblock, refleaf,  since]
 				);
 
 				let payload = ethUtils.hashPersonalMessage(Buffer.from(_payload));
@@ -292,44 +294,79 @@ class OptractNode extends PubSubNode {
 			    })
 		})
 
-		this.newArticle = (url, badge = '0x0000000000000000000000000000000000000000000000000000000000000000') => 
+		const __inner_msgTx = (content, txData) =>
+		{
+			let ticket = txData.ticket;
+			let account = txData.account;
+			let refblock = txData.refblock;
+			let refleaf  = txData.refleaf;
+
+			let since = Math.floor(Date.now() / 1000);
+			let payload = this.abi.encodeParameters(
+				['uint', 'address', 'bytes32', 'bytes32', 'uint', 'bytes32', 'uint'],
+				[this.myNonce + 1, account, content, ticket, refblock, refleaf, since]
+			);
+
+			return this.unlockAndSign(account)(Buffer.from(payload)).then((sig) => {
+				let params = {
+					nonce: this.myNonce + 1,
+					account, content, ticket, refblock, refleaf, 
+					since, v: sig.v, r: sig.r, s: sig.s
+				}; 
+				let rlp = this.handleRLPx(mfields)(params);
+				this.publish('Optract', rlp.serialize());
+				this.myNonce = this.myNonce + 1;
+				return rlp;
+			}).catch((err) => { console.trace(err); })
+		}
+
+		const __msgTx = (result, txData) =>
+		{
+			return this.put(Buffer.from(JSON.stringify(result))).then((out) => {
+				let content = this.IPFSstringtoBytes32(out[0].hash);
+				return __inner_msgTx(content, txData);
+			})
+		}
+
+		this.newArticle = (url, tags = []) => 
 		{
 			let account = this.userWallet[this.appName];
+			let ticket  = '0x0000000000000000000000000000000000000000000000000000000000000000';
+			let refleaf = '0x0000000000000000000000000000000000000000000000000000000000000000';
+			let refblock = 0;
 
-			const __msgTx = (result, badge) =>
-			{
-				return this.put(Buffer.from(JSON.stringify(result))).then((out) => {
-					let content = this.IPFSstringtoBytes32(out[0].hash);
-					let since = Math.floor(Date.now() / 1000);
-					let payload = this.abi.encodeParameters(
-						['uint', 'address', 'bytes32', 'uint', 'bytes32'],
-						[this.myNonce + 1, account, content, since, badge]
-					);
+			return mr.parse(url).then((result) => {
+				//TODO: adding tags & replace result.contnet with just article hash identifier 
+				return __msgTx(result, {ticket, refleaf, refblock, account});
+			}).catch((err) => { console.trace(err); })
+		}
 
-					return this.unlockAndSign(account)(Buffer.from(payload)).then((sig) => {
-						let params = {
-							nonce: this.myNonce + 1,
-							account, content, badge, since,
-							v: sig.v, r: sig.r, s: sig.s
-						}; 
-						let rlp = this.handleRLPx(mfields)(params);
-						this.publish('Optract', rlp.serialize());
-						this.myNonce = this.myNonce + 1;
-						return rlp;
-					}).catch((err) => { console.trace(err); })
-				})
-			}
+		this.newVote = (refblock, refleaf, comments = '') =>
+		{
+			// TODO: verify refblock and refleaf before sending
+			let account = this.userWallet[this.appName];
+			let ticket  = '0x0000000000000000000000000000000000000000000000000000000000000000';
 
-			if (parseInt(badge, 16) === 0) {
-				return mr.parse(url).then((result) => {	
-					return __msgTx(result, badge);
-				}).catch((err) => { console.trace(err); })
-
+			if (comments.length > 0) {
+				let result = { comments, from: account };
+				return __msgTx(result, {ticket, refleaf, refblock, account});
 			} else {
-				//TODO: Original content. url should mimic mr output with similar object.
-				//      (could we have mercury parsing extension local article page???)
-				//TODO: validate badge active period from smart contract.
-				return __msgTx(url, badge);
+				let content = '0x0000000000000000000000000000000000000000000000000000000000000000';
+				return __inner_msgTx(content, txData);
+			}
+		} 
+
+		this.newClaim = (ticket) => (refblock, refleaf, comments = '') =>
+		{
+			// TODO: verify refblock and refleaf before sending
+			let account = this.userWallet[this.appName];
+
+			if (comments.length > 0) {
+				let result = { comments, from: account };
+				return __msgTx(result, {ticket, refleaf, refblock, account});
+			} else {
+				let content = '0x0000000000000000000000000000000000000000000000000000000000000000';
+				return __inner_msgTx(content, txData);
 			}
 		}
 
