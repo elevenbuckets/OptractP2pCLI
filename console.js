@@ -256,6 +256,8 @@ class OptractNode extends PubSubNode {
 				let since = ethUtils.bufferToInt(data.since);
 				let content = ethUtils.bufferToHex(data.content);
 				let ticket = ethUtils.bufferToHex(data.ticket); 
+				let refblock = ethUtils.bufferToInt(data.refblock); 
+				let refleaf = ethUtils.bufferToHex(data.refleaf); 
 
 				if (content === '0x') {
 					content = '0x0000000000000000000000000000000000000000000000000000000000000000';
@@ -349,7 +351,7 @@ class OptractNode extends PubSubNode {
 			let refblock = 0;
 
 			return mr.parse(url).then((result) => {
-				result['tag'] = tags;
+				result['tags'] = tags;
 				result.content = ethUtils.bufferToHex(ethUtils.sha256(Buffer.from(result.content)));
 				return __msgTx(result, {ticket, refleaf, refblock, account});
 			}).catch((err) => { console.trace(err); })

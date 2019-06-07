@@ -101,13 +101,41 @@ class PubSub extends EventEmitter
 				fs.writeFileSync(path.join(os.homedir(), '.optract_keys'), JSON.stringify(this.gossip.keys))
 			}
 
-			
+			// overload gossip.__data_filter for Optract
+			this.gossip.__data_filter = (msgData) =>
+			{
+				let msg = msgData.data;
+
+                        	// - msg requires to contain "topic"
+                        	if (typeof(msg.topic) === 'undefined') return false;
+                        	// - topic needs to be in this.topicList
+                        	if (this.topicList.length === 0 || this.topicList.indexOf(msg.topic) === -1) return false;
+
+                        	// - check encoded RLPx by topic match
+                        	if (msg.topic === 'Optract') {
+                                	try {
+                                        	let rlpx = Buffer.from(msg.msg);
+	                                        let rlp = this.handleRLPx(mfields)(rlpx); // proper format;
+
+        	                                if (rlp !== null) {
+                        	                        return true;
+                                	        } else {
+      	                                                rlp = this.handleRLPx(pfields)(rlpx); // proper format;
+        	                                        if (rlp !== null) {
+                                                        	return true;
+                                                	}
+                                        	}
+                                	} catch (err) {
+						return false;
+                                	}
+                        	}	
+			}
 
   			this.id = this.gossip.keys.public; // should eventually use ETH address
 			console.log('My ID: ' + this.id);
 
 		  	this.gossip.on('message', (msg, info) => {
-				//console.log('get Message'); console.dir(msg);
+				console.log('get Message'); console.dir(msg);
 				this.filterSeen(msg) && this.throttlePeer(info) && this.validateMsg(msg); 
   			})
 
@@ -144,9 +172,9 @@ class PubSub extends EventEmitter
                         }
                 }
 
-		this.filterSeen = (msg) =>
+		this.filterSeen = (msgData) =>
 		{
-			msg = JSON.stringify(msg);
+			let msg = JSON.stringify(msgData);
 			let timeNow = Math.floor(Date.now()/1000);
 			let hashID = ethUtils.bufferToHex(ethUtils.sha256(Buffer.from(msg)));
 			if (typeof(this.seen.logs[hashID]) !== 'undefined' && timeNow - this.seen.logs[hashID] < 10000 ) {
@@ -192,6 +220,7 @@ class PubSub extends EventEmitter
 					let rlp = this.handleRLPx(mfields)(rlpx); // proper format;
 
 					if (rlp !== null) {
+						console.log(`incomming ...`);
 						return this.emit('incomming', {topic: msg.topic, data: rlp});
 					} else {
 						console.log(`DEBUG: trying pfields:`)
