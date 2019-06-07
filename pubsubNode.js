@@ -15,13 +15,16 @@ const mfields =
 [
         {name: 'nonce', length: 32, allowLess: true, default: Buffer.from([]) },
         {name: 'account', length: 20, allowZero: true, default: Buffer.from([]) },
-        {name: 'content', length: 32, allowLess: true, default: Buffer.from([]) }, // ipfs hash
-        {name: 'badge', length: 32, allowLess: true, default: Buffer.from([]) }, // erc-721 unique id, only valid if activated
+        {name: 'content', length: 32, allowLess: true, default: Buffer.from([]) },   // ipfs hash (content or comment)
+        {name: 'ticket', length: 32, allowLess: true, default: Buffer.from([]) },    // 1st vote winning txhash (block No. must be 2nd vote block - 1)
+        {name: 'refblock', length: 32, allowLess: true, default: Buffer.from([]) },  // 1st/2nd vote (claim) block
+        {name: 'refleaf', length: 32, allowLess: true, default: Buffer.from([]) },   // 1st/2nd vote (claim) txhash
         {name: 'since', length: 32, allowLess: true, default: Buffer.from([]) },
         {name: 'v', allowZero: true, default: Buffer.from([0x1c]) },
         {name: 'r', allowZero: true, length: 32, default: Buffer.from([]) },
         {name: 's', allowZero: true, length: 32, default: Buffer.from([]) }
 ];
+
 
 const pfields =
 [
@@ -92,9 +95,9 @@ class PubSub extends EventEmitter
 			if (fs.existsSync(path.join(os.homedir(), '.optract_keys'))) {
 				let b = fs.readFileSync(path.join(os.homedir(), '.optract_keys'));
 				opts.gossip.keys = JSON.parse(b.toString());
-				this.gossip = gossip(opts.gossip);
+				this.gossip = new gossip(opts.gossip);
 			} else {
-				this.gossip = gossip(opts.gossip);
+				this.gossip = new gossip(opts.gossip);
 				fs.writeFileSync(path.join(os.homedir(), '.optract_keys'), JSON.stringify(this.gossip.keys))
 			}
 
