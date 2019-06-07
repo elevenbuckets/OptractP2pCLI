@@ -26,6 +26,7 @@
     "json-diff": "^0.5.4",
     "keythereum": "https://github.com/elevenbuckets/keythereum.git",
     "level": "^5.0.1",
+    "merkle_tree": "https://git@github.com/elevenbuckets/merkle_tree.git",
     "node-fetch": "^1.7.3",
     "rpc-websockets": "^4.3.5",
     "secure-gossip": "^0.3.1",
