@@ -135,7 +135,7 @@ class PubSub extends EventEmitter
 			console.log('My ID: ' + this.id);
 
 		  	this.gossip.on('message', (msg, info) => {
-				console.log('get Message'); console.dir(msg);
+				//console.log('get Message'); console.dir(msg);
 				this.filterSeen(msg) && this.throttlePeer(info) && this.validateMsg(msg); 
   			})
 
