@@ -50,5 +50,6 @@ process.on('message', (workerData) => {
 	recover(addr, passes, datadir)
 	  .then(sign(data, netID))
 	  .then((sig) => { process.send(sig); })
+	  .then(() => { process.exit(0); })
 	  .catch((error) => console.trace);
 });
