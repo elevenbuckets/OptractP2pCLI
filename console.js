@@ -349,7 +349,7 @@ class OptractNode extends PubSubNode {
 			let refblock = 0;
 
 			return mr.parse(url).then((result) => {
-				result['tag'] = tag;
+				result['tag'] = tags;
 				result.content = ethUtils.bufferToHex(ethUtils.sha256(Buffer.from(result.content)));
 				return __msgTx(result, {ticket, refleaf, refblock, account});
 			}).catch((err) => { console.trace(err); })

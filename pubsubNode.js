@@ -101,12 +101,14 @@ class PubSub extends EventEmitter
 				fs.writeFileSync(path.join(os.homedir(), '.optract_keys'), JSON.stringify(this.gossip.keys))
 			}
 
+			
+
   			this.id = this.gossip.keys.public; // should eventually use ETH address
 			console.log('My ID: ' + this.id);
 
 		  	this.gossip.on('message', (msg, info) => {
 				//console.log('get Message'); console.dir(msg);
-				this.filterSeen(msg) && this.throttlePeer(info) && this.validateMsg(msg.data, info); 
+				this.filterSeen(msg) && this.throttlePeer(info) && this.validateMsg(msg); 
   			})
 
 			// default dummy incomming handler
@@ -174,8 +176,10 @@ class PubSub extends EventEmitter
 			}
 		}
 
-		this.validateMsg = (msg, info) =>
+		this.validateMsg = (msgData) =>
 		{
+			let msg = msgData.data;
+
 			// - msg requires to contain "topic"
 			if (typeof(msg.topic) === 'undefined') return false;
 			// - topic needs to be in this.topicList
