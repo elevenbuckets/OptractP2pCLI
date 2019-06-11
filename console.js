@@ -516,7 +516,7 @@ class OptractNode extends PubSubNode {
 
                 this.generateBlock = (blkObj) =>
                 {
-                        let database = app.appCfgs.dapps[app.appName].database;
+                        let database = this.appCfgs.dapps[this.appName].database;
                         const __genBlockBlob = (blkObj) => (resolve, reject) =>
                         {
                                 // fs.writeFile(path.join(database, String(blkObj.myEpoch), 'blockBlob'), JSON.stringify(blkObj), (err) => {
@@ -614,16 +614,16 @@ const appCfg = { ...config.node, port: 45054 };
 
 console.dir(appCfg);
 
-var app;
+var opt;
 var r;
 var title = 'Optract: Ops Console';
 
 let stage = new Promise(askMasterPass)
          .catch((err) => { process.exit(1); })
-         .then((answer) => { app = new OptractNode(appCfg); app.password(answer); return app.validPass() })
+         .then((answer) => { opt = new OptractNode(appCfg); opt.password(answer); return opt.validPass() })
          .then((rc) => {
-		if (rc && typeof(app.appCfgs.dapps[app.appName].account) !== 'undefined') {
-			return app.linkAccount(app.appName)(app.appCfgs.dapps[app.appName].account).then(console.log);
+		if (rc && typeof(opt.appCfgs.dapps[opt.appName].account) !== 'undefined') {
+			return opt.linkAccount(opt.appName)(opt.appCfgs.dapps[opt.appName].account).then(console.log);
 		} else {
 			//console.log(`WARNING: Read-Only Mode as Master Password is NOT unlocked!!!`);
 			title = 'Optract: Ops Console  [ RO ]';
@@ -632,14 +632,15 @@ let stage = new Promise(askMasterPass)
 	 .then(() => {
 	    return ASCII_Art(title).then((art) => {
 	        console.log(art);
-		r = repl.start({ prompt: `[-= ${app.appName} =-]$ `, eval: replEvalPromise });
-	        r.context = {app};
+		r = repl.start({ prompt: `[-= ${opt.appName} =-]$ `, eval: replEvalPromise });
+	        r.context = {opt};
 	        r.on('exit', () => {
 	                console.log("\n\t" + 'Stopping CLI...');
-			app.leave();
-			app.swarm.close();
+			opt.leave();
+			opt.swarm.close();
 			process.exit(0);
 	        });
 	    })
 	 })
 	 .catch((err) => { console.trace(err); })
+
