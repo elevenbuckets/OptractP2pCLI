@@ -614,7 +614,7 @@ class OptractNode extends PubSubNode {
 	}
 }
 
-const appCfg = { ...config.node, port: 45054, daemon: false, wsrpc: true };
+const appCfg = { ...config.node, port: 45054, daemon: true, wsrpc: false };
 
 var opt;
 var r;
