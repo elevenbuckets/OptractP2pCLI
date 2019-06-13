@@ -1,0 +1,40 @@
+{
+        "datadir":"__OPTRACT_INSTALL__/dapps",
+        "rpcAddr":"https://rinkeby.infura.io/v3/abf050ddd1334730b9e8071ab1a09090",
+        "defaultGasPrice":"20000000000",
+        "gasOracleAPI":"https://ethgasstation.info/json/ethgasAPI.json",
+        "condition":"sanity",
+        "networkID":4,
+        "passVault":"__OPTRACT_INSTALL__/dapps/myArchive.bcup",
+	"node": {
+		"dappdir": "__OPTRACT_INSTALL__/dapps",
+		"dns": {
+                	"server": [
+                        	"discovery1.datprotocol.com",
+	                        "discovery2.datprotocol.com"
+        	        ]
+        	},
+	        "dht": {
+        	        "bootstrap": [
+                	        "bootstrap1.datprotocol.com:6881",
+                        	"bootstrap2.datprotocol.com:6881",
+	                        "bootstrap3.datprotocol.com:6881",
+        	                "bootstrap4.datprotocol.com:6881"
+                	]
+        	}
+	},
+        "dapps": {
+                "OptractMedia": {
+                        "appName": "OptractMedia",
+                        "artifactDir": "__OPTRACT_INSTALL__/dapps/OptractMedia/ABI",
+                        "conditionDir": "__OPTRACT_INSTALL__/dapps/OptractMedia/Conditions",
+                        "contracts": [
+					{ "ctrName": "BlockRegistry", "conditions": ["Sanity"] },
+					{ "ctrName": "MemberShip", "conditions": ["Sanity"] }
+				     ],
+                        "account": "0xb440ea2780614b3c6a00e512f432785e7dfafa3e",
+                        "database": "__OPTRACT_INSTALL__/dapps/OptractMedia/DB",
+                        "version": "1.0"
+                }
+        }
+}

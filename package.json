@@ -4,7 +4,9 @@
   "description": "",
   "main": "console.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "rm -fr dist && asar pack ./node_modules ./dist/node_modules.asar && cp -rv ./resources/bin/* ./dist/ && cp -rv ./rpcserv ./dist/ && mkdir ./dist/dapps && cp -rv ./resources/config.json.dist ./dist/dapps/ && cp -rv ./resources/run.sh ./dist/",
+    "package": "tar -zcvf OptractClient.tar.gz ./dist",
+    "release": "npm run build && npm run package"
   },
   "keywords": [],
   "author": "",
