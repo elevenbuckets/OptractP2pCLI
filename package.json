@@ -15,7 +15,7 @@
     "async": "^2.6.2",
     "bignumber.js": "^5.0.0",
     "bs58": "^4.0.1",
-    "buttercup": "1.6.2",
+    "buttercup": "git+ssh://git@github.com/elevenbuckets/buttercup-core.git#localNodeOnly",
     "debug": "^4.1.1",
     "discovery-swarm": "git+ssh://git@github.com/elevenbuckets/discovery-swarm.git",
     "ethereumjs-tx": "^1.3.7",
