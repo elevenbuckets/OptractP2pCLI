@@ -6,7 +6,8 @@
   "scripts": {
     "build": "rm -fr dist && asar pack ./node_modules ./dist/node_modules.asar && cp -rv ./resources/bin/* ./dist/ && cp -rv ./rpcserv ./dist/ && mkdir ./dist/dapps && cp -rv ./resources/config.json.dist ./dist/dapps/ && cp -rv ./dapps/OptractMedia ./dist/dapps/ && cp -rv ./resources/run.sh ./dist/ && cp -vr ./console.js ./daemon.js ./pubsubNode.js ./KnifeIron.js ./slave.js ./dist/",
     "package": "rm -f ./OptractClient.tar.gz && tar -zcvf OptractClient.tar.gz ./dist",
-    "release": "npm run build && npm run package"
+    "release": "npm run build && npm run package",
+    "clean": "rm -fr dist OptractClient.tar.gz"
   },
   "keywords": [],
   "author": "",

@@ -1,6 +1,11 @@
 #!/bin/bash
 
 OD=`pwd`;
+
+if [ $1 == "console" ]; then
+   exec $OD/node $OD/console.js;
+fi
+
 (
   export IPFS_PATH="${OD}/ipfs_repo";
   [ -e ${OD}/ipfs_repo/config ] && echo "ipfs repo ready" || ${OD}/ipfs init && \
