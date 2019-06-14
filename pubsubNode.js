@@ -16,15 +16,16 @@ const mfields =
         {name: 'nonce', length: 32, allowLess: true, default: Buffer.from([]) },
         {name: 'account', length: 20, allowZero: true, default: Buffer.from([]) },
         {name: 'content', length: 32, allowLess: true, default: Buffer.from([]) },   // ipfs hash (content or comment)
-        {name: 'ticket', length: 32, allowLess: true, default: Buffer.from([]) },    // 1st vote winning txhash (block No. must be 2nd vote block - 1)
-        {name: 'refblock', length: 32, allowLess: true, default: Buffer.from([]) },  // 1st/2nd vote (claim) block
-        {name: 'refleaf', length: 32, allowLess: true, default: Buffer.from([]) },   // 1st/2nd vote (claim) txhash
+        {name: 'opround', length: 32, allowLess: true, default: Buffer.from([]) },    // game round participating. should be sha3(side block hash + eth block hash)
+        {name: 'v1block', length: 32, allowLess: true, default: Buffer.from([]) },  // 1st vote block
+        {name: 'v1leaf', length: 32, allowLess: true, default: Buffer.from([]) },   // 1st vote txhash
+        {name: 'v2block', length: 32, allowLess: true, default: Buffer.from([]) },  // 2nd vote (claim) block
+        {name: 'v2leaf', length: 32, allowLess: true, default: Buffer.from([]) },   // 2nd vote (claim) txhash
         {name: 'since', length: 32, allowLess: true, default: Buffer.from([]) },
         {name: 'v', allowZero: true, default: Buffer.from([0x1c]) },
         {name: 'r', allowZero: true, length: 32, default: Buffer.from([]) },
         {name: 's', allowZero: true, length: 32, default: Buffer.from([]) }
 ];
-
 
 const pfields =
 [
@@ -220,10 +221,10 @@ class PubSub extends EventEmitter
 					let rlp = this.handleRLPx(mfields)(rlpx); // proper format;
 
 					if (rlp !== null) {
-						console.log(`incomming ...`);
+						console.log(`DEBUG: incomming tx...`);
 						return this.emit('incomming', {topic: msg.topic, data: rlp});
 					} else {
-						console.log(`DEBUG: trying pfields:`)
+						console.log(`DEBUG: syncing pool...`)
 						rlp = this.handleRLPx(pfields)(rlpx); // proper format;
 						if (rlp !== null) {
 							return this.emit('onpending', {topic: msg.topic, data: rlp});
