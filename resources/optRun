@@ -5,6 +5,14 @@ MO=$1;
 
 if [ ${MO:-daemon} == "console" ]; then
    exec $OD/bin/node $OD/lib/console.js;
+elif [ ${MO:-daemon} == "devConsole" ]; then
+  (
+    export IPFS_PATH="${OD}/ipfs_repo";
+    [ -e ${OD}/ipfs_repo/config ] && echo "ipfs repo ready" || ${OD}/bin/ipfs init && \
+    ${OD}/bin/ipfs daemon --routing=dhtclient &
+  )
+
+  echo -e "!!!!!\nNOTE: devConsole requires you turn off wsrpc in config.json ...\n!!!!!" && sleep 3 && $OD/bin/node $OD/lib/console.js && pkill -15 ipfs && exit 0;
 fi
 
 (
