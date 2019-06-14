@@ -94,9 +94,11 @@ const mfields =
         {name: 'nonce', length: 32, allowLess: true, default: Buffer.from([]) },
         {name: 'account', length: 20, allowZero: true, default: Buffer.from([]) },
         {name: 'content', length: 32, allowLess: true, default: Buffer.from([]) },   // ipfs hash (content or comment)
-        {name: 'ticket', length: 32, allowLess: true, default: Buffer.from([]) },    // 1st vote winning txhash (block No. must be 2nd vote block - 1)
-        {name: 'refblock', length: 32, allowLess: true, default: Buffer.from([]) },  // 1st/2nd vote (claim) block
-        {name: 'refleaf', length: 32, allowLess: true, default: Buffer.from([]) },   // 1st/2nd vote (claim) txhash
+        {name: 'opround', length: 32, allowLess: true, default: Buffer.from([]) },    // game round participating. should be sha3(side block hash + eth block hash)
+        {name: 'v1block', length: 32, allowLess: true, default: Buffer.from([]) },  // 1st vote block
+        {name: 'v1leaf', length: 32, allowLess: true, default: Buffer.from([]) },   // 1st vote txhash
+        {name: 'v2block', length: 32, allowLess: true, default: Buffer.from([]) },  // 2nd vote (claim) block
+        {name: 'v2leaf', length: 32, allowLess: true, default: Buffer.from([]) },   // 2nd vote (claim) txhash
         {name: 'since', length: 32, allowLess: true, default: Buffer.from([]) },
         {name: 'v', allowZero: true, default: Buffer.from([0x1c]) },
         {name: 'r', allowZero: true, length: 32, default: Buffer.from([]) },
@@ -170,7 +172,8 @@ class OptractNode extends PubSubNode {
 		this.pending = { txdata: {}, payload: {}, txhash: {} }; // format ??????
 		this.newblock = {};
 		this.myNonce = 0;
-		this.myEpoch = 0;
+		this.myEpoch = 0; // Optract block No.
+		this.game = {drawed: false, opround: 1 }; // mocking.. the actual data should be read from smart contract.
 
 		this.ipfsSwarms = [
 			"/ipfs/QmSoLPppuBtQSGwKDZT2M73ULpjvfd3aZ6ha4oFGL1KrGM",
@@ -253,35 +256,43 @@ class OptractNode extends PubSubNode {
 				let nonce = ethUtils.bufferToInt(data.nonce);
 				let since = ethUtils.bufferToInt(data.since);
 				let content = ethUtils.bufferToHex(data.content);
-				let ticket = ethUtils.bufferToHex(data.ticket); 
-				let refblock = ethUtils.bufferToInt(data.refblock); 
-				let refleaf = ethUtils.bufferToHex(data.refleaf); 
+				let opround = ethUtils.bufferToInt(data.opround); 
+				let v1block = ethUtils.bufferToInt(data.v1block); 
+				let v1leaf = ethUtils.bufferToHex(data.v1leaf); 
+
+				if (opround === '0' || opround !== this.game.opround) return;
 
 				if (content === '0x') {
 					content = '0x0000000000000000000000000000000000000000000000000000000000000000';
-					if (refleaf === '0x') return;
+					if (v1leaf === '0x' || v1block === 0) return;
+					if (v2leaf !== '0x' && v2block === 0) return;
 				}
 
-				if (ticket !== '0x') {
-					if (refleaf === '0x') return;
-				}
-
-				if (refleaf !== '0x') {
+				if (v1leaf !== '0x') {
 					//TODO: verify refleaf in refblock
 
-					if (ticket !== '0x') {
-						// TODO: verify ticket in refblock + 1 
-						//     & ticket:[refleaf] won 
-						//     & refleaf won
+					if (v2leaf !== '0x') {
+						// TODO: verify opround lottery has announced
+						//     & verify v2leaf in v2block
+						//     & verify v1block[v1leaf] won opround "user" lottery
+						//     & verify account success rate
+						//     & verify v2block[v2leaf] won opround "article" lottery
 					}
 				}
 
-				if (refleaf === '0x') refleaf = '0x0000000000000000000000000000000000000000000000000000000000000000';
-				if (ticket === '0x') ticket = '0x0000000000000000000000000000000000000000000000000000000000000000';
+				if (v1leaf === '0x') {
+					v1block = 0;
+					v1leaf = '0x0000000000000000000000000000000000000000000000000000000000000000';
+				}
+
+				if (v2leaf === '0x') {
+					v2block = 0;
+					v2leaf = '0x0000000000000000000000000000000000000000000000000000000000000000';
+				}
 
 				let _payload = this.abi.encodeParameters(
-					['uint', 'address', 'bytes32', 'bytes32', 'uint', 'bytes32', 'uint'],
-					[nonce,  account,  content, ticket, refblock, refleaf,  since]
+					['uint', 'address', 'bytes32', 'uint', 'uint', 'bytes32', 'uint', 'bytes32', 'uint'],
+					[nonce,  account,  content, opround, v1block, v1leaf, v2block, v2leaf,  since]
 				);
 
 				let payload = ethUtils.hashPersonalMessage(Buffer.from(_payload));
@@ -309,21 +320,24 @@ class OptractNode extends PubSubNode {
 
 		const __inner_msgTx = (content, txData) =>
 		{
-			let ticket = txData.ticket;
+			let opround = txData.opround;
 			let account = txData.account;
-			let refblock = txData.refblock;
-			let refleaf  = txData.refleaf;
+			let v1block = txData.v1block;
+			let v1leaf  = txData.v1leaf;
+			let v2block = txData.v2block;
+			let v2leaf  = txData.v2leaf;
 
 			let since = Math.floor(Date.now() / 1000);
 			let payload = this.abi.encodeParameters(
-				['uint', 'address', 'bytes32', 'bytes32', 'uint', 'bytes32', 'uint'],
-				[this.myNonce + 1, account, content, ticket, refblock, refleaf, since]
+				['uint', 'address', 'bytes32', 'uint', 'uint', 'bytes32', 'uint', 'bytes32', 'uint'],
+				[this.myNonce + 1, account, content, opround, v1block, v1leaf, v2block, v2leaf, since]
 			);
 
 			return this.unlockAndSign(account)(Buffer.from(payload)).then((sig) => {
 				let params = {
 					nonce: this.myNonce + 1,
-					account, content, ticket, refblock, refleaf, 
+					account, content, opround, 
+					v1block, v1leaf, v2block, v2leaf,
 					since, v: sig.v, r: sig.r, s: sig.s
 				}; 
 				let rlp = this.handleRLPx(mfields)(params);
@@ -344,43 +358,48 @@ class OptractNode extends PubSubNode {
 		this.newArticle = (url, tags = []) => 
 		{
 			let account = this.userWallet[this.appName];
-			let ticket  = '0x0000000000000000000000000000000000000000000000000000000000000000';
-			let refleaf = '0x0000000000000000000000000000000000000000000000000000000000000000';
-			let refblock = 0;
+			let v1leaf  = '0x0000000000000000000000000000000000000000000000000000000000000000';
+			let v2leaf  = '0x0000000000000000000000000000000000000000000000000000000000000000';
+			let v1block = 0;
+			let v2block = 0;
+			let opround = this.game.opround;
 
 			return mr.parse(url).then((result) => {
 				result['tags'] = tags;
 				result.content = ethUtils.bufferToHex(ethUtils.sha256(Buffer.from(result.content)));
-				return __msgTx(result, {ticket, refleaf, refblock, account});
+				return __msgTx(result, {opround, v1leaf, v1block, v2leaf, v2block, account});
 			}).catch((err) => { console.trace(err); })
 		}
 
-		this.newVote = (refblock, refleaf, comments = '') =>
+		this.newVote = (v1block, v1leaf, comments = '') =>
 		{
-			// TODO: verify refblock and refleaf before sending
+			// TODO: verify v1block and v1leaf before sending
 			let account = this.userWallet[this.appName];
-			let ticket  = '0x0000000000000000000000000000000000000000000000000000000000000000';
+			let v2leaf  = '0x0000000000000000000000000000000000000000000000000000000000000000';
+			let v2block = 0;
+			let opround = this.game.opround;
 
 			if (comments.length > 0) {
 				let result = { comments, from: account };
-				return __msgTx(result, {ticket, refleaf, refblock, account});
+				return __msgTx(result, {opround, v1leaf, v1block, v2leaf, v2block, account});
 			} else {
 				let content = '0x0000000000000000000000000000000000000000000000000000000000000000';
-				return __inner_msgTx(content, {ticket, refleaf, refblock, account});
+				return __inner_msgTx(content, {opround, v1leaf, v1block, v2leaf, v2block, account});
 			}
 		} 
 
-		this.newClaim = (ticket) => (refblock, refleaf, comments = '') =>
+		this.newClaim = (v1block, v1leaf, v2block, v2leaf, comments = '') =>
 		{
-			// TODO: verify refblock and refleaf before sending
+			// TODO: verify v1leaf and v2leaf in their respective blocks before sending
+			//     & verify account did send v1leaf.
 			let account = this.userWallet[this.appName];
 
 			if (comments.length > 0) {
 				let result = { comments, from: account };
-				return __msgTx(result, {ticket, refleaf, refblock, account});
+				return __msgTx(result, {opround, v1leaf, v1block, v2leaf, v2block, account});
 			} else {
 				let content = '0x0000000000000000000000000000000000000000000000000000000000000000';
-				return __inner_msgTx(content, {ticket, refleaf, refblock, account});
+				return __inner_msgTx(content, {opround, v1leaf, v1block, v2leaf, v2block, account});
 			}
 		}
 
@@ -547,16 +566,21 @@ class OptractNode extends PubSubNode {
 
                 this.getBlockData = (sblockNo) => {
                         return this.call(this.appName)('BlockRegistry')('getBlockInfo')(sblockNo).then( (rc) => {
-                                console.log('- sblock no: ' + sblockNo);
-                                console.log('- eth block height:' + rc[0]);
-                                console.log('- merkle root: ' + rc[1]);
-                                console.log('- IPFS CID: ' + rc[2]);
-                                console.log('- IPFS CID: ' + this.Bytes32toIPFSstring(Buffer.from(rc[2].slice(2), 'hex')))
+				/*
+                                 console.log('- sblock no: ' + sblockNo);
+                                 console.log('- eth block height:' + rc[0]);
+                                 console.log('- merkle root: ' + rc[1]);
+                                 console.log('- IPFS CID: ' + rc[2]);
+                                 console.log('- IPFS CID: ' + this.Bytes32toIPFSstring(Buffer.from(rc[2].slice(2), 'hex')))
+				*/
+				
+				return { blockNo: sblockNo, ethBlockNo: rc[0], merkleRoot: rc[1], blockData: { [rc[2]]: this.Bytes32toIPFSstring(Buffer.from(rc[2].slice(2), 'hex')) } }
                         })
                 }
 
                 this.getPrevBlockData = () => {
                         return this.call(this.appName)('BlockRegistry')('getBlockNo')().then( (sblockNo) =>{
+				// sblockNo is *pending* , not yet commited side block no
                                 return this.getBlockData(sblockNo-1);
                         })
                 }
