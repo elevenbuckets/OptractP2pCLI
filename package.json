@@ -4,7 +4,7 @@
   "description": "",
   "main": "console.js",
   "scripts": {
-    "build": "rm -fr dist && asar pack ./node_modules ./dist/node_modules.asar && cp -rv ./resources/bin/* ./dist/ && cp -rv ./rpcserv ./dist/ && mkdir ./dist/dapps && cp -rv ./resources/config.json.dist ./dist/dapps/ && cp -rv ./dapps/OptractMedia ./dist/dapps/ && cp -rv ./resources/run.sh ./dist/ && cp -vr ./console.js ./daemon.js ./pubsubNode.js ./KnifeIron.js ./slave.js ./dist/",
+    "build": "rm -fr dist && mkdir dist && asar pack ./node_modules ./dist/node_modules.asar && cp -rv ./resources/bin ./dist/ && cp -vr ./bin/* ./dist/bin/ && cp -rv ./lib ./dist/ && cp -vr ./dapps ./dist/ && cp -rv ./resources/config.json.dist ./dist/dapps/ && cp -rv ./resources/optRun ./dist/",
     "package": "rm -f ./OptractClient.tar.gz && tar -zcvf OptractClient.tar.gz ./dist",
     "release": "npm run build && npm run package",
     "clean": "rm -fr dist OptractClient.tar.gz"

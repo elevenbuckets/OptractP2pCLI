@@ -1,7 +1,7 @@
 'use strict';
 
 const ethUtils = require('ethereumjs-utils');
-const KnifeIron = require('../../KnifeIron.js');
+const KnifeIron = require('../../lib/KnifeIron.js');
 
 // Common actions
 // - connect to Ethereum, Optract Pubsub, and IPFS
