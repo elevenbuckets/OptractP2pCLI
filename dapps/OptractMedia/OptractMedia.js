@@ -37,6 +37,12 @@ class OptractMedia extends KnifeIron {
                         })
                 }
 
+		this.validateMerkleProof = (targetLeaf) => (merkleRoot, proof, isLeft) => 
+		{
+			return this.call(this.appName)('BlockRegistry')('merkleTreeValidator')(proof, isLeft, targetLeaf, merkleRoot) 
+				.catch((err) => { console.log(`ERROR in validateMerkleProof`); console.trace(err); return false; });
+		}
+
 		this.configs.dapps[this.appName].contracts.map((cobj) => 
 		{
 			console.dir(this.init(this.appName)(cobj.ctrName)());
