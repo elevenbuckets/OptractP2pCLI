@@ -21,7 +21,8 @@ let ticketInt = ticketHash.map((v)=>{return new BigNumber(v)});
 
 // start from here
 const randomSample = new RandomSample();
-let sample = randomSample.sampleN(ticketInt, winTicket, 10, 3, 8, true); 
+// let sample = randomSample.sampleN(ticketInt, winTicket, 10, 16, 4, true);
+let sample = randomSample.sampleN([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,30], 14, 10, 3, 1, true);
 console.log('sample');
 console.log(sample.map(randomSample.intToBytes32Hex));
 // console.log(sample.map((v)=>Number(v)));
