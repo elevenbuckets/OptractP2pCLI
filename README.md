@@ -17,4 +17,5 @@
 - ``` ./optRun console ```
 
 ### Or ... launch all-in-one dev console without WSRPC:
+- First update config in config.json.dist and set node.wsrpc = false.
 - ``` ./optRun devConsole ```
