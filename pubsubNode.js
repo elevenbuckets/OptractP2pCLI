@@ -62,10 +62,10 @@ class PubSub extends EventEmitter
 		super();
 
 		let opts = { gossip: {}, ...options };
-		this.gossip = gossip(opts.gossip);
-  		this.id = this.gossip.keys.public; // should eventually use ETH address
 		this.port  = opts.port || 0;
   		this.swarm = swarm(opts);
+		this.firstConn = false;
+	        this.initialized = false;
 
 		this.join = (topic) =>
 		{
@@ -98,11 +98,40 @@ class PubSub extends EventEmitter
 			if (fs.existsSync(path.join(os.homedir(), '.optract_keys'))) {
 				let b = fs.readFileSync(path.join(os.homedir(), '.optract_keys'));
 				opts.gossip.keys = JSON.parse(b.toString());
-				this.gossip = gossip(opts.gossip);
+				this.gossip = new gossip(opts.gossip);
 			} else {
-				this.gossip = gossip(opts.gossip);
+				this.gossip = new gossip(opts.gossip);
 				fs.writeFileSync(path.join(os.homedir(), '.optract_keys'), JSON.stringify(this.gossip.keys))
 			}
+
+                        this.gossip.__data_filter = (msgData) =>
+                        {
+                                let msg = msgData.data;
+
+                                // - msg requires to contain "topic"
+                                if (typeof(msg.topic) === 'undefined') return false;
+                                // - topic needs to be in this.topicList
+                                if (this.topicList.length === 0 || this.topicList.indexOf(msg.topic) === -1) return false;
+
+                                // - check encoded RLPx by topic match
+                                if (msg.topic === 'Optract') {
+                                        try {
+                                                let rlpx = Buffer.from(msg.msg);
+                                                let rlp = this.handleRLPx(mfields)(rlpx); // proper format;
+
+                                                if (rlp !== null) {
+                                                        return true;
+                                                } else {
+                                                        rlp = this.handleRLPx(pfields)(rlpx); // proper format;
+                                                        if (rlp !== null) {
+                                                                return true;
+                                                        }
+                                                }
+                                        } catch (err) {
+                                                return false;
+                                        }
+                                }
+                        }
 
   			this.id = this.gossip.keys.public; // should eventually use ETH address
 			console.log('My ID: ' + this.id);
@@ -131,6 +160,8 @@ class PubSub extends EventEmitter
       					this.emit('connected');
     				}
   			});
+
+	                this.initialized = false;
 		}
 
 		// encode if packet is object, decode if it is RLPx

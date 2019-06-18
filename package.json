@@ -13,6 +13,7 @@
     "ascii-table": "0.0.9",
     "ethereumjs-utils": "^5.2.5",
     "figlet": "^1.2.1",
-    "pubsub-swarm": "^1.0.0"
+    "secure-gossip": "https://github.com/elevenbuckets/secure-gossip.git",
+    "discovery-swarm": "https://github.com/elevenbuckets/discovery-swarm.git"
   }
 }
