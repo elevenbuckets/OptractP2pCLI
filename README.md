@@ -1,5 +1,6 @@
 # OptractP2pCLI 
 #### Note: Requires NodeJS 10.5.* or newer, recommended: 10.15.3
+#### Note: Developers needs to npm install asar as global package.
 
 ### Quick howto:
 - ``` git clone ...```
@@ -14,3 +15,7 @@
 
 ### Start Console (After service is up)
 - ``` ./optRun console ```
+
+### Or ... launch all-in-one dev console without WSRPC:
+- First update config in config.json.dist and set node.wsrpc = false.
+- ``` ./optRun devConsole ```
