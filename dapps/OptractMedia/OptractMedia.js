@@ -29,6 +29,9 @@ class OptractMedia extends KnifeIron {
 
 		this.appName = 'OptractMedia';
 
+		this.getBlockNo = () => { return this.call(this.appName)('BlockRegistry')('getBlockNo')().then((bn) => { return bn.toNumber() }) }
+		this.getBlockInfo = (blkNo) => { return this.call(this.appName)('BlockRegistry')('getBlockInfo')(blkNo) }
+
                 this.memberStatus = (address) => {  // "status", "token (hex)", "since", "penalty"
                         return this.call(this.appName)('MemberShip')('getMemberInfo')(address).then( (res) => {
                                 let status = res[0];
