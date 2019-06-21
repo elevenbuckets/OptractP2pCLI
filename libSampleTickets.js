@@ -80,13 +80,16 @@ class RandomSampleTicket {
             return res;
         }
 
-        this.sampleN = (_tickets, winningTicket, numSample, winHexWidth=8, digitRange=8, verbose=false) => {
+        this.sampleN = (_tickets, winningTicket, numSample, winHexWidth=4, digitRange=4, verbose=false) => {
             // 'tickets' and 'winningTicket' are both uint array, 'numSample' is int
+            // 'digitRange' should fix at 4, i.e., only use last 4 digits, so that smart contract also fix at 4 digits
             // return a uint array
             if (16 % digitRange != 0 || digitRange > 16) throw('Error:digitRange should be 1,2,4,8,16'); 
             if (winHexWidth < 1 || winHexWidth > 16) throw('Error: winHexWidth must bewteen 1 and 16');
 
             let refDigit = parseInt(this._getHexNthDigit(winningTicket, 0), 16) % digitRange * (-1) - 1;
+            // let refDigit = 63 - parseInt(this._getHexNthDigit(winningTicket, 0), 16) % digitRange;  // only for 32 bytes
+            // let refDigit = 39 - parseInt(this._getHexNthDigit(winningTicket, 0), 16) % digitRange;  // only for 20 bytes
             let winHex = this._getHexNthDigit(winningTicket, -1);
             if (verbose) {
                 console.log('For tickets, the digit "refDigit" must be the "winHex" or in "winHexs"');
@@ -111,7 +114,6 @@ class RandomSampleTicket {
                 return this.sampleByDistance(_tickets, winningTicket, numSample);
             } else {
                 return this.sampleByDistance(
-                    // this._sampleByCompareNthDigit(_tickets, winHex, -1-refDigit, winHexWidth),
                     this._sampleByCompareNthDigit(_tickets, winHex, refDigit, winHexWidth),
                     winningTicket,
                     numSample);
