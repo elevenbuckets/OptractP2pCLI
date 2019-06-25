@@ -31,6 +31,14 @@ class OptractMedia extends KnifeIron {
 
 		this.getBlockNo = () => { return this.call(this.appName)('BlockRegistry')('getBlockNo')().then((bn) => { return bn.toNumber() }) }
 		this.getBlockInfo = (blkNo) => { return this.call(this.appName)('BlockRegistry')('getBlockInfo')(blkNo) }
+		this.getBlockInfo = (blkNo) => { return this.call(this.appName)('BlockRegistry')('getBlockInfo')(blkNo) }
+		this.getOpround = () => { return this.call(this.appName)('BlockRegistry')('queryOpRound')() }
+		this.getOproundId = (op) => { return this.call(this.appName)('BlockRegistry')('queryOpRoundId')(op) }
+		this.getOproundInfo = (op=0) => 
+		{
+			let p = [ this.getOpround(), this.getOproundId(op) ];
+			return Promise.all(p);
+		}
 
                 this.memberStatus = (address) => {  // "status", "token (hex)", "since", "penalty"
                         return this.call(this.appName)('MemberShip')('getMemberInfo')(address).then( (res) => {
