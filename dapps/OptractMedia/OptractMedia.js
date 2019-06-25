@@ -36,7 +36,7 @@ class OptractMedia extends KnifeIron {
 		this.getOproundId = (op) => { return this.call(this.appName)('BlockRegistry')('queryOpRoundId')(op) }
 		this.getOproundInfo = (op=0) => 
 		{
-			let p = [ this.getOpround(), this.getOproundId(op) ];
+			let p = [ this.getOpround().then((r) => { return r.toNumber(); }), this.getOproundId(op) ];
 			return Promise.all(p);
 		}
 
