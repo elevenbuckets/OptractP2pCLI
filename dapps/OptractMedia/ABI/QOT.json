@@ -12537,8 +12537,8 @@
     "4": {
       "events": {},
       "links": {},
-      "address": "0x1dA4845A4FB26f3EA65785b53Dfe99CDBdB38EAF",
-      "transactionHash": "0xf85b1feaa3ded57b332b6cda80c875ac94606b9fef00e7a10367feb7a287fe0e"
+      "address": "0x5ef8F9fC9dC8fc6b945cB00fe7eD7a295a88F4f3",
+      "transactionHash": "0x7296fe4bbe637d09522d9b18fa893f016d10f84068e5668fc964bcb1f09e069e"
     },
     "5777": {
       "events": {},
@@ -12548,7 +12548,7 @@
     }
   },
   "schemaVersion": "3.0.1",
-  "updatedAt": "2019-06-25T01:28:16.723Z",
+  "updatedAt": "2019-06-27T14:14:20.141Z",
   "devdoc": {
     "methods": {
       "allowance(address,address)": {

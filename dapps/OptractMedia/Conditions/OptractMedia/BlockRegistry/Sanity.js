@@ -72,6 +72,22 @@ module.exports =
 	{
 		return true;
 	},
+        BlockRegistry_queryOpRound_sanity(addr, jobObj)
+	{
+		return true;
+	},
+        BlockRegistry_queryOpRoundId_sanity(addr, jobObj)
+	{
+		return true;
+	},
+        BlockRegistry_queryOpRoundLottery_sanity(addr, jobObj)
+	{
+		return true;
+	},
+        BlockRegistry_queryOpRoundData_sanity(addr, jobObj)
+	{
+		return true;
+	},
         BlockRegistry_setValidator_sanity(addr, jobObj)
 	{
 		return true;
