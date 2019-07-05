@@ -36,6 +36,7 @@ class OptractMedia extends KnifeIron {
 		this.getOproundId = (op) => { return this.call(this.appName)('BlockRegistry')('queryOpRoundId')(op) }
 		this.getOproundInfo = (op=0) => 
 		{
+                        // or call the newer `queryOpRoundAllData()` which returns three more fields: lotteryBlockNo, lotteryWinNumber, baseline?
 			return this.call(this.appName)('BlockRegistry')('queryOpRoundData')(op)
 				   .then((rc) => { return [ rc[0].toNumber(), rc[1], rc[2].toNumber(), rc[3].toNumber(), rc[4], rc[5] ] });
 		}
@@ -43,10 +44,50 @@ class OptractMedia extends KnifeIron {
                 this.memberStatus = (address) => {  // "status", "token (hex)", "since", "penalty"
                         return this.call(this.appName)('MemberShip')('getMemberInfo')(address).then( (res) => {
                                 let status = res[0];
+                                let penalty = res[3].toNumber();
                                 let statusDict = ["failed connection", "active", "expired", "not member"];
-                                return [statusDict[status], res[1], res[2], res[3], res[4]]  // "status", "id", "since", "penalty", "kycid"
+                                return this.call(this.appName)('MemberShip')('memberPeriod')().then((period)=>{
+                                        let expireTime = res[2].toNumber() + period.toNumber() - penalty;
+                                        return [statusDict[status], res[1], res[2], res[3], res[4], expireTime]  // "status", "id", "since", "penalty", "kycid"
+                                })
                         })
                 }
+
+		this.buyMembership = () => {
+			const _renew = () => {
+				return this.call(this.appName)('MemberShip')('fee')().then((rc)=>{
+					let fee = rc.toNumber();
+					return this.sendTk(this.appName)('MemberShip')('renewMembership')()(fee)
+				})
+			};
+			const _new = () => {
+				return this.call(this.appName)('MemberShip')('fee')().then((rc)=>{
+					let fee = rc.toNumber();
+					return this.sendTk(this.appName)('MemberShip')('buyMembership')()(fee)
+				})
+			}
+
+			let account = this.userWallet[this.appName];
+			return this.memberStatus(account).then((rc)=>{
+				if (rc[0] === "active") {
+					let expireTime = rc[5];
+					let now = (new Date()).getTime()/1000;  // convert from ms to seconds
+					if (now > expireTime - 86400*7) {  // 7 days is hard coded in smart contract
+						return _renew();
+					} else {
+						console.log("Already a active member");
+						return;
+					}
+				} else if (rc[0] === "expired") {
+					return _renew();
+				} else if (rc[0] === "not member") {
+					return _new();
+				} else {
+					console.dir(rc);
+					throw "unknown member status"
+				}
+			})
+		}
 
 		this.validateMerkleProof = (targetLeaf) => (merkleRoot, proof, isLeft) => 
 		{
