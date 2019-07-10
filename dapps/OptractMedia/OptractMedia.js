@@ -31,14 +31,22 @@ class OptractMedia extends KnifeIron {
 
 		this.getBlockNo = () => { return this.call(this.appName)('BlockRegistry')('getBlockNo')().then((bn) => { return bn.toNumber() }) }
 		this.getBlockInfo = (blkNo) => { return this.call(this.appName)('BlockRegistry')('getBlockInfo')(blkNo) }
-		this.getBlockInfo = (blkNo) => { return this.call(this.appName)('BlockRegistry')('getBlockInfo')(blkNo) }
 		this.getOpround = () => { return this.call(this.appName)('BlockRegistry')('queryOpRound')() }
 		this.getOproundId = (op) => { return this.call(this.appName)('BlockRegistry')('queryOpRoundId')(op) }
+
+		// op=0 (default) is for current opround
+		// This call only returns common opround info regardless finalized or not.
 		this.getOproundInfo = (op=0) => 
 		{
-                        // or call the newer `queryOpRoundAllData()` which returns three more fields: lotteryBlockNo, lotteryWinNumber, baseline?
 			return this.call(this.appName)('BlockRegistry')('queryOpRoundData')(op)
-				   .then((rc) => { return [ rc[0].toNumber(), rc[1], rc[2].toNumber(), rc[3].toNumber(), rc[4], rc[5] ] });
+				   .then((rc) => { return [ rc[0].toNumber(), rc[1], rc[2].toNumber() ] });
+		}
+
+		// This is for finalized opround. It returns everything.
+		this.getOproundResults = (op=0) => 
+		{
+			return this.call(this.appName)('BlockRegistry')('queryOpRoundAllData')(op)
+				   .then((rc) => { return [ rc[0].toNumber(), rc[1], rc[2].toNumber(), rc[3].toNumber(), rc[4], rc[5], rc[6].toNumber(), rc[7], rc[8].toNumber() ] });
 		}
 
                 this.memberStatus = (address) => {  // "status", "token (hex)", "since", "penalty"
