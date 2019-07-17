@@ -43,10 +43,16 @@ class OptractMedia extends KnifeIron {
 		}
 
 		// This is for finalized opround. It returns everything.
-		this.getOproundResults = (op=0) => 
+		this.getOproundResults = (op) => 
 		{
 			return this.call(this.appName)('BlockRegistry')('queryOpRoundResult')(op)
 				   .then((rc) => { return [ rc[0].toNumber(), rc[1], rc[2].toNumber(), rc[3].toNumber(), rc[4], rc[5], rc[6].toNumber(), rc[7], rc[8].toNumber() ] });
+		}
+
+		this.getMinSuccessRate = (op) =>
+		{
+			return this.call(this.appName)('BlockRegistry')('queryOpRoundResult')(op)
+				   .then((rc) => { return rc[3].toNumber() });
 		}
 
                 this.memberStatus = (address) => {  // "status", "token (hex)", "since", "penalty"
