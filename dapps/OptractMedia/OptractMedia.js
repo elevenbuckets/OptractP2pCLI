@@ -33,6 +33,7 @@ class OptractMedia extends KnifeIron {
 		this.getBlockInfo = (blkNo) => { return this.call(this.appName)('BlockRegistry')('getBlockInfo')(blkNo) }
 		this.getOpround = () => { return this.call(this.appName)('BlockRegistry')('queryOpRound')() }
 		this.getOproundId = (op) => { return this.call(this.appName)('BlockRegistry')('queryOpRoundId')(op) }
+	        this.getMaxVoteTime = () => {return this.call(this.appName)('BlockRegistry')('maxVoteTime')()}
 
 		// op=0 (default) is for current opround
 		// This call only returns common opround info regardless finalized or not.
@@ -49,6 +50,13 @@ class OptractMedia extends KnifeIron {
 				   .then((rc) => { return [ rc[0].toNumber(), rc[1], rc[2].toNumber(), rc[3].toNumber(), rc[4], rc[5], rc[6].toNumber(), rc[7], rc[8].toNumber() ] });
 		}
 
+		this.getOproundProgress = () => 
+		{
+			return this.call(this.appName)('BlockRegistry')('queryOpRoundProgress')()
+				   .then((rc) => { return [ rc[0].toNumber(), rc[1], rc[2].toNumber(), rc[3].toNumber(), rc[4].toNumber(), rc[5].toNumber()] });
+                                    // return(articleCount, atV1, v1EndTime, v2EndTime, roundVote1Count, roundVote2Count);
+		}
+
 		this.getMinSuccessRate = (op) =>
 		{
 			return this.call(this.appName)('BlockRegistry')('queryOpRoundResult')(op)
@@ -57,13 +65,15 @@ class OptractMedia extends KnifeIron {
 
                 this.memberStatus = (address) => {  // "status", "token (hex)", "since", "penalty"
                         return this.call(this.appName)('MemberShip')('getMemberInfo')(address).then( (res) => {
-                                let status = res[0];
-                                let penalty = res[3].toNumber();
                                 let statusDict = ["failed connection", "active", "expired", "not member"];
-                                return this.call(this.appName)('MemberShip')('memberPeriod')().then((period)=>{
-                                        let expireTime = res[2].toNumber() + period.toNumber() - penalty;
-                                        return [statusDict[status], res[1], res[2], res[3], res[4], expireTime]  // "status", "id", "since", "penalty", "kycid"
-                                })
+                                let status = res[0];
+                                let id = res[1];
+                                let since = res[2].toNumber();
+                                let penalty = res[3].toNumber();
+                                let kycid = res[4];
+                                let tier = res[5].toNumber();
+                                let expireTime = res[6].toNumber();
+                                return [statusDict[status], id, since, penalty, kycid, tier, expireTime];
                         })
                 }
 
