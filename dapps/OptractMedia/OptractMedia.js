@@ -34,6 +34,7 @@ class OptractMedia extends KnifeIron {
 		this.getOpround = () => { return this.call(this.appName)('BlockRegistry')('queryOpRound')() }
 		this.getOproundId = (op) => { return this.call(this.appName)('BlockRegistry')('queryOpRoundId')(op) }
 	        this.getMaxVoteTime = () => {return this.call(this.appName)('BlockRegistry')('maxVoteTime')()}
+		this.isValidator = (addr) => { return this.call(this.appName)('BlockRegistry')('isValidator')(addr) }
 
 		// op=0 (default) is for current opround
 		// This call only returns common opround info regardless finalized or not.
