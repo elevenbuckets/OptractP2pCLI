@@ -8,6 +8,14 @@ module.exports =
         {
 		return true;
 	},
+ 	MemberShip_updateTier_sanity(addr, jobObj)
+        {
+		return true;
+	},
+ 	MemberShip_determineTier_sanity(addr, jobObj)
+        {
+		return true;
+	},
  	MemberShip_assginKYCid_sanity(addr, jobObj)
         {
 		return true;
@@ -40,10 +48,6 @@ module.exports =
         {
 		return true;
 	},
- 	MemberShip_toggleSpeicalMember_sanity(addr, jobObj)
-        {
-		return true;
-	},
  	MemberShip_addrIsMember_sanity(addr, jobObj)
         {
 		return true;
@@ -64,6 +68,10 @@ module.exports =
         {
 		return true;
 	},
+ 	MemberShip_addrExpireTime_sanity(addr, jobObj)
+        {
+		return true;
+	},
  	MemberShip_addrToId_sanity(addr, jobObj)
         {
 		return true;
@@ -76,7 +84,7 @@ module.exports =
         {
 		return true;
 	},
- 	MemberShip_updateActiveMembers_sanity(addr, jobObj)
+ 	MemberShip_updateActiveMemberCount_sanity(addr, jobObj)
         {
 		return true;
 	},
