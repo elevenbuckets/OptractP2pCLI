@@ -31,9 +31,9 @@ class OptractMedia extends KnifeIron {
 
 		this.getBlockNo = () => { return this.call(this.appName)('BlockRegistry')('getBlockNo')().then((bn) => { return bn.toNumber() }) }
 		this.getBlockInfo = (blkNo) => { return this.call(this.appName)('BlockRegistry')('getBlockInfo')(blkNo) }
-		this.getOpround = () => { return this.call(this.appName)('BlockRegistry')('queryOpRound')() }
+		this.getOpround = () => { return this.call(this.appName)('BlockRegistry')('queryOpRound')().then((op)=>{return op.toNumber()}) }
 		this.getOproundId = (op) => { return this.call(this.appName)('BlockRegistry')('queryOpRoundId')(op) }
-	        this.getMaxVoteTime = () => {return this.call(this.appName)('BlockRegistry')('maxVoteTime')()}
+		this.getMaxVoteTime = () => {return this.call(this.appName)('BlockRegistry')('maxVoteTime')().then((vtime)=>{return vtime.toNumber()})}
 		this.isValidator = (addr) => { return this.call(this.appName)('BlockRegistry')('isValidator')(addr) }
 
 		// op=0 (default) is for current opround
