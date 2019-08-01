@@ -13,7 +13,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@postlight/mercury-parser": "^2.1.0",
+    "@postlight/mercury-parser": "^2.1.1",
     "ascii-table": "0.0.9",
     "async": "^2.6.2",
     "bignumber.js": "^5.0.0",
