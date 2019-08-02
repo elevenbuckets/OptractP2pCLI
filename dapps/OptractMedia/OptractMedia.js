@@ -60,7 +60,7 @@ class OptractMedia extends KnifeIron {
 
 		this.getOproundLottery = (op) =>
 		{
-			return this.call(this.appName)('BlockRegistry')('queryOpRoundLottery')()
+			return this.call(this.appName)('BlockRegistry')('queryOpRoundLottery')(op)
 				   .then((rc) => { return [ rc[0].toNumber(), rc[1].toNumber(), rc[2] ]});
                                     // return(uint opRound, uint LotterySblockNo, byets32 lotteryWinNumber);
 		}
