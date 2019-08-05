@@ -8,11 +8,31 @@ module.exports =
         {
 		return true;
 	},
- 	MemberShip_addWhitelistApps_sanity(addr, jobObj)
+ 	MemberShip_updateTier_sanity(addr, jobObj)
         {
 		return true;
 	},
- 	MemberShip_addWhitelistApps_sanity(addr, jobObj)
+ 	MemberShip_determineTier_sanity(addr, jobObj)
+        {
+		return true;
+	},
+ 	MemberShip_assginKYCid_sanity(addr, jobObj)
+        {
+		return true;
+	},
+ 	MemberShip_addAppWhitelist_sanity(addr, jobObj)
+        {
+		return true;
+	},
+ 	MemberShip_replaceAppWhitelist_sanity(addr, jobObj)
+        {
+		return true;
+	},
+ 	MemberShip_rmAppWhitelist_sanity(addr, jobObj)
+        {
+		return true;
+	},
+ 	MemberShip_getAppWhitelist_sanity(addr, jobObj)
         {
 		return true;
 	},
@@ -36,15 +56,35 @@ module.exports =
         {
 		return true;
 	},
- 	MemberShip_tokenIsMember_sanity(addr, jobObj)
+ 	MemberShip_idIsMember_sanity(addr, jobObj)
         {
 		return true;
 	},
- 	MemberShip_tokenIsActiveMember_sanity(addr, jobObj)
+ 	MemberShip_idIsActiveMember_sanity(addr, jobObj)
         {
 		return true;
 	},
- 	MemberShip_addrToTokenId_sanity(addr, jobObj)
+ 	MemberShip_idExpireTime_sanity(addr, jobObj)
+        {
+		return true;
+	},
+ 	MemberShip_addrExpireTime_sanity(addr, jobObj)
+        {
+		return true;
+	},
+ 	MemberShip_addrToId_sanity(addr, jobObj)
+        {
+		return true;
+	},
+ 	MemberShip_getMemberInfo_sanity(addr, jobObj)
+        {
+		return true;
+	},
+ 	MemberShip_getActiveMemberCount_sanity(addr, jobObj)
+        {
+		return true;
+	},
+ 	MemberShip_updateActiveMemberCount_sanity(addr, jobObj)
         {
 		return true;
 	},
@@ -53,6 +93,10 @@ module.exports =
 		return true;
 	},
  	MemberShip_unpause_sanity(addr, jobObj)
+        {
+		return true;
+        },
+ 	MemberShip_updateManager_sanity(addr, jobObj)
         {
 		return true;
         },

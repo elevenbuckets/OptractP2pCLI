@@ -2,6 +2,21 @@
   {
     "constant": true,
     "inputs": [],
+    "name": "maxVoteTime",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0x06937af5"
+  },
+  {
+    "constant": true,
+    "inputs": [],
     "name": "sblockTimeStep",
     "outputs": [
       {
@@ -57,7 +72,7 @@
   {
     "constant": true,
     "inputs": [],
-    "name": "initHeight",
+    "name": "articleCount",
     "outputs": [
       {
         "name": "",
@@ -67,12 +82,12 @@
     "payable": false,
     "stateMutability": "view",
     "type": "function",
-    "signature": "0xa78eacdb"
+    "signature": "0x414e28b0"
   },
   {
     "constant": true,
     "inputs": [],
-    "name": "sblockNo",
+    "name": "vote1Threshold",
     "outputs": [
       {
         "name": "",
@@ -82,7 +97,127 @@
     "payable": false,
     "stateMutability": "view",
     "type": "function",
-    "signature": "0xca0ebb56"
+    "signature": "0x417d63e9"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "numRange",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0x5080ad26"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "roundVote2Count",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0x7376faf2"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "vote2Threshold",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0x82eea47a"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "atV1",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0x9bb71caa"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "v1EndTime",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0xa3629b04"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "opRound",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0xb9fedac7"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "memberContractAddr",
+    "outputs": [
+      {
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0xc170f356"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "roundVote1Count",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0xd64d8c02"
   },
   {
     "constant": true,
@@ -94,6 +229,10 @@
     ],
     "name": "blockHistory",
     "outputs": [
+      {
+        "name": "validator",
+        "type": "address"
+      },
       {
         "name": "blockHeight",
         "type": "uint256"
@@ -109,6 +248,22 @@
       {
         "name": "timestamp",
         "type": "uint256"
+      },
+      {
+        "name": "uniqArticleCount",
+        "type": "uint256"
+      },
+      {
+        "name": "vote1Count",
+        "type": "uint256"
+      },
+      {
+        "name": "vote2Count",
+        "type": "uint256"
+      },
+      {
+        "name": "opRoundId",
+        "type": "bytes32"
       }
     ],
     "payable": false,
@@ -117,7 +272,42 @@
     "signature": "0xde250ace"
   },
   {
+    "constant": true,
     "inputs": [],
+    "name": "nowSblockNo",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0xdeefebc1"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "v2EndTime",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0xfd0492b1"
+  },
+  {
+    "inputs": [
+      {
+        "name": "_memberContractAddr",
+        "type": "address"
+      }
+    ],
     "payable": false,
     "stateMutability": "nonpayable",
     "type": "constructor",
@@ -127,15 +317,73 @@
     "constant": false,
     "inputs": [
       {
-        "name": "_initHeight",
+        "name": "_seconds",
+        "type": "uint256"
+      }
+    ],
+    "name": "updateMaxVoteTime",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function",
+    "signature": "0x9786007a"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_x",
         "type": "uint256"
       },
+      {
+        "name": "_y",
+        "type": "uint256"
+      }
+    ],
+    "name": "setThreshold",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function",
+    "signature": "0xb9c36209"
+  },
+  {
+    "constant": false,
+    "inputs": [
       {
         "name": "_merkleRoot",
         "type": "bytes32"
       },
       {
         "name": "_ipfsAddr",
+        "type": "bytes32"
+      },
+      {
+        "name": "_uniqArticleCount",
+        "type": "uint256"
+      },
+      {
+        "name": "_vote1Count",
+        "type": "uint256"
+      },
+      {
+        "name": "_vote2Count",
+        "type": "uint256"
+      },
+      {
+        "name": "_minSuccessRate",
+        "type": "uint8"
+      },
+      {
+        "name": "_baseline",
+        "type": "uint256"
+      },
+      {
+        "name": "_successRateDB",
+        "type": "bytes32"
+      },
+      {
+        "name": "_finalListIpfs",
         "type": "bytes32"
       }
     ],
@@ -149,7 +397,270 @@
     "payable": false,
     "stateMutability": "nonpayable",
     "type": "function",
-    "signature": "0x41a88b9d"
+    "signature": "0xc1006b8a"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "v1Count",
+        "type": "uint256"
+      }
+    ],
+    "name": "isEnoughV1",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0x0137aca4"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "v2Count",
+        "type": "uint256"
+      }
+    ],
+    "name": "isEnoughV2",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0x6cb0999b"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "_mr",
+        "type": "bytes32"
+      },
+      {
+        "name": "_bhash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "calcLotteryWinNumber",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "pure",
+    "type": "function",
+    "signature": "0x513536c1"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "_ticket",
+        "type": "bytes32"
+      },
+      {
+        "name": "_digit",
+        "type": "uint8"
+      }
+    ],
+    "name": "_getBytes32HexNthDigit",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes1"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "pure",
+    "type": "function",
+    "signature": "0xd17eaa47"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "_winHex",
+        "type": "bytes32"
+      },
+      {
+        "name": "_ticket",
+        "type": "bytes32"
+      },
+      {
+        "name": "_numRange",
+        "type": "uint8"
+      }
+    ],
+    "name": "lotteryWins",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "pure",
+    "type": "function",
+    "signature": "0x1b9d40ba"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_numRange",
+        "type": "uint8"
+      }
+    ],
+    "name": "setNumRange",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function",
+    "signature": "0x19305d85"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "_opRound",
+        "type": "uint256"
+      },
+      {
+        "name": "_ticket",
+        "type": "bytes32"
+      }
+    ],
+    "name": "isWinningTicket",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
+      },
+      {
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0x53311f95"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "proof",
+        "type": "bytes32[]"
+      },
+      {
+        "name": "isLeft",
+        "type": "bool[]"
+      },
+      {
+        "name": "txHash",
+        "type": "bytes32"
+      },
+      {
+        "name": "_sblockNo",
+        "type": "uint256"
+      }
+    ],
+    "name": "txExist",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0x316f0d84"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "_signer",
+        "type": "address"
+      },
+      {
+        "name": "_msg",
+        "type": "bytes32"
+      },
+      {
+        "name": "_v",
+        "type": "uint8"
+      },
+      {
+        "name": "_r",
+        "type": "bytes32"
+      },
+      {
+        "name": "_s",
+        "type": "bytes32"
+      }
+    ],
+    "name": "verifySignature",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "pure",
+    "type": "function",
+    "signature": "0x02bf9e7f"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_opRound",
+        "type": "uint256"
+      },
+      {
+        "name": "proof",
+        "type": "bytes32[]"
+      },
+      {
+        "name": "isLeft",
+        "type": "bool[]"
+      },
+      {
+        "name": "txHash",
+        "type": "bytes32"
+      },
+      {
+        "name": "_sblockNo",
+        "type": "uint256"
+      }
+    ],
+    "name": "claimReward",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function",
+    "signature": "0xf3297aa3"
   },
   {
     "constant": true,
@@ -182,138 +693,6 @@
     "stateMutability": "pure",
     "type": "function",
     "signature": "0xb8f69e37"
-  },
-  {
-    "constant": true,
-    "inputs": [
-      {
-        "name": "_nonce",
-        "type": "uint256"
-      },
-      {
-        "name": "_ipfs",
-        "type": "bytes32"
-      },
-      {
-        "name": "_since",
-        "type": "uint256"
-      },
-      {
-        "name": "_agree",
-        "type": "uint256"
-      },
-      {
-        "name": "_disagree",
-        "type": "uint256"
-      },
-      {
-        "name": "_reply",
-        "type": "bytes32"
-      },
-      {
-        "name": "_comment",
-        "type": "bytes32"
-      }
-    ],
-    "name": "calcLeaf",
-    "outputs": [
-      {
-        "name": "",
-        "type": "bytes32"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
-    "type": "function",
-    "signature": "0xb07cceb4"
-  },
-  {
-    "constant": true,
-    "inputs": [
-      {
-        "name": "_nonce",
-        "type": "uint256"
-      },
-      {
-        "name": "_sender",
-        "type": "address"
-      },
-      {
-        "name": "_ipfs",
-        "type": "bytes32"
-      },
-      {
-        "name": "_since",
-        "type": "uint256"
-      },
-      {
-        "name": "_agree",
-        "type": "uint256"
-      },
-      {
-        "name": "_disagree",
-        "type": "uint256"
-      },
-      {
-        "name": "_reply",
-        "type": "bytes32"
-      },
-      {
-        "name": "_comment",
-        "type": "bytes32"
-      }
-    ],
-    "name": "calcLeaf2",
-    "outputs": [
-      {
-        "name": "",
-        "type": "bytes32"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
-    "type": "function",
-    "signature": "0x84a3c1b8"
-  },
-  {
-    "constant": true,
-    "inputs": [
-      {
-        "name": "_account",
-        "type": "address"
-      },
-      {
-        "name": "_start",
-        "type": "uint256"
-      },
-      {
-        "name": "_end",
-        "type": "uint256"
-      },
-      {
-        "name": "_gain",
-        "type": "uint256"
-      },
-      {
-        "name": "_apUsed",
-        "type": "uint256"
-      },
-      {
-        "name": "_accReward",
-        "type": "uint256"
-      }
-    ],
-    "name": "calcAccountStateSummaryLeaf",
-    "outputs": [
-      {
-        "name": "",
-        "type": "bytes32"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
-    "type": "function",
-    "signature": "0x60e6c8c7"
   },
   {
     "constant": true,
@@ -380,6 +759,26 @@
   },
   {
     "constant": true,
+    "inputs": [
+      {
+        "name": "_addr",
+        "type": "address"
+      }
+    ],
+    "name": "isValidator",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0xfacd743b"
+  },
+  {
+    "constant": true,
     "inputs": [],
     "name": "queryManagers",
     "outputs": [
@@ -392,6 +791,235 @@
     "stateMutability": "view",
     "type": "function",
     "signature": "0xca48c69d"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "queryOpRound",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0x8ccbaca4"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "_opRound",
+        "type": "uint256"
+      }
+    ],
+    "name": "queryOpRoundId",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0xd9eb08f6"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "_opRound",
+        "type": "uint256"
+      }
+    ],
+    "name": "queryOpRoundLottery",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0x7c14de6c"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "_opRound",
+        "type": "uint256"
+      }
+    ],
+    "name": "queryOpRoundInfo",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "name": "",
+        "type": "bytes32"
+      },
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0x57ee34a6"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "_opRound",
+        "type": "uint256"
+      }
+    ],
+    "name": "queryOpRoundResult",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "name": "",
+        "type": "bytes32"
+      },
+      {
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "name": "",
+        "type": "uint8"
+      },
+      {
+        "name": "",
+        "type": "bytes32"
+      },
+      {
+        "name": "",
+        "type": "bytes32"
+      },
+      {
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "name": "",
+        "type": "bytes32"
+      },
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0xf47dae9a"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "queryOpRoundProgress",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "name": "",
+        "type": "bool"
+      },
+      {
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0x2656de1a"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "queryVoteThresholds",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0x86e18f82"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "_opRound",
+        "type": "uint256"
+      }
+    ],
+    "name": "queryFinalist",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0xec5caf2a"
   },
   {
     "constant": false,

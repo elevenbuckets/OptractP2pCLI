@@ -9,21 +9,21 @@ elif [ ${MO:-daemon} == "devConsole" ]; then
   (
     export IPFS_PATH="${OD}/ipfs_repo";
     [ -e ${OD}/ipfs_repo/config ] && echo "ipfs repo ready" || ${OD}/bin/ipfs init && \
-    ${OD}/bin/ipfs daemon --routing=dhtclient &
+    rm -f ${OD}/ipfs_repo/api ${OD}/ipfs_repo/repo.lock && ${OD}/bin/ipfs daemon --routing=dhtclient &
   )
 
   sed "s|__OPTRACT_INSTALL__|${OD}|g" ./dapps/config.json.dist > ./dapps/config.json && \
   rm -fr ${OD}/node_modules && ${OD}/bin/asar extract ${OD}/node_modules.asar ${OD}/node_modules && \
   echo -e "!!!!!\nNOTE: devConsole requires you turn off wsrpc in config.json ...\n!!!!!" && \
-  sleep 3 && $OD/bin/node $OD/lib/console.js && pkill -15 ipfs && exit 0;
+  sleep 5 && $OD/bin/node $OD/lib/console.js && pkill -15 ipfs && exit 0;
+elif [ ${MO:-daemon} == "daemon" ]; then
+  (
+    export IPFS_PATH="${OD}/ipfs_repo";
+    [ -e ${OD}/ipfs_repo/config ] && echo "ipfs repo ready" || ${OD}/bin/ipfs init && \
+    rm -f ${OD}/ipfs_repo/api ${OD}/ipfs_repo/repo.lock && ${OD}/bin/ipfs daemon --routing=dhtclient &
+  )
+
+  sed "s|__OPTRACT_INSTALL__|${OD}|g" ./dapps/config.json.dist > ./dapps/config.json && \
+  rm -fr ${OD}/node_modules && ${OD}/bin/asar extract ${OD}/node_modules.asar ${OD}/node_modules && \
+  ${OD}/bin/node ${OD}/lib/daemon.js && pkill -15 ipfs;
 fi
-
-(
-  export IPFS_PATH="${OD}/ipfs_repo";
-  [ -e ${OD}/ipfs_repo/config ] && echo "ipfs repo ready" || ${OD}/bin/ipfs init && \
-  ${OD}/bin/ipfs daemon --routing=dhtclient &
-)
-
-sed "s|__OPTRACT_INSTALL__|${OD}|g" ./dapps/config.json.dist > ./dapps/config.json && \
- rm -fr ${OD}/node_modules && ${OD}/bin/asar extract ${OD}/node_modules.asar ${OD}/node_modules && \
- ${OD}/bin/node ${OD}/lib/daemon.js && pkill -15 ipfs;

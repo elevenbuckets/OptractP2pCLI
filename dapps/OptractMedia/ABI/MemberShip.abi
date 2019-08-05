@@ -2,6 +2,21 @@
   {
     "constant": true,
     "inputs": [],
+    "name": "vipMemberBonus",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0x19c944bb"
+  },
+  {
+    "constant": true,
+    "inputs": [],
     "name": "QOTAddr",
     "outputs": [
       {
@@ -13,6 +28,41 @@
     "stateMutability": "view",
     "type": "function",
     "signature": "0x21a8770d"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "lastMemberCountUpdate",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0x24633212"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "appWhitelist",
+    "outputs": [
+      {
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0x3c94125a"
   },
   {
     "constant": true,
@@ -48,6 +98,21 @@
     "stateMutability": "view",
     "type": "function",
     "signature": "0x5c975abb"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "activeMemberCount",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0x5fb6c6ed"
   },
   {
     "constant": true,
@@ -130,26 +195,6 @@
     "signature": "0xe8826565"
   },
   {
-    "constant": true,
-    "inputs": [
-      {
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "name": "appWhitelist",
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
-    "type": "function",
-    "signature": "0xfe2b5de1"
-  },
-  {
     "inputs": [
       {
         "name": "_QOTAddr",
@@ -195,6 +240,70 @@
     "constant": false,
     "inputs": [
       {
+        "name": "_tier",
+        "type": "uint8"
+      },
+      {
+        "name": "_addr",
+        "type": "address"
+      }
+    ],
+    "name": "updateTier",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function",
+    "signature": "0x30bbe91b"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "_addr",
+        "type": "address"
+      }
+    ],
+    "name": "determineTier",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0xfdd9052b"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "_id",
+        "type": "uint256"
+      }
+    ],
+    "name": "isVipTier",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0x9e7151ff"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
         "name": "_id",
         "type": "uint256"
       },
@@ -221,9 +330,13 @@
       {
         "name": "_addr",
         "type": "address"
+      },
+      {
+        "name": "_idx",
+        "type": "uint256"
       }
     ],
-    "name": "addWhitelistApps",
+    "name": "addAppWhitelist",
     "outputs": [
       {
         "name": "",
@@ -233,7 +346,7 @@
     "payable": false,
     "stateMutability": "nonpayable",
     "type": "function",
-    "signature": "0x0d2da680"
+    "signature": "0x858288ce"
   },
   {
     "constant": false,
@@ -241,19 +354,58 @@
       {
         "name": "_addr",
         "type": "address"
+      },
+      {
+        "name": "_idx",
+        "type": "uint256"
       }
     ],
-    "name": "rmWhitelistApps",
+    "name": "replaceAppWhitelist",
     "outputs": [
       {
         "name": "",
-        "type": "bool"
+        "type": "address"
       }
     ],
     "payable": false,
     "stateMutability": "nonpayable",
     "type": "function",
-    "signature": "0xa7f70e73"
+    "signature": "0xd65060a5"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_idx",
+        "type": "uint256"
+      }
+    ],
+    "name": "rmAppWhitelist",
+    "outputs": [
+      {
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function",
+    "signature": "0x6d27f417"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "getAppWhitelist",
+    "outputs": [
+      {
+        "name": "",
+        "type": "address[16]"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0x698441f2"
   },
   {
     "constant": false,
@@ -402,6 +554,46 @@
     "constant": true,
     "inputs": [
       {
+        "name": "_id",
+        "type": "uint256"
+      }
+    ],
+    "name": "idExpireTime",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0x3d9d5a7a"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "_addr",
+        "type": "address"
+      }
+    ],
+    "name": "addrExpireTime",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0x32de3509"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
         "name": "_addr",
         "type": "address"
       }
@@ -443,12 +635,59 @@
       {
         "name": "",
         "type": "uint256"
+      },
+      {
+        "name": "",
+        "type": "bytes32"
+      },
+      {
+        "name": "",
+        "type": "uint8"
+      },
+      {
+        "name": "",
+        "type": "uint256"
       }
     ],
     "payable": false,
     "stateMutability": "view",
     "type": "function",
     "signature": "0x5f1231ea"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "getActiveMemberCount",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0x22faa41f"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_forced",
+        "type": "bool"
+      }
+    ],
+    "name": "updateActiveMemberCount",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function",
+    "signature": "0x47bda3d9"
   },
   {
     "constant": false,
@@ -476,6 +715,21 @@
       {
         "name": "_addr",
         "type": "address"
+      }
+    ],
+    "name": "updateOwner",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function",
+    "signature": "0x880cdc31"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_addr",
+        "type": "address"
       },
       {
         "name": "_id",
@@ -488,6 +742,21 @@
     "stateMutability": "nonpayable",
     "type": "function",
     "signature": "0xd8de1066"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "getManagers",
+    "outputs": [
+      {
+        "name": "",
+        "type": "address[8]"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0xa8d088bb"
   },
   {
     "constant": false,
