@@ -8,8 +8,8 @@
     "package": "rm -f ./OptractClient.tar.gz && tar -zcvf OptractClient.tar.gz ./dist",
     "release": "npm run build && npm run package",
     "clean": "rm -fr dist OptractClient.tar.gz",
-    "install": "tar xf ./OptractClient.tar.gz -C ../OptractClient && cd ../OptractClient/dist && ln -s ../ipfs_repo && cd dapps && ln -s ../../myArchive.bcup && ln -s ../../keystore",
-    "uninstall": "cd ../OptractClient/dist && unlink ./ipfs_repo && cd dapps && unlink ./myArchive.bcup && unlink ./keystore && cd ../.. && rm -fr ./dist"
+    "appInstall": "tar xf ./OptractClient.tar.gz -C ../OptractClient && cd ../OptractClient/dist && ln -s ../ipfs_repo && cd dapps && ln -s ../../myArchive.bcup && ln -s ../../keystore",
+    "appUninstall": "cd ../OptractClient/dist && unlink ./ipfs_repo && cd dapps && unlink ./myArchive.bcup && unlink ./keystore && cd ../.. && rm -fr ./dist"
   },
   "keywords": [],
   "author": "",
