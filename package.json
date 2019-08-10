@@ -21,7 +21,7 @@
     "buttercup": "git+ssh://git@github.com/elevenbuckets/buttercup-core.git#localNodeOnly",
     "debug": "^4.1.1",
     "discovery-swarm": "git+ssh://git@github.com/elevenbuckets/discovery-swarm.git",
-    "ethereumjs-tx": "^1.3.7",
+    "ethereumjs-tx": "^2.1.0",
     "ethereumjs-utils": "^5.2.5",
     "figlet": "^1.2.1",
     "ipfs-http-client": "^29.1.1",
