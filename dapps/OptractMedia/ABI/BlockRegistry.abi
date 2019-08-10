@@ -430,7 +430,7 @@
       },
       {
         "name": "_minSuccessRate",
-        "type": "uint8"
+        "type": "uint256"
       },
       {
         "name": "_baseline",
@@ -447,7 +447,7 @@
     "payable": false,
     "stateMutability": "nonpayable",
     "type": "function",
-    "signature": "0x02990742"
+    "signature": "0x2e03c446"
   },
   {
     "constant": true,
@@ -600,7 +600,7 @@
       },
       {
         "name": "",
-        "type": "uint8"
+        "type": "uint256"
       }
     ],
     "payable": false,
@@ -1036,7 +1036,7 @@
       },
       {
         "name": "",
-        "type": "uint8"
+        "type": "uint256"
       },
       {
         "name": "",
