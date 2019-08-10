@@ -7,7 +7,9 @@
     "build": "rm -fr dist && mkdir dist && asar pack ./node_modules ./dist/node_modules.asar && cp -rv ./resources/bin ./dist/ && cp -rv ./lib ./dist/ && cp -vr ./dapps ./dist/ && cp -rv ./resources/config.json.dist ./dist/dapps/ && cp -rv ./resources/optRun ./dist/",
     "package": "rm -f ./OptractClient.tar.gz && tar -zcvf OptractClient.tar.gz ./dist",
     "release": "npm run build && npm run package",
-    "clean": "rm -fr dist OptractClient.tar.gz"
+    "clean": "rm -fr dist OptractClient.tar.gz",
+    "install": "tar xf ./OptractClient.tar.gz -C ../OptractClient && cd ../OptractClient/dist && ln -s ../ipfs_repo && cd dapps && ln -s ../../myArchive.bcup && ln -s ../../keystore",
+    "uninstall": "cd ../OptractClient/dist && unlink ./ipfs_repo && cd dapps && unlink ./myArchive.bcup && unlink ./keystore && cd ../.. && rm -fr ./dist"
   },
   "keywords": [],
   "author": "",
