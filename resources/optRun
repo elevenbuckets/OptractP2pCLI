@@ -25,5 +25,5 @@ elif [ ${MO:-daemon} == "daemon" ]; then
 
   sed "s|__OPTRACT_INSTALL__|${OD}|g" ./dapps/config.json.dist > ./dapps/config.json && \
   rm -fr ${OD}/node_modules && ${OD}/bin/asar extract ${OD}/node_modules.asar ${OD}/node_modules && \
-  ${OD}/bin/node ${OD}/lib/daemon.js && pkill -15 ipfs;
+  sleep 5 && ${OD}/bin/node ${OD}/lib/daemon.js && pkill -15 ipfs;
 fi
