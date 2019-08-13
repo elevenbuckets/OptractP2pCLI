@@ -20,7 +20,8 @@ elif [ ${MO:-daemon} == "devConsole" ]; then
   sed "s|__OPTRACT_INSTALL__|${OD}|g" ./dapps/config.json.dist > ./dapps/config.json && \
   rm -fr ${OD}/node_modules && ${OD}/bin/asar extract ${OD}/node_modules.asar ${OD}/node_modules && \
   echo -e "!!!!!\nNOTE: devConsole requires you turn off wsrpc in config.json ...\n!!!!!" && \
-  sleep 5 && $OD/bin/node $OD/lib/console.js && pkill -15 ipfs && exit 0;
+  launch 5 && $OD/bin/node $OD/lib/console.js && pkill -15 ipfs || pkill -15 ipfs;
+  exit 0;
 elif [ ${MO:-daemon} == "daemon" ]; then
   (
     export IPFS_PATH="${OD}/ipfs_repo";
@@ -30,5 +31,6 @@ elif [ ${MO:-daemon} == "daemon" ]; then
 
   sed "s|__OPTRACT_INSTALL__|${OD}|g" ./dapps/config.json.dist > ./dapps/config.json && \
   rm -fr ${OD}/node_modules && ${OD}/bin/asar extract ${OD}/node_modules.asar ${OD}/node_modules && \
-  launch 5 && ${OD}/bin/node ${OD}/lib/daemon.js && pkill -15 ipfs;
+  launch 5 && ${OD}/bin/node ${OD}/lib/daemon.js && pkill -15 ipfs || pkill -15 ipfs;
+  exit 0;
 fi
