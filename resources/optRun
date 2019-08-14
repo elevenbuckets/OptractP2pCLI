@@ -5,7 +5,7 @@ MO=$1;
 
 function launch() {
 	sleep $1;
-	[ -e ${OD}/ipfs_repo/repo.lock ] && return 0 || launch $1;
+	[ -e ${OD}/ipfs_repo/api ] && return 0 || launch $1;
 }
 
 if [ ${MO:-daemon} == "console" ]; then
