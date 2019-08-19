@@ -8,6 +8,8 @@ function launch() {
 	[ -e ${OD}/ipfs_repo/api ] && return 0 || launch $1;
 }
 
+rm -f ${OD}/.optract.LOCK;
+
 if [ ${MO:-daemon} == "console" ]; then
    exec $OD/bin/node $OD/lib/console.js;
 elif [ ${MO:-daemon} == "devConsole" ]; then
