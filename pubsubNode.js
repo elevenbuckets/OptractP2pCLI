@@ -176,7 +176,7 @@ class PubSub extends EventEmitter
                                 ethUtils.defineProperties(m, fields, packet);
                                 return m;
                         } catch(err) {
-                                // console.trace(err);
+                                //console.trace(err);
                                 return null;
                         }
                 }
@@ -186,7 +186,8 @@ class PubSub extends EventEmitter
 			let msg = JSON.stringify(msgData);
 			let timeNow = Math.floor(Date.now()/1000);
 			let hashID = ethUtils.bufferToHex(ethUtils.sha256(Buffer.from(msg)));
-			if (typeof(this.seen.logs[hashID]) !== 'undefined' && timeNow - this.seen.logs[hashID] < 10000 ) {
+			if (typeof(this.seen.logs[hashID]) !== 'undefined' && timeNow - this.seen.logs[hashID] < 100) {
+				//console.log(`DEBUG: blocked by filterSeen`);
 				this.seen.logs[hashID] = timeNow;
 				return false;
 			} else {
@@ -201,6 +202,7 @@ class PubSub extends EventEmitter
 			try {
 				let timeNow = Math.floor(Date.now()/1000);
 				if (typeof(this.seen.seen[info.public]) !== 'undefined' && timeNow - this.seen.seen[info.public] < 3) {
+					//console.log(`DEBUG: blocked by throttlePeer`);
 					this.seen.seen[info.public] = timeNow;
 					return false;
 				} else {
@@ -232,13 +234,12 @@ class PubSub extends EventEmitter
 
 					if (rlp !== null) {
 						console.log(`DEBUG: incomming tx...`);
-						if (typeof(msg.store) !== 'undefined') {
-							this.ping(msg.store);
-						}
+						if (typeof(msg.store) !== 'undefined') this.ping(msg.store);
 
 						return this.emit('incomming', {topic: msg.topic, data: rlp});
 					} else {
 						console.log(`DEBUG: syncing pool...`)
+						if (typeof(msg.store) !== 'undefined') this.ping(msg.store);
 						rlp = this.handleRLPx(pfields)(rlpx); // proper format;
 						if (rlp !== null) {
 							return this.emit('onpending', {topic: msg.topic, data: rlp});
