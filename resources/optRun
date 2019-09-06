@@ -5,7 +5,7 @@ MO=$1;
 
 function launch() {
 	sleep $1;
-	[ -e ${OD}/ipfs_repo/api ] && return 0 || launch $1;
+	[ -e ${OD}/ipfs_repo/api ] && [ -e ${OD}/ipfs_repo/repo.lock ] && return 0 || launch $1;
 }
 
 rm -f ${OD}/Optract.LOCK;
@@ -33,6 +33,6 @@ elif [ ${MO:-daemon} == "daemon" ]; then
 
   sed "s|__OPTRACT_INSTALL__|${OD}|g" ./dapps/config.json.dist > ./dapps/config.json && \
   rm -fr ${OD}/node_modules && ${OD}/bin/asar extract ${OD}/node_modules.asar ${OD}/node_modules && \
-  launch 5 && ${OD}/bin/node ${OD}/lib/daemon.js && pkill -15 ipfs || pkill -15 ipfs;
+  launch 0.01 && ${OD}/bin/node ${OD}/lib/daemon.js && pkill -15 ipfs || pkill -15 ipfs;
   exit 0;
 fi
