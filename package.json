@@ -7,7 +7,9 @@
     "build": "rm -fr dist && mkdir dist && asar pack ./node_modules ./dist/node_modules.asar && cp -rv ./resources/bin ./dist/ && cp -rv ./lib ./dist/ && cp -vr ./dapps ./dist/ && cp -rv ./resources/config.json.dist ./dist/dapps/ && cp -rv ./resources/optRun ./dist/",
     "package": "rm -f ./OptractClient.tar.gz && tar -zcvf OptractClient.tar.gz ./dist",
     "release": "npm run build && npm run package",
-    "clean": "rm -fr dist OptractClient.tar.gz"
+    "clean": "rm -fr dist OptractClient.tar.gz",
+    "appInstall": "tar xf ./OptractClient.tar.gz -C ../OptractClient && cd ../OptractClient/dist && ln -s ../ipfs_repo && cd dapps && ln -s ../../myArchive.bcup && ln -s ../../keystore",
+    "appUninstall": "cd ../OptractClient/dist && unlink ./ipfs_repo && cd dapps && unlink ./myArchive.bcup && unlink ./keystore && cd ../.. && rm -fr ./dist"
   },
   "keywords": [],
   "author": "",
@@ -21,7 +23,7 @@
     "buttercup": "git+ssh://git@github.com/elevenbuckets/buttercup-core.git#localNodeOnly",
     "debug": "^4.1.1",
     "discovery-swarm": "git+ssh://git@github.com/elevenbuckets/discovery-swarm.git",
-    "ethereumjs-tx": "^1.3.7",
+    "ethereumjs-tx": "^2.1.0",
     "ethereumjs-utils": "^5.2.5",
     "figlet": "^1.2.1",
     "ipfs-http-client": "^29.1.1",
@@ -36,6 +38,6 @@
     "secure-gossip": "git+ssh://git@github.com/elevenbuckets/secure-gossip.git",
     "uuid": "^3.1.0",
     "web3": "^0.19",
-    "web3-eth-abi": "^1.0.0-beta.37"
+    "web3-eth-abi": "^1.2.1"
   }
 }

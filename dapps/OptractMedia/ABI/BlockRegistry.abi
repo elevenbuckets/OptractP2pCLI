@@ -31,6 +31,36 @@
   },
   {
     "constant": true,
+    "inputs": [],
+    "name": "QOTAddr",
+    "outputs": [
+      {
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0x21a8770d"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "reward",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0x228cb733"
+  },
+  {
+    "constant": true,
     "inputs": [
       {
         "name": "",
@@ -264,6 +294,14 @@
       {
         "name": "opRoundId",
         "type": "bytes32"
+      },
+      {
+        "name": "aidMerkleRoot",
+        "type": "bytes32"
+      },
+      {
+        "name": "aidIpfsAddr",
+        "type": "bytes32"
       }
     ],
     "payable": false,
@@ -305,6 +343,10 @@
     "inputs": [
       {
         "name": "_memberContractAddr",
+        "type": "address"
+      },
+      {
+        "name": "_QOTAddr",
         "type": "address"
       }
     ],
@@ -359,24 +401,12 @@
         "type": "bytes32"
       },
       {
-        "name": "_uniqArticleCount",
-        "type": "uint256"
+        "name": "_aidMerkleRoot",
+        "type": "bytes32"
       },
       {
-        "name": "_vote1Count",
-        "type": "uint256"
-      },
-      {
-        "name": "_vote2Count",
-        "type": "uint256"
-      },
-      {
-        "name": "_minSuccessRate",
-        "type": "uint8"
-      },
-      {
-        "name": "_baseline",
-        "type": "uint256"
+        "name": "_aidIpfsAddr",
+        "type": "bytes32"
       },
       {
         "name": "_successRateDB",
@@ -385,6 +415,10 @@
       {
         "name": "_finalListIpfs",
         "type": "bytes32"
+      },
+      {
+        "name": "_ints",
+        "type": "uint256[5]"
       }
     ],
     "name": "submitMerkleRoot",
@@ -397,7 +431,7 @@
     "payable": false,
     "stateMutability": "nonpayable",
     "type": "function",
-    "signature": "0xc1006b8a"
+    "signature": "0x51086450"
   },
   {
     "constant": true,
@@ -550,7 +584,7 @@
       },
       {
         "name": "",
-        "type": "uint8"
+        "type": "uint256"
       }
     ],
     "payable": false,
@@ -594,6 +628,38 @@
     "constant": true,
     "inputs": [
       {
+        "name": "proof",
+        "type": "bytes32[]"
+      },
+      {
+        "name": "isLeft",
+        "type": "bool[]"
+      },
+      {
+        "name": "aid",
+        "type": "bytes32"
+      },
+      {
+        "name": "_sblockNo",
+        "type": "uint256"
+      }
+    ],
+    "name": "aidExist",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0xc9771591"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
         "name": "_signer",
         "type": "address"
       },
@@ -630,6 +696,21 @@
     "constant": false,
     "inputs": [
       {
+        "name": "_reward",
+        "type": "uint256"
+      }
+    ],
+    "name": "setReward",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function",
+    "signature": "0x293be456"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
         "name": "_opRound",
         "type": "uint256"
       },
@@ -648,6 +729,22 @@
       {
         "name": "_sblockNo",
         "type": "uint256"
+      },
+      {
+        "name": "_payload",
+        "type": "bytes32"
+      },
+      {
+        "name": "_v",
+        "type": "uint8"
+      },
+      {
+        "name": "_r",
+        "type": "bytes32"
+      },
+      {
+        "name": "_s",
+        "type": "bytes32"
       }
     ],
     "name": "claimReward",
@@ -660,7 +757,7 @@
     "payable": false,
     "stateMutability": "nonpayable",
     "type": "function",
-    "signature": "0xf3297aa3"
+    "signature": "0xfd2e4a40"
   },
   {
     "constant": true,
@@ -730,6 +827,22 @@
       {
         "name": "",
         "type": "bytes32"
+      },
+      {
+        "name": "",
+        "type": "bytes32"
+      },
+      {
+        "name": "",
+        "type": "bytes32"
+      },
+      {
+        "name": "",
+        "type": "bytes32"
+      },
+      {
+        "name": "",
+        "type": "address"
       }
     ],
     "payable": false,
@@ -907,7 +1020,7 @@
       },
       {
         "name": "",
-        "type": "uint8"
+        "type": "uint256"
       },
       {
         "name": "",
