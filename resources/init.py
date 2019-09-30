@@ -75,42 +75,22 @@ def extract_node_modules():
     return
 
 
-def os_specific():
+def getOS():
     is_64bits = sys.maxsize > 2**32
-    msg_info = 'Preparing binaries for {0}'
-    msg_instruction = 'Need to manual install Optract node for your operation system {0}. Please follow http://optract.com/... for instructions'
-    msg_unsupported = 'Sorry, your operation system {0} is not supported'
     if sys.platform.startswith('freebsd'):
-        logging.error(msg_instruction.format('freebsd'))
+        operation_system = 'freebsd'
     elif sys.platform.startswith('linux'):
         if os.uname()[4].startswith('arm'):  # such as raspberry pi
-            logging.error(msg_instruction.format('arm'))
+            operation_system = 'arm'
         else:
-            if is_64bits:
-                logging.info(msg_info.format('linux (64-bit)'))
-                # os.rename('bin/node.linux64', 'bin/node')
-                # os.rename('bin/asar.linux64', 'bin/asar')
-                # os.rename('bin/ipfs.linux64', 'bin/ipfs')
-            else:
-                logging.error(msg_instruction.format('linux (32-bit)'))
+            operation_system = 'linux'
     elif sys.platform.startswith('win32'):  # not necessary 32-bit
-        if is_64bits:
-            logging.error(msg_instruction.format('windows (64-bit)'))
-            # logging.info(msg_info.format('windows (64-bit)'))
-            # os.rename('bin/node.win', 'bin/node')
-            # os.rename('bin/asar.win', 'bin/asar')
-            # os.rename('bin/ipfs.win', 'bin/ipfs')
-        else:
-            logging.error(msg_instruction.format('windows (32-bit)'))
+        operation_system = 'win32'
     elif sys.platform.startswith('cygwin'):  # is it same as windows?
-        logging.error(msg_unsupported.format('cygwin'))
+        operation_system = 'cygwin'
     elif sys.platform.startswith('darwin'):
-        os.rename('bin/node.macos.mojave', 'bin/node')
-        os.rename('bin/asar.macos.mojave', 'bin/asar')
-        os.rename('bin/ipfs.macos.mojave', 'bin/ipfs')
-    else:
-        logging.error(msg_unsupported.format(sys.platform))
-    return
+        operation_system = 'darwin'
+    return operation_system, is_64bits
 
 
 def init_ipfs(ipfs_repo):
@@ -139,6 +119,12 @@ def init_ipfs(ipfs_repo):
 
 
 if __name__ == '__main__':
+    # (default) base_directory for major OS:
+    # linux: /home/<userName>/.config/optract
+    # Mac: /Users/<userName>/.config/optract
+    # Windows 10: C:\Users\<userName>\AppData\Local\11BE\Optract
+    # "optract_install" should be `os.path.join(base_directory, 'dist')`
+    # "ipfs" should be `os.path.join(base_directory, 'ipfs')`
     if len(sys.argv) != 2:
         raise SystemExit('Error! Please give a ipfs_repo (if the ipfs_repo exist will symlink to it; ' +
                          'if not exist, will create one then symlink to it if necessary)')
@@ -146,7 +132,7 @@ if __name__ == '__main__':
     ipfs_repo = sys.argv[1]
     logging.info('Initializing Optract...')
 
-    os_specific()  # mainly get the correct binary for node/ipfs/asar; should call it first
+    operation_system = getOS();  # will need it in createConfig
 
     dest_file = 'dapps/config.json'
     createConfig(os.getcwd(), dest_file)
