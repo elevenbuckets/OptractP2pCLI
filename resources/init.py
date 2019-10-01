@@ -1,8 +1,5 @@
 #!/usr/bin/python -u
-
 # note: this script should able to execute on both python 2.7 and 3.x or above
-
-
 import os
 import sys
 import json
@@ -14,7 +11,9 @@ import logging
 log_format = '[%(asctime)s] %(levelname)-7s : %(message)s'
 log_datefmt = '%Y-%m-%d %H:%M:%S'
 # replace the `filename='install.log'` to `stream=sys.stdout` to direct log to stdout
-logging.basicConfig(filename='install.log', level=logging.INFO, format=log_format,
+basedir = os.path.dirname(os.path.realpath(sys.argv[0]));  # os.getcwd() is not enough
+logfile = os.path.join(basedir, 'install.log')
+logging.basicConfig(filename=logfile, level=logging.INFO, format=log_format,
                     datefmt=log_datefmt)
 
 
@@ -94,14 +93,16 @@ def getOS():
 
 
 def init_ipfs(ipfs_repo):
-    # there should have no ipfs_repo folder at this point
-    ipfs_repo_default = os.path.join(os.getcwd(), 'ipfs_repo')
-    if os.path.exists(ipfs_repo_default):
-        # logging.warning("ipfs repo exists, will use existing one in " + ipfs_repo_default + " and ignore the input value)
-        # return
-        errmsg_ipfs_exist = 'Error: ipfs_repo already exist in {0}'.format(ipfs_repo_default)
-        logging.error(errmsg_ipfs_exist)
-        raise SystemExit(errmsg_ipfs_exist)
+    # note: The real ipfs_repo should be outside the `basedir`, and symlink to that one inside `basedir`.
+    basedir = os.path.dirname(os.path.realpath(sys.argv[0]));
+    ipfs_repo_default = os.path.join(os.path.dirname(basedir), 'ipfs_repo')
+    ipfs_config_default = os.path.join(ipfs_repo_default, 'config')
+    if os.path.exists(ipfs_config_default):
+        logging.warning("ipfs repo exists, will use existing one in " + ipfs_repo_default)
+        return
+        # msg_ipfs_exist = 'Error: ipfs_repo already exist in {0}'.format(ipfs_repo_default)
+        # logging.error(msg_ipfs_exist)
+        # raise SystemExit(msg_ipfs_exist)
 
     # create ipfs_repo
     ipfs_config = os.path.join(ipfs_repo, "config")
@@ -122,13 +123,13 @@ if __name__ == '__main__':
     # (default) base_directory for major OS:
     # linux: /home/<userName>/.config/optract
     # Mac: /Users/<userName>/.config/optract
-    # Windows 10: C:\Users\<userName>\AppData\Local\11BE\Optract
+    # Windows 10: C:\Users\<userName>\AppData\Local\Optract
     # "optract_install" should be `os.path.join(base_directory, 'dist')`
     # "ipfs" should be `os.path.join(base_directory, 'ipfs')`
     if len(sys.argv) != 2:
         raise SystemExit('Error! Please give a ipfs_repo (if the ipfs_repo exist will symlink to it; ' +
                          'if not exist, will create one then symlink to it if necessary)')
-    print('Installing, please see the log in "install.log"')
+    print('Installing...')
     ipfs_repo = sys.argv[1]
     logging.info('Initializing Optract...')
 
@@ -140,3 +141,4 @@ if __name__ == '__main__':
     extract_node_modules()
     init_ipfs(ipfs_repo)
     # still need to manually copy 'myArchive.bcup' and directory 'keystore' into 'dapps' folder
+    print('Done. Please see the log in {0}.'.format(logfile))
