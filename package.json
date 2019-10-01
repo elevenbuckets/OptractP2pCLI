@@ -4,14 +4,14 @@
   "description": "",
   "main": "console.js",
   "scripts": {
-    "build": "rm -fr dist && mkdir dist && asar pack ./node_modules ./dist/node_modules.asar && cp -rv ./resources/bin ./dist/ && cp -rv ./lib ./dist/ && cp -vr ./dapps ./dist/ && cp -rv ./resources/config.json.dist ./dist/dapps/ && cp -rv ./resources/optRun ./dist/",
-    "unlink": "cd resources; if [ -h bin ]; then unlink bin; fi",
+    "build": "rm -fr dist && mkdir dist && cp -r node_modules ./dist/ && cp -rv ./resources/bin ./dist/ && cp -rv ./lib ./dist/ && cp -vr ./dapps ./dist/ && cp -rv ./resources/config.json.dist ./dist/dapps/ && cp -rv ./resources/optRun ./dist/ && cp -v ./resources/init.py ./dist/",
+    "unlink": "cd resources; if [ -h bin ]; then unlink bin; fi; cd ../",
     "package": "rm -f ./OptractClient.tar.gz && tar -zcvf OptractClient.tar.gz ./dist",
     "packageMac64": "rm -f ./OptractClient_darwin64.tar.gz && tar -zcvf OptractClient_darwin64.tar.gz ./dist",
     "packageWin64": "rm -f ./OptractClient_win64.tar.gz && tar -zcvf OptractClient_win64.tar.gz ./dist",
     "release": "npm run unlink && ln -s bin_linux64 ./resources/bin && npm run build && npm run package",
     "releaseMac64": "npm run unlink && ln -s bin_darwin64 ./resources/bin && npm run build && npm run packageMac64",
-    "releaseWin64": "npm run inlink && ln -s bin_win64 ./resources/bin && npm run build && npm run packageWin64",
+    "releaseWin64": "npm run unlink && ln -s bin_win64 ./resources/bin && npm run build && npm run packageWin64",
     "clean": "rm -fr dist OptractClient.tar.gz",
     "appInstall": "tar xf ./OptractClient.tar.gz -C ../OptractClient && cd ../OptractClient/dist && ln -s ../ipfs_repo && cd dapps && ln -s ../../myArchive.bcup && ln -s ../../keystore",
     "appUninstall": "cd ../OptractClient/dist && unlink ./ipfs_repo && cd dapps && unlink ./myArchive.bcup && unlink ./keystore && cd ../.. && rm -fr ./dist"

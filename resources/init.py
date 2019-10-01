@@ -138,7 +138,7 @@ if __name__ == '__main__':
     dest_file = 'dapps/config.json'
     createConfig(os.getcwd(), dest_file)
 
-    extract_node_modules()
+    # extract_node_modules()
     init_ipfs(ipfs_repo)
     # still need to manually copy 'myArchive.bcup' and directory 'keystore' into 'dapps' folder
     print('Done. Please see the log in {0}.'.format(logfile))
