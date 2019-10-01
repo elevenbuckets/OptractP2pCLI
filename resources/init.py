@@ -1,33 +1,34 @@
 #!/usr/bin/python -u
-# note: this script should able to execute on both python 2.7 and 3.x or above
 import os
 import sys
 import json
 import subprocess
 import shutil
 import logging
+from pathlib import Path  # this is python 3 only
 
 # logging
 log_format = '[%(asctime)s] %(levelname)-7s : %(message)s'
 log_datefmt = '%Y-%m-%d %H:%M:%S'
-# replace the `filename='install.log'` to `stream=sys.stdout` to direct log to stdout
 basedir = os.path.dirname(os.path.realpath(sys.argv[0]));  # os.getcwd() is not enough
 logfile = os.path.join(basedir, 'install.log')
+# replace the `filename='install.log'` to `stream=sys.stdout` to direct log to stdout
 logging.basicConfig(filename=logfile, level=logging.INFO, format=log_format,
                     datefmt=log_datefmt)
 
 
-def createConfig(optract_install, dest_file, account='0x', geth_rpc="http://localhost:8545", streamr=False):
+def createConfig(optract_install, dest_file, account='0x'):
+    optract_install = Path(optract_install)
     config = {
-        "datadir": os.path.join(optract_install, "dapps"),
-        "rpcAddr": geth_rpc,
+        "datadir": str(optract_install / "dapps"),
+        "rpcAddr": "https://rinkeby.infura.io/metamask",
         "defaultGasPrice": "20000000000",
         "gasOracleAPI": "https://ethgasstation.info/json/ethgasAPI.json",
         "condition": "sanity",
         "networkID": 4,
-        "passVault": os.path.join(optract_install, "dapps/myArchive.bcup"),
+        "passVault": str(optract_install / "dapps" / "myArchive.bcup"),
         "node": {
-            "dappdir": os.path.join(optract_install,  "dapps"),
+            "dappdir": str(optract_install / "dapps"),
             "dns": {
                 "server": [
                     "discovery1.datprotocol.com",
@@ -46,16 +47,16 @@ def createConfig(optract_install, dest_file, account='0x', geth_rpc="http://loca
         "dapps": {
             "OptractMedia": {
                 "appName": "OptractMedia",
-                "artifactDir": os.path.join(optract_install, "dapps/OptractMedia/ABI"),
-                "conditionDir": os.path.join(optract_install, "dapps/OptractMedia/Conditions"),
+                "artifactDir": str(optract_install / "dapps" / "OptractMedia" / "ABI"),
+                "conditionDir": str(optract_install / "dapps" / "OptractMedia" / "Conditions"),
                 "contracts": [
                     { "ctrName": "BlockRegistry", "conditions": ["Sanity"] },
                     { "ctrName": "MemberShip", "conditions": ["Sanity"] }
                 ],
                 "account": account,
-                "database": os.path.join(optract_install, "dapps/OptractMedia/DB"),
+                "database": str(optract_install / "dapps" / "OptractMedia" / "DB"),
                 "version": "1.0",
-                "streamr": streamr
+                "streamr": False
             }
         }
     }
@@ -92,53 +93,44 @@ def getOS():
     return operation_system, is_64bits
 
 
-def init_ipfs(ipfs_repo):
-    # note: The real ipfs_repo should be outside the `basedir`, and symlink to that one inside `basedir`.
-    basedir = os.path.dirname(os.path.realpath(sys.argv[0]));
+def init_ipfs(ipfs_repo=None):
+    # note: assume the default ipfs_repo locate in ``../ipfs_repo` of optract_install
     ipfs_repo_default = os.path.join(os.path.dirname(basedir), 'ipfs_repo')
-    ipfs_config_default = os.path.join(ipfs_repo_default, 'config')
-    if os.path.exists(ipfs_config_default):
-        logging.warning("ipfs repo exists, will use existing one in " + ipfs_repo_default)
+    if ipfs_repo is None:
+        ipfs_repo = ipfs_repo_default
+
+    ipfs_config = os.path.join(ipfs_repo, 'config')
+
+    if os.path.exists(ipfs_config):
+        logging.warning("ipfs repo exists, will use existing one in " + ipfs_repo)
         return
-        # msg_ipfs_exist = 'Error: ipfs_repo already exist in {0}'.format(ipfs_repo_default)
-        # logging.error(msg_ipfs_exist)
-        # raise SystemExit(msg_ipfs_exist)
 
     # create ipfs_repo
-    ipfs_config = os.path.join(ipfs_repo, "config")
+    myenv = os.environ.copy()  # "DLL initialize error..." in Windows while set the env inside subprocess calls
+    myenv['IPFS_PATH'] = ipfs_repo
     ipfs_bin = os.path.join("bin", "ipfs")
-    if not os.path.exists(ipfs_config):
-        logging.info("initilalizing ipfs in " + ipfs_repo)
-        subprocess.check_call([ipfsBinPath, "init"], env={'IPFS_PATH': ipfs_repo}, stdout=None, stderr=subprocess.STDOUT)
-    else:
-        logging.warning("ipfs repo exists, will use existing one in " + ipfs_repo)
 
-    # symlink if necessary (it does not work for windows prior to vista)
-    if (ipfs_repo != ipfs_repo_default):
-        os.symlink(ipfs_repo, ipfs_repo_default)
+    logging.info("initilalizing ipfs in " + ipfs_repo)
+    subprocess.check_call([ipfs_bin, "init"], env=myenv, stdout=None, stderr=subprocess.STDOUT)
+
     return
 
 
 if __name__ == '__main__':
-    # (default) base_directory for major OS:
+    # (default) basedir for supporting OS:
     # linux: /home/<userName>/.config/optract
     # Mac: /Users/<userName>/.config/optract
     # Windows 10: C:\Users\<userName>\AppData\Local\Optract
-    # "optract_install" should be `os.path.join(base_directory, 'dist')`
-    # "ipfs" should be `os.path.join(base_directory, 'ipfs')`
-    if len(sys.argv) != 2:
-        raise SystemExit('Error! Please give a ipfs_repo (if the ipfs_repo exist will symlink to it; ' +
-                         'if not exist, will create one then symlink to it if necessary)')
+    # "ipfs" should be `../ipfs_repo` relative to basedir
     print('Installing...')
-    ipfs_repo = sys.argv[1]
     logging.info('Initializing Optract...')
 
-    operation_system = getOS();  # will need it in createConfig
+    # operation_system = getOS();  # will need it in createConfig?
 
     dest_file = 'dapps/config.json'
-    createConfig(os.getcwd(), dest_file)
+    createConfig(basedir, dest_file)
 
     # extract_node_modules()
-    init_ipfs(ipfs_repo)
+    init_ipfs()
     # still need to manually copy 'myArchive.bcup' and directory 'keystore' into 'dapps' folder
     print('Done. Please see the log in {0}.'.format(logfile))
