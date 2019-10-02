@@ -5,28 +5,27 @@ import json
 import subprocess
 import shutil
 import logging
+import tarfile
 
-# logging
-log_format = '[%(asctime)s] %(levelname)-7s : %(message)s'
-log_datefmt = '%Y-%m-%d %H:%M:%S'
-basedir = os.path.dirname(os.path.realpath(sys.argv[0]));  # os.getcwd() is not enough
-logfile = os.path.join(basedir, 'install.log')
-# replace the `filename='install.log'` to `stream=sys.stdout` to direct log to stdout
-logging.basicConfig(filename=logfile, level=logging.INFO, format=log_format,
-                    datefmt=log_datefmt)
+# global variable
+# basedir = os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))  # os.getcwd() is not enough
+
+
+def get_basedir():
+    return os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))
 
 
 def createConfig(optract_install, dest_file):
     config = {
-        "datadir": os.path.join(optract_install, "dapps"),
-        "rpcAddr": "https://rinkeby.infura.io/metamask",
+        "datadir": os.path.join(optract_install, "dist", "dapps"),
+        "rpcAddr": "https://rinkeby.infura.io/v3/f50fa6bf08fb4918acea4aadabb6f537",
         "defaultGasPrice": "20000000000",
         "gasOracleAPI": "https://ethgasstation.info/json/ethgasAPI.json",
         "condition": "sanity",
         "networkID": 4,
         "passVault": os.path.join(optract_install, "myArchive.bcup"),
         "node": {
-            "dappdir": os.path.join(optract_install, "dapps"),
+            "dappdir": os.path.join(optract_install, "dist", "dapps"),
             "dns": {
                 "server": [
                     "discovery1.datprotocol.com",
@@ -45,20 +44,23 @@ def createConfig(optract_install, dest_file):
         "dapps": {
             "OptractMedia": {
                 "appName": "OptractMedia",
-                "artifactDir": os.path.join(optract_install, "dapps", "OptractMedia", "ABI"),
-                "conditionDir": os.path.join(optract_install, "dapps", "OptractMedia", "Conditions"),
+                "artifactDir": os.path.join(optract_install, "dist", "dapps", "OptractMedia", "ABI"),
+                "conditionDir": os.path.join(optract_install, "dist", "dapps", "OptractMedia", "Conditions"),
                 "contracts": [
                     { "ctrName": "BlockRegistry", "conditions": ["Sanity"] },
                     { "ctrName": "MemberShip", "conditions": ["Sanity"] }
                 ],
-                "database": os.path.join(optract_install, "dapps", "OptractMedia", "DB"),
+                "account": "0x",
+                "database": os.path.join(optract_install, "dist", "dapps", "OptractMedia", "DB"),
                 "version": "1.0",
                 "streamr": "false"
             }
         }
     }
     if os.path.isfile(dest_file):
-        logging.warning('{0} already exists, will overwrite it'.format(dest_file))
+        # logging.warning('{0} already exists, will overwrite it'.format(dest_file))
+        logging.warning('{0} already exists, will move it to {0}'.format(dest_file + '.orig'))
+        shutil.move(dest_file, dest_file+'.orig')
     with open(dest_file, 'w') as f:
         json.dump(config, f, indent=4)
         logging.info('config write to file {0}'.format(dest_file))
@@ -66,9 +68,14 @@ def createConfig(optract_install, dest_file):
 
 
 def extract_node_modules():
-    shutil.rmtree('node_modules', ignore_errors=True)
-    asarBinPath = os.path.join('bin', 'asar')
-    subprocess.check_call([asarBinPath, "extract", "node_modules.asar", "node_modules"], stdout=None, stderr=subprocess.STDOUT)
+    # asarBinPath = os.path.join('bin', 'asar')
+    # subprocess.check_call([asarBinPath, "extract", "node_modules.asar", "node_modules"], stdout=None, stderr=subprocess.STDOUT)
+    basedir = get_basedir()
+    shutil.rmtree(os.path.join(basedir, 'dist', 'node_modules'), ignore_errors=True)
+    with tarfile.open(os.path.join(basedir, 'dist', 'node_modules.tar'), 'r') as tar:
+        tar.extractall(os.path.join(basedir, 'dist'))
+    logging.info('extracting latest version of node_modules...')
+    # os.remove(os.path.join(basedir, 'dist', 'node_modules.tar')
     return
 
 
@@ -91,6 +98,7 @@ def getOS():
 
 
 def init_ipfs(ipfs_repo=None):
+    basedir = get_basedir()
     ipfs_repo_default = os.path.join(basedir, 'ipfs_repo')
     if ipfs_repo is None:
         ipfs_repo = ipfs_repo_default
@@ -112,22 +120,64 @@ def init_ipfs(ipfs_repo=None):
     return
 
 
-if __name__ == '__main__':
-    # default `optract_install_path` for supporting OS:
-    # linux: /home/<userName>/.config/optract
-    # Mac: /Users/<userName>/.config/optract
-    # Windows 10: C:\Users\<userName>\AppData\Local\Optract
-    # In `optract_install_path`, ipfs_repo, buttercup, eth private keys, and config are direct child
-    # all other things are inside the directory `dist`
-    print('Installing...')
+def compatibility_symlinks():
+    basedir = get_basedir()
+    dapps = os.path.join(basedir, 'dist', 'dapps')
+
+    src_to_names = {  # create a symlink pointing to `source` with link names
+        os.path.join(basedir, 'ipfs_repo'): os.path.join(basedir, 'dist', 'ipfs_repo'),
+        os.path.join(basedir, 'config.json'): os.path.join(dapps, 'config.json'),
+        os.path.join(basedir, 'keystore'): os.path.join(dapps, 'keystore'),
+        os.path.join(basedir, 'myArchive.bcup'): os.path.join(dapps, 'myArchive.bcup')
+    }
+
+    for src in src_to_names:
+        name = src_to_names[src]
+        if os.path.exists(name):
+            if os.path.islink(name) or 'config.json' in name:  # safe to remove
+                os.remove(name)
+        try:
+            os.symlink(src, name)
+        except:
+            print("warning: failed to symlink to {0}. Please check manually.".format(src))
+    return
+
+
+def init():
+    # In this script, `basedir` is the `optract_install_path`
+    # Default `basedir` for supporting OS:
+    #   * linux: /home/<userName>/.config/optract
+    #   * Mac: /Users/<userName>/.config/optract
+    #   * Windows 10: C:\Users\<userName>\AppData\Local\Optract
+    # In `basedir`, there are 'dist/', `ipfs_repo/`, buttercup, eth private key directory, and config.
+    # Most others are in the directory `dist`, such as node_modules, nativeApp.py, and dapps.
+
+    # logging
+    log_format = '[%(asctime)s] %(levelname)-7s : %(message)s'
+    log_datefmt = '%Y-%m-%d %H:%M:%S'
+    basedir = get_basedir()
+    logfile = os.path.join(basedir, 'install.log')
+    # replace the `filename='install.log'` to `stream=sys.stdout` to direct log to stdout
+    logging.basicConfig(filename=logfile, level=logging.INFO, format=log_format,
+                        datefmt=log_datefmt)
+
+    # print('Installing...')
     logging.info('Initializing Optract...')
 
-    # operation_system = getOS();  # will need it in createConfig?
 
     dest_file = os.path.join(basedir, 'config.json')
     createConfig(basedir, dest_file)
 
-    # extract_node_modules()
+    extract_node_modules()
     init_ipfs()
+
     # still need to manually copy 'myArchive.bcup' and directory 'keystore' into 'dapps' folder
     print('Done. Please see the log in {0}.'.format(logfile))
+    return
+
+
+if __name__ == '__main__':
+    # operation_system = getOS();  # probably no need this
+    init()
+    compatibility_symlinks()  # cannot work on windows; remove this after daemon.js update
+
