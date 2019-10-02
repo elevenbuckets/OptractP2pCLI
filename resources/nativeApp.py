@@ -101,8 +101,11 @@ started = False
 #         ipfsP, nodeP = startServer()
 #         send_message(encode_message('ping->pong more'))
 
-init.init()
-init.compatibility_symlinks()  # cannot work on windows; remove this after daemon.js update the paths
+ipfsConfigPath = path.join(basedir, "ipfs_repo", "config")
+logfile = os.path.join(basedir, 'install.log')
+if (not os.path.isfile(ipfsConfigPath) or not os.path.isfile(logfile)):  # i.e., rm or mv the logfile to init again
+    init.init()
+    init.compatibility_symlinks()  # cannot work on windows; remove this after daemon.js update the paths
 
 while True:
     message = get_message()
