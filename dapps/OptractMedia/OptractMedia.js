@@ -90,12 +90,20 @@ class OptractMedia extends KnifeIron {
 				return this.call(this.appName)('MemberShip')('fee')().then((rc)=>{
 					let fee = rc.toNumber();
 					return this.sendTk(this.appName)('MemberShip')('renewMembership')()(fee)
+					           .then((rc) => { 
+							   this.clearCache(`${this.appName}_MemberShip_getMemberInfo_${this.userWallet[this.appName]}`);
+							   return rc;
+						   })
 				})
 			};
 			const _new = () => {
 				return this.call(this.appName)('MemberShip')('fee')().then((rc)=>{
 					let fee = rc.toNumber();
 					return this.sendTk(this.appName)('MemberShip')('buyMembership')()(fee)
+					           .then((rc) => { 
+							   this.clearCache(`${this.appName}_MemberShip_getMemberInfo_${this.userWallet[this.appName]}`);
+							   return rc;
+						   })
 				})
 			}
 
