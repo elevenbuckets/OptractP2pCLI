@@ -5,7 +5,6 @@ import json
 import subprocess
 import shutil
 import logging
-from pathlib import Path  # this is python 3 only
 
 # logging
 log_format = '[%(asctime)s] %(levelname)-7s : %(message)s'
@@ -17,18 +16,17 @@ logging.basicConfig(filename=logfile, level=logging.INFO, format=log_format,
                     datefmt=log_datefmt)
 
 
-def createConfig(optract_install, dest_file, account='0x'):
-    optract_install = Path(optract_install)
+def createConfig(optract_install, dest_file):
     config = {
-        "datadir": str(optract_install / "dapps"),
+        "datadir": os.path.join(optract_install, "dapps"),
         "rpcAddr": "https://rinkeby.infura.io/metamask",
         "defaultGasPrice": "20000000000",
         "gasOracleAPI": "https://ethgasstation.info/json/ethgasAPI.json",
         "condition": "sanity",
         "networkID": 4,
-        "passVault": str(optract_install / "dapps" / "myArchive.bcup"),
+        "passVault": os.path.join(optract_install, "myArchive.bcup"),
         "node": {
-            "dappdir": str(optract_install / "dapps"),
+            "dappdir": os.path.join(optract_install, "dapps"),
             "dns": {
                 "server": [
                     "discovery1.datprotocol.com",
@@ -47,16 +45,15 @@ def createConfig(optract_install, dest_file, account='0x'):
         "dapps": {
             "OptractMedia": {
                 "appName": "OptractMedia",
-                "artifactDir": str(optract_install / "dapps" / "OptractMedia" / "ABI"),
-                "conditionDir": str(optract_install / "dapps" / "OptractMedia" / "Conditions"),
+                "artifactDir": os.path.join(optract_install, "dapps", "OptractMedia", "ABI"),
+                "conditionDir": os.path.join(optract_install, "dapps", "OptractMedia", "Conditions"),
                 "contracts": [
                     { "ctrName": "BlockRegistry", "conditions": ["Sanity"] },
                     { "ctrName": "MemberShip", "conditions": ["Sanity"] }
                 ],
-                "account": account,
-                "database": str(optract_install / "dapps" / "OptractMedia" / "DB"),
+                "database": os.path.join(optract_install, "dapps", "OptractMedia", "DB"),
                 "version": "1.0",
-                "streamr": False
+                "streamr": "false"
             }
         }
     }
@@ -94,8 +91,7 @@ def getOS():
 
 
 def init_ipfs(ipfs_repo=None):
-    # note: assume the default ipfs_repo locate in ``../ipfs_repo` of optract_install
-    ipfs_repo_default = os.path.join(os.path.dirname(basedir), 'ipfs_repo')
+    ipfs_repo_default = os.path.join(basedir, 'ipfs_repo')
     if ipfs_repo is None:
         ipfs_repo = ipfs_repo_default
 
@@ -117,17 +113,18 @@ def init_ipfs(ipfs_repo=None):
 
 
 if __name__ == '__main__':
-    # (default) basedir for supporting OS:
+    # default `optract_install_path` for supporting OS:
     # linux: /home/<userName>/.config/optract
     # Mac: /Users/<userName>/.config/optract
     # Windows 10: C:\Users\<userName>\AppData\Local\Optract
-    # "ipfs" should be `../ipfs_repo` relative to basedir
+    # In `optract_install_path`, ipfs_repo, buttercup, eth private keys, and config are direct child
+    # all other things are inside the directory `dist`
     print('Installing...')
     logging.info('Initializing Optract...')
 
     # operation_system = getOS();  # will need it in createConfig?
 
-    dest_file = 'dapps/config.json'
+    dest_file = os.path.join(basedir, 'config.json')
     createConfig(basedir, dest_file)
 
     # extract_node_modules()
