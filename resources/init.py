@@ -57,14 +57,30 @@ def createConfig(optract_install, dest_file):
             }
         }
     }
+
+    # if previous setting exists, migrate a few settings and make a backup
     if os.path.isfile(dest_file):
+        # load previous config
+        with open(dest_file, 'r') as f:
+            orig = json.load(f)
+        try:
+            config['dapps']['OptractMedia']['account'] = orig['dapps']['OptractMedia']['account']
+        except KeyError:
+            logging.warning('Cannot load "account" from previous config file. Use default: "0x".')
+        try:
+            config['dapps']['OptractMedia']['streamr'] = orig['dapps']['OptractMedia']['streamr']
+        except KeyError:
+            logging.warning('Cannot load "streamr" from previous config file. Use default: "false".')
+
         # logging.warning('{0} already exists, will overwrite it'.format(dest_file))
         logging.warning('{0} already exists, will move it to {0}'.format(dest_file + '.orig'))
         shutil.move(dest_file, dest_file+'.orig')
+
+    # write
     with open(dest_file, 'w') as f:
         json.dump(config, f, indent=4)
         logging.info('config write to file {0}'.format(dest_file))
-    return config
+    return
 
 
 def extract_node_modules():
@@ -164,7 +180,6 @@ def init():
     # print('Installing...')
     logging.info('Initializing Optract...')
 
-
     dest_file = os.path.join(basedir, 'config.json')
     createConfig(basedir, dest_file)
 
@@ -172,7 +187,7 @@ def init():
     init_ipfs()
 
     # still need to manually copy 'myArchive.bcup' and directory 'keystore' into 'dapps' folder
-    print('Done. Please see the log in {0}.'.format(logfile))
+    print('Done. Please see the log in {0}'.format(logfile))
     return
 
 
@@ -180,4 +195,3 @@ if __name__ == '__main__':
     # operation_system = getOS();  # probably no need this
     init()
     compatibility_symlinks()  # cannot work on windows; remove this after daemon.js update
-
