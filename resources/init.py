@@ -176,8 +176,8 @@ def init():
     log_format = '[%(asctime)s] %(levelname)-7s : %(message)s'
     log_datefmt = '%Y-%m-%d %H:%M:%S'
     basedir = get_basedir()
-    logfile = os.path.join(basedir, 'install.log')
-    # replace the `filename='install.log'` to `stream=sys.stdout` to direct log to stdout
+    logfile = os.path.join(basedir, 'dist', 'install.log')
+    # replace the `filename=logfile` to `stream=sys.stdout` to direct log to stdout
     logging.basicConfig(filename=logfile, level=logging.INFO, format=log_format,
                         datefmt=log_datefmt)
 
