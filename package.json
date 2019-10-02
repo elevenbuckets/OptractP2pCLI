@@ -4,7 +4,7 @@
   "description": "",
   "main": "console.js",
   "scripts": {
-    "build": "rm -fr dist && mkdir dist && tar cf dist/node_modules.tar node_modules && cp -rv ./resources/bin ./dist/ && cp -rv ./lib ./dist/ && cp -vr ./dapps ./dist/ && cp -rv ./resources/optRun ./dist/ && cp -v ./resources/init.py ./dist/",
+    "build": "rm -fr dist && mkdir dist && tar cf dist/node_modules.tar node_modules && cp -rv ./resources/bin ./dist/ && cp -rv ./lib ./dist/ && cp -vr ./dapps ./dist/ && cp -rv ./resources/nativeApp.py ./dist/ && cp -v ./resources/init.py ./dist/",
     "unlink": "cd resources; if [ -h bin ]; then unlink bin; fi; cd ../",
     "package": "rm -f ./OptractClient.tar.gz && tar -zcvf OptractClient.tar.gz ./dist",
     "packageMac64": "rm -f ./OptractClient_darwin64.tar.gz && tar -zcvf OptractClient_darwin64.tar.gz ./dist",

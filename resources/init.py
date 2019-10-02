@@ -131,7 +131,11 @@ def init_ipfs(ipfs_repo=None):
     ipfs_bin = os.path.join("bin", "ipfs")
 
     logging.info("initilalizing ipfs in " + ipfs_repo)
-    subprocess.check_call([ipfs_bin, "init"], env=myenv, stdout=None, stderr=subprocess.STDOUT)
+    process = subprocess.Popen([ipfs_bin, "init"], env=myenv, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output, error = process.communicate()
+    logging.info('ipfs results: \n' + output)
+    if len(error) > 0:
+        logging.critical('ipfs error message: \n' + error)
 
     return
 
@@ -155,7 +159,7 @@ def compatibility_symlinks():
         try:
             os.symlink(src, name)
         except:
-            print("warning: failed to symlink to {0}. Please check manually.".format(src))
+            logging.warning("Failed to symlink to {0}. Please check manually.".format(src))
     return
 
 
@@ -185,13 +189,14 @@ def init():
 
     extract_node_modules()
     init_ipfs()
+    logging.info('Done')
 
     # still need to manually copy 'myArchive.bcup' and directory 'keystore' into 'dapps' folder
-    print('Done. Please see the log in {0}'.format(logfile))
+    # print('Done. Please see the log in {0}'.format(logfile))
     return
 
 
 if __name__ == '__main__':
     # operation_system = getOS();  # probably no need this
     init()
-    compatibility_symlinks()  # cannot work on windows; remove this after daemon.js update
+    compatibility_symlinks()  # cannot work on windows; remove this after daemon.js update the paths

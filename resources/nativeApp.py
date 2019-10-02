@@ -12,7 +12,18 @@ import subprocess
 import os.path as path
 import os
 import signal
+import init
 
+
+# global variables
+basedir = os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))
+lockFile = os.path.join(basedir, "dist", "Optract.LOCK")
+myenv = os.environ.copy()  # "DLL initialize error..." in Windows while set the env inside subprocess calls
+myenv['IPFS_PATH'] = os.path.join(basedir, 'ipfs_repo')
+
+FNULL = open(os.devnull, 'w')
+ipfsP = None
+nodeP = None
 
 # Read a message from stdin and decode it.
 def get_message():
@@ -37,27 +48,22 @@ def send_message(encoded_message):
     sys.stdout.write(encoded_message['content'])
     sys.stdout.flush()
 
-FNULL = open(os.devnull, 'w')
-
-ipfsP = None
-nodeP = None
 
 def startServer():  
     send_message(encode_message('in starting server')) 
-    lockFile = "Optract.LOCK"
     if os.path.exists(lockFile):
         return
 
-    ipfsConfigPath = path.join("ipfs_repo", "config")
-    ipfsBinPath = path.join("bin", "ipfs")
-    ipfsRepoPath = path.join(os.getcwd(), 'ipfs_repo')
+    ipfsConfigPath = path.join(basedir, "ipfs_repo", "config")
+    ipfsBinPath = path.join(basedir, "dist", "bin", "ipfs")
+    ipfsRepoPath = path.join(basedir, 'ipfs_repo')
     if not os.path.exists(ipfsConfigPath):
         send_message(encode_message('before init ipfs')) 
-        subprocess.check_call([ipfsBinPath, "init"], stdout=FNULL, stderr=subprocess.STDOUT)
+        subprocess.check_call([ipfsBinPath, "init"], env=myenv, stdout=FNULL, stderr=subprocess.STDOUT)
         return startServer()
     else:
         send_message(encode_message('before starting ipfs')) 
-        ipfsP = subprocess.Popen([ipfsBinPath, "daemon", "--routing=dhtclient"], env={'IPFS_PATH': ipfsRepoPath}, stdout=FNULL, stderr=subprocess.STDOUT)
+        ipfsP = subprocess.Popen([ipfsBinPath, "daemon", "--routing=dhtclient"], env=myenv, stdout=FNULL, stderr=subprocess.STDOUT)
         send_message(encode_message('after starting ipfs')) 
     send_message(encode_message(' finish ipfs processing')) 
     ipfsAPI  = path.join(ipfsRepoPath, "api")
@@ -75,7 +81,6 @@ def startServer():
 
 def stopServer(ipfsP, nodeP):
     send_message(encode_message('in stoping server')) 
-    lockFile = "Optract.LOCK"
     if os.path.exists(lockFile):
        os.remove(lockFile) 
        send_message(encode_message('LockFile removed')) 
@@ -96,6 +101,8 @@ started = False
 #         ipfsP, nodeP = startServer()
 #         send_message(encode_message('ping->pong more'))
 
+init.init()
+init.compatibility_symlinks()  # cannot work on windows; remove this after daemon.js update the paths
 
 while True:
     message = get_message()
