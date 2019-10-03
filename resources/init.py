@@ -73,7 +73,7 @@ def createConfig(optract_install, dest_file):
             logging.warning('Cannot load "streamr" from previous config file. Use default: "false".')
 
         # logging.warning('{0} already exists, will overwrite it'.format(dest_file))
-        logging.warning('{0} already exists, will move it to {0}'.format(dest_file + '.orig'))
+        logging.warning('{0} already exists, will move it to {1}'.format(dest_file, dest_file + '.orig'))
         shutil.move(dest_file, dest_file+'.orig')
 
     # write
@@ -128,14 +128,14 @@ def init_ipfs(ipfs_repo=None):
     # create ipfs_repo
     myenv = os.environ.copy()  # "DLL initialize error..." in Windows while set the env inside subprocess calls
     myenv['IPFS_PATH'] = ipfs_repo
-    ipfs_bin = os.path.join("bin", "ipfs")
+    ipfs_bin = os.path.join(basedir, "dist", "bin", "ipfs")
 
     logging.info("initilalizing ipfs in " + ipfs_repo)
     process = subprocess.Popen([ipfs_bin, "init"], env=myenv, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output, error = process.communicate()
     logging.info('ipfs results: \n' + output)
     if len(error) > 0:
-        logging.critical('ipfs error message: \n' + error)
+        logging.critical('ipfs error message: \n' + str(error))
 
     return
 
@@ -197,6 +197,6 @@ def init():
 
 
 if __name__ == '__main__':
-    # operation_system = getOS();  # probably no need this
     init()
+    # operation_system, _ = getOS();  # probably no need this
     compatibility_symlinks()  # cannot work on windows; remove this after daemon.js update the paths
