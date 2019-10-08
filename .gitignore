@@ -62,3 +62,9 @@ typings/
 
 # truffle output
 build/*
+
+# builds
+dist/
+resources/build/
+resources/dist/
+resources/__pycache__/
