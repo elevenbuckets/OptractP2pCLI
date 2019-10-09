@@ -15,10 +15,8 @@ if os.path.isdir(distdir):
     shutil.rmtree(distdir)
 os.mkdir(distdir)
 
-# create node_modules.tar
-print('# tar node_modules')
-# nodemodules_dir = os.path.join(basedir, 'node_modules')
-# nodemodules_tar = os.path.join(basedir, 'dist', 'node_modules.tar')
+# create node_modules.tar  (use relative path)
+print('# pack node_modules')
 with tarfile.open('dist/node_modules.tar', 'w') as tar:
     tar.add('node_modules')
 
@@ -42,13 +40,13 @@ shutil.copy2(os.path.join(basedir, 'resources', 'dist', 'nativeApp.exe'),
              os.path.join(basedir, 'dist'))
 os.chdir(os.path.join(basedir))
 
-# package
-package = 'OptractClient_win64.tar'
+# pack
+package = 'OptractClient_win64.tar.gz'
 if os.path.isfile(package):
     os.remove(package)
 
 print('# packing...')
-with tarfile.open('OptractClient_win64.tar.gz', 'w:gz') as tar:
 # with tarfile.open(package, 'w') as tar:  # use uncompres during dev only
-    tar.add('dist')
+with tarfile.open(package, 'w:gz') as tar:
+    tar.add('dist')  # use relative path
 print('Done!')
