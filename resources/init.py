@@ -53,7 +53,6 @@ def createConfig(optract_install, dest_file):
                     { "ctrName": "BlockRegistry", "conditions": ["Sanity"] },
                     { "ctrName": "MemberShip", "conditions": ["Sanity"] }
                 ],
-                "account": "0x",
                 "database": os.path.join(optract_install, "dist", "dapps", "OptractMedia", "DB"),
                 "version": "1.0",
                 "streamr": "false"
@@ -173,16 +172,20 @@ def sym_or_copy_data(basedir=None):
     if basedir is None:
         basedir = get_basedir()
     logging.info('Now trying to copy or symlink existing files inside ' + basedir)
+    dir_keystore = os.path.join(basedir, 'keystore')
+    file_passvault = os.path.join(basedir, 'myArchive.bcup')
     if sys.platform == 'win32':  # In windows, need to run as administrator to symlink(?), so copy files instead of symlink
-        copy_data(os.path.join(basedir, 'ipfs_repo'), os.path.join(basedir, 'dist', 'ipfs_repo'))
-        copy_data(os.path.join(basedir, 'config.json'), os.path.join(basedir, 'dist', 'dapps', 'config.json'), force=True)
-        copy_data(os.path.join(basedir, 'keystore'), os.path.join('dist', 'dapps', 'keystore'))
-        copy_data(os.path.join(basedir, 'myArchive.bcup'), os.path.join('dist', 'dapps', 'myArchive.bcup'))
+        symcopy = copy_data
     else:
-        symlink_data(os.path.join(basedir, 'ipfs_repo'), os.path.join(basedir, 'dist', 'ipfs_repo'))
-        symlink_data(os.path.join(basedir, 'config.json'), os.path.join(basedir, 'dist', 'dapps', 'config.json'), force=True)
-        symlink_data(os.path.join(basedir, 'keystore'), os.path.join('dist', 'dapps', 'keystore'))
-        symlink_data(os.path.join(basedir, 'myArchive.bcup'), os.path.join('dist', 'dapps', 'myArchive.bcup'))
+        symcopy = symlink_data
+    symcopy(os.path.join(basedir, 'ipfs_repo'), os.path.join(basedir, 'dist', 'ipfs_repo'))
+    symcopy(os.path.join(basedir, 'config.json'), os.path.join(basedir, 'dist', 'dapps', 'config.json'), force=True)
+    if os.path.isdir(dir_keystore) and os.path.isfile(file_passvault):
+        symcopy(dir_keystore, os.path.join(basedir, 'dist', 'dapps', 'keystore'))
+        symcopy(file_passvault, os.path.join(basedir, 'dist', 'dapps', 'myArchive.bcup'))
+    else:
+        os.mkdir(os.path.join(basedir, 'dist', 'dapps', 'keystore'))
+    
     return
 
 
