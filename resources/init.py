@@ -66,10 +66,6 @@ def createConfig(optract_install, dest_file):
         with open(dest_file, 'r') as f:
             orig = json.load(f)
         try:
-            config['dapps']['OptractMedia']['account'] = orig['dapps']['OptractMedia']['account']
-        except KeyError:
-            logging.warning('Cannot load "account" from previous config file. Use default: "0x".')
-        try:
             config['dapps']['OptractMedia']['streamr'] = orig['dapps']['OptractMedia']['streamr']
         except KeyError:
             logging.warning('Cannot load "streamr" from previous config file. Use default: "false".')
@@ -158,10 +154,16 @@ def symlink_data(target, name, force=False):
 def copy_data(src, dest, force=False):
     if os.path.exists(dest) and force==True:
         os.remove(dest)
-    try:
-        shutil.copyfile(src, dest)
-    except:
-        logging.warning("Failed to copy file from {0} to {1}. Please check manually. Error message:\n{2}".format(src, dest, sys.exc_info()[1]))
+    if (os.path.isdir(src) and os.path.isdir(dest)):
+        try:
+            shutil.copytree(src, dest)
+        except:
+            logging.warning("Failed to copy directory from {0} to {1}. Please check manually. Error message:\n{2}".format(src, dest, sys.exc_info()[1]))
+    else:
+        try:
+            shutil.copyfile(src, dest)
+        except:
+            logging.warning("Failed to copy file from {0} to {1}. Please check manually. Error message:\n{2}".format(src, dest, sys.exc_info()[1]))
     return
 
 
@@ -178,7 +180,6 @@ def sym_or_copy_data(basedir=None):
         symcopy = copy_data
     else:
         symcopy = symlink_data
-    symcopy(os.path.join(basedir, 'ipfs_repo'), os.path.join(basedir, 'dist', 'ipfs_repo'))
     symcopy(os.path.join(basedir, 'config.json'), os.path.join(basedir, 'dist', 'dapps', 'config.json'), force=True)
     if os.path.isdir(dir_keystore) and os.path.isfile(file_passvault):
         symcopy(dir_keystore, os.path.join(basedir, 'dist', 'dapps', 'keystore'))
