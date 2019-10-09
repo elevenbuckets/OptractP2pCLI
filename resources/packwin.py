@@ -32,6 +32,8 @@ shutil.copytree(os.path.join(basedir, 'dapps'),
                 os.path.join(basedir, 'dist', 'dapps'))
 shutil.copy2(os.path.join(basedir, 'resources', 'optract-win.json'),
              os.path.join(basedir, 'dist'))
+shutil.copy2(os.path.join(basedir, 'resources', 'install.bat'),
+             os.path.join(basedir, 'dist'))
 
 # copy nativeApp.py
 os.chdir(os.path.join(basedir, 'resources'))

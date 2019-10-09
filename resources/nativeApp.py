@@ -23,11 +23,6 @@ if sys.platform == "win32":
     msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
 
 # global variables
-# if sys.platform == 'win32':
-#     # after packing by pynsist, the executable file is in the parent dir of the dir contain this script (nativeApp.py)
-#     basedir = os.path.dirname(os.path.realpath(sys.argv[0]))
-# else:
-#     basedir = os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))
 basedir = os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))
 
 lockFile = os.path.join(basedir, "dist", "Optract.LOCK")
@@ -103,6 +98,7 @@ def startServer():
     send_message(encode_message(str(nodeP)))
     return ipfsP, nodeP
 
+
 def stopServer(ipfsP, nodeP):
     send_message(encode_message('in stoping server')) 
     if os.path.exists(lockFile):
@@ -115,36 +111,37 @@ def stopServer(ipfsP, nodeP):
     # os.kill(ipfsP.pid, signal.SIGINT)
     send_message(encode_message('ipfsP killed signal sent')) 
     
-# startServer()
-started = False
 
-# while True:
-#     if started == False:
-#         started = True
-#         send_message(encode_message('ping->pong')) 
-#         ipfsP, nodeP = startServer()
-#         send_message(encode_message('ping->pong more'))
+def main():
+    started = False
+    ipfsConfigPath = path.join(basedir, "ipfs_repo", "config")
+    installed = os.path.join(basedir, 'dist', '.installed')
+    if (not os.path.isfile(ipfsConfigPath) or not os.path.isfile(installed)):  # i.e., rm or mv the 'installed' to init again
+        init.init()
+        init.sym_or_copy_data()
 
-ipfsConfigPath = path.join(basedir, "ipfs_repo", "config")
-installed = os.path.join(basedir, 'dist', '.installed')
-if (not os.path.isfile(ipfsConfigPath) or not os.path.isfile(installed)):  # i.e., rm or mv the logfile to init again
-    init.init()
-    init.sym_or_copy_data()
+    logging.info('Start messaging channel')
+    while True:
+        message = get_message()
+        if "ping" in message.values() and started == False:
+            started = True
+            send_message(encode_message('ping->pong')) 
+            ipfsP, nodeP = startServer()
+            send_message(encode_message('ping->pong more'))
+        #if message:
+        #    send_message(encode_message("pong")) 
+        if "pong" in message.values() and started == True:
+            started = False
+            send_message(encode_message('pong->ping')) 
+            stopServer(ipfsP, nodeP)
+            send_message(encode_message('pong->ping more'))
+            send_message(encode_message('close native app which will also shutdown the ipfs'))
+            sys.exit(0)
 
-logging.info('Start messaging channel')
-while True:
-    message = get_message()
-    if "ping" in message.values() and started == False:
-        started = True
-        send_message(encode_message('ping->pong')) 
-        ipfsP, nodeP = startServer()
-        send_message(encode_message('ping->pong more'))
-    #if message:
-    #    send_message(encode_message("pong")) 
-    if "pong" in message.values() and started == True:
-        started = False
-        send_message(encode_message('pong->ping')) 
-        stopServer(ipfsP, nodeP)
-        send_message(encode_message('pong->ping more'))
-        send_message(encode_message('close native app which will also shutdown the ipfs'))
-        sys.exit(0)
+if __name__ == '__main__':
+    # startServer()
+    if sys.argv[1] == 'install':
+        init.init()
+        init.sym_or_copy_data()
+    else:
+        main()
