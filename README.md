@@ -40,7 +40,8 @@ Under `$basedir` there (will) contain files and directories:
 - `optract.log`: contain installation log, and a couple lines while `nativeApp` start to work
 
 ## To build
-- requirements: python3 and pyinstaller installed (will remove the requirement of python3)
+- requirements: python2 and pyinstaller installed
+    - only need to change a few lines if migrate to python3 in future
 - `git clone git@github.com:elevenbuckets/OptractP2pCLI.git` 
 - `npm install`
 - For unix-like platform: edit `resources/optract.json`, update the `path` and `extension-id`

@@ -58,8 +58,8 @@ def get_message():
     raw_length = sys.stdin.read(4)
     if not raw_length:
         sys.exit(0)
-    # message_length = struct.unpack('=I', raw_length)[0]  # python2
-    message_length = struct.unpack('=I', bytes(raw_length, encoding="utf-8"))[0]  # python3
+    message_length = struct.unpack('=I', raw_length)[0]  # python2
+    # message_length = struct.unpack('=I', bytes(raw_length, encoding="utf-8"))[0]  # python3
     message = sys.stdin.read(message_length)
     return json.loads(message)
 
@@ -67,8 +67,8 @@ def get_message():
 # Encode a message for transmission, given its content.
 def encode_message(message_content):
     encoded_content = json.dumps(message_content)
-    # encoded_length = struct.pack('=I', len(encoded_content))  # python2
-    encoded_length = struct.pack('=I', len(encoded_content)).decode()  # python3
+    encoded_length = struct.pack('=I', len(encoded_content))  # python2
+    # encoded_length = struct.pack('=I', len(encoded_content)).decode()  # python3
     return {'length': encoded_length, 'content': encoded_content}
 
 
@@ -313,7 +313,6 @@ def sym_or_copy_data(basedir):
 
 # major functions
 def install():
-    # print('Installing...')
     logging.info('Initializing Optract...')
     if not (sys.platform.startswith('linux') or sys.platform.startswith('darwin') or sys.platform.startswith('win32')):
         raise BaseException('Unsupported platform')
@@ -378,8 +377,8 @@ if __name__ == '__main__':
     # startServer()
     if len(sys.argv) > 1:
         if sys.argv[1] == 'install':
-            print('Installing... please see the progress in logfile: ', logfile)
-            print('Please also download Optract browser extension in optract.com or browser extension/addons page')
+            print 'Installing... please see the progress in logfile: ' + logfile
+            print 'Please also download Optract browser extension in optract.com or browser extension/addons page'
             install()
         else:
             main()
