@@ -17,6 +17,7 @@ import tarfile
 # On Windows, the default I/O mode is O_TEXT. Set this to O_BINARY
 # to avoid unwanted modifications of the input/output streams.
 if sys.platform == "win32":
+    import winreg
     import msvcrt
     msvcrt.setmode(sys.stdin.fileno(), os.O_BINARY)
     msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
@@ -230,14 +231,18 @@ def prepare_basedir():
     os.mkdir(release_dir)
 
     # copy files to basedir
+    if sys.platform == 'win32':
+        nativeApp = os.path.join('nativeApp.exe')
+    else:
+        nativeApp = os.path.join('nativeApp')
     logging.info('copy {0} to {1}'.format(os.path.join(cwd, 'bin'), os.path.join(release_dir, 'bin')))
-    logging.info('copy {0} to {1}'.format(os.path.join(cwd, 'dapps'), os.path.join(release_dir, 'dapps')))
-    logging.info('copy {0} to {1}'.format(os.path.join(cwd, 'lib'), os.path.join(release_dir, 'lib')))
-    logging.info('copy {0} to {1}'.format(os.path.join(cwd, 'nativeApp'), release_dir))
     shutil.copytree(os.path.join(cwd, 'bin'), os.path.join(release_dir, 'bin'))
+    logging.info('copy {0} to {1}'.format(os.path.join(cwd, 'dapps'), os.path.join(release_dir, 'dapps')))
     shutil.copytree(os.path.join(cwd, 'dapps'), os.path.join(release_dir, 'dapps'))
+    logging.info('copy {0} to {1}'.format(os.path.join(cwd, 'lib'), os.path.join(release_dir, 'lib')))
     shutil.copytree(os.path.join(cwd, 'lib'), os.path.join(release_dir, 'lib'))
-    shutil.copy2(os.path.join(cwd, 'nativeApp'), release_dir)
+    logging.info('copy {0} to {1}'.format(nativeApp, release_dir))
+    shutil.copy2(nativeApp, release_dir)
     extract_node_modules(os.path.join(cwd, 'node_modules.tar'), release_dir)
 
     return
@@ -328,7 +333,9 @@ def install():
 
     # add to native message
     if sys.platform.startswith('win32'):
-        add_registry(basedir)  # will do something only if host os is windows
+        add_registry(basedir)
+        nativeMsgDir = os.path.join(basedir, "dist")
+        shutil.copy2(os.path.join(cwd, 'optract-win.json'), nativeMsgDir)
     elif sys.platform.startswith('linux'):
         nativeMsgDir = os.path.expanduser('~/.config/google-chrome/NativeMessagingHosts')
         shutil.copy2(os.path.join(cwd, 'optract.json'), nativeMsgDir)
@@ -378,7 +385,7 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         if sys.argv[1] == 'install':
             print 'Installing... please see the progress in logfile: ' + logfile
-            print 'Please also download Optract browser extension in optract.com or browser extension/addons page'
+            print 'Please also download Optract browser extension from optract.com or browser extension store or addon page'
             install()
         else:
             main()
