@@ -47,7 +47,7 @@ nodeP = None
 # logging
 log_format = '[%(asctime)s] %(levelname)-7s : %(message)s'
 log_datefmt = '%Y-%m-%d %H:%M:%S'
-logfile = os.path.join(basedir, 'install.log')
+logfile = os.path.join(basedir, 'optract.log')
 # replace the `filename=logfile` to `stream=sys.stdout` to direct log to stdout
 logging.basicConfig(filename=logfile, level=logging.INFO, format=log_format,
                     datefmt=log_datefmt)
@@ -99,7 +99,7 @@ def startServer():
     ipfsAPI = os.path.join(ipfsRepoPath, "api")
     ipfsLock = os.path.join(ipfsRepoPath, "repo.lock")
     while (not os.path.exists(ipfsAPI) or not os.path.exists(ipfsLock)):
-        time.sleep(.1)
+        time.sleep(.01)
 
     nodeCMD = os.path.join(basedir, "dist", "bin", "node")
     daemonCMD =  os.path.join(basedir, "dist", "lib", "daemon.js")
@@ -317,13 +317,15 @@ def install():
     logging.info('Initializing Optract...')
     if not (sys.platform.startswith('linux') or sys.platform.startswith('darwin') or sys.platform.startswith('win32')):
         raise BaseException('Unsupported platform')
+    if cwd == basedir:
+        raise BaseException('Please do not extract file in the destination directory')
     prepare_basedir()  # copy files to there
 
     config_file = os.path.join(basedir, 'config.json')
     createConfig(basedir, config_file)
 
     init_ipfs(ipfs_path)
-    sym_or_copy_data()
+    sym_or_copy_data(basedir)
 
     # add to native message
     if sys.platform.startswith('win32'):
@@ -339,6 +341,8 @@ def install():
 
     # done
     logging.info('Done! Optract is ready to use.')
+
+    # add a ".installed" to indicate a succesful installation (not used)
     installed = os.path.join(basedir, 'dist', '.installed')
     open(installed, 'a').close()
 
@@ -347,10 +351,6 @@ def install():
 
 def main():
     started = False
-    ipfsConfigPath = os.path.join(basedir, "ipfs_repo", "config")
-    installed = os.path.join(basedir, 'dist', '.installed')
-    if (not os.path.isfile(ipfsConfigPath) or not os.path.isfile(installed)):  # i.e., rm or mv the 'installed' to init again
-        install()
 
     logging.info('Start to listen to native message...')
     while True:
@@ -359,7 +359,7 @@ def main():
             started = True
             send_message(encode_message('ping->pong'))
             ipfsP, nodeP = startServer()
-            logging.info('start native app')
+            logging.info('server started')
             send_message(encode_message('ping->pong more'))
         #if message:
         #    send_message(encode_message("pong")) 
@@ -376,11 +376,11 @@ def main():
 
 if __name__ == '__main__':
     # startServer()
-    print('Please check log in file: ', logfile)
     if len(sys.argv) > 1:
         if sys.argv[1] == 'install':
+            print('Installing... please see the progress in logfile: ', logfile)
+            print('Please also download Optract browser extension in optract.com or browser extension/addons page')
             install()
-            sym_or_copy_data()
         else:
             main()
     else:

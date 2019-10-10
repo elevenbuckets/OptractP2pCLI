@@ -6,7 +6,7 @@
   "scripts": {
     "unlink": "cd resources; if [ -h bin ]; then unlink bin; fi; cd ../",
     "buildNativeApp": "cd resources && pyinstaller -F nativeApp.py && cd ..",
-    "build": "rm -fr dist && mkdir dist && tar cf dist/node_modules.tar node_modules && cp -rv ./resources/bin ./dist/ && cp -rv ./lib ./dist/ && cp -vr ./dapps ./dist/ && cp -rv ./resources/dist/nativeApp ./dist/ ",
+    "build": "rm -fr dist && mkdir dist && tar cf dist/node_modules.tar node_modules && cp -rv ./resources/bin ./dist/ && cp -rv ./lib ./dist/ && cp -vr ./dapps ./dist/ && cp -v ./resources/dist/nativeApp ./dist/ && cp -v ./resources/optract.json ./dist/ && cp -v ./resources/install.sh ./dist/",
     "package": "rm -f ./OptractClient.tar.gz && tar -zcvf OptractClient.tar.gz ./dist",
     "packageMac64": "rm -f ./OptractClient_darwin64.tar.gz && tar -zcvf OptractClient_darwin64.tar.gz ./dist",
     "release": "npm run unlink && ln -s bin_linux64 ./resources/bin && npm run buildNativeApp && npm run build && npm run package",
