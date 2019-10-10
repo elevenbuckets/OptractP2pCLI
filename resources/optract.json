@@ -1,0 +1,12 @@
+{
+  "name": "optract",
+  "description": "optract server",
+  "path": "~/.config/Optract/dist/nativeApp",
+  "type": "stdio",
+  "browser_action": {
+    "default_icon": "icons/message.svg"
+  },
+  "allowed_origins": [
+    "chrome-extension://{extension-id}/"
+  ]
+}
