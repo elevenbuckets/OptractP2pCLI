@@ -110,7 +110,7 @@ def stopServer(ipfsP, nodeP):
     ipfsP.terminate()
     # os.kill(ipfsP.pid, signal.SIGINT)
     send_message(encode_message('ipfsP killed signal sent')) 
-    
+
 
 def main():
     started = False
@@ -120,13 +120,14 @@ def main():
         init.init()
         init.sym_or_copy_data()
 
-    logging.info('Start messaging channel')
+    logging.info('Start to listen to native message...')
     while True:
         message = get_message()
         if "ping" in message.values() and started == False:
             started = True
             send_message(encode_message('ping->pong')) 
             ipfsP, nodeP = startServer()
+            logging.info('start native app')
             send_message(encode_message('ping->pong more'))
         #if message:
         #    send_message(encode_message("pong")) 
@@ -136,12 +137,16 @@ def main():
             stopServer(ipfsP, nodeP)
             send_message(encode_message('pong->ping more'))
             send_message(encode_message('close native app which will also shutdown the ipfs'))
+            logging.info('close native app')
             sys.exit(0)
 
 if __name__ == '__main__':
     # startServer()
-    if sys.argv[1] == 'install':
-        init.init()
-        init.sym_or_copy_data()
+    if len(sys.argv) > 1:
+        if sys.argv[1] == 'install':
+            init.init()
+            init.sym_or_copy_data()
+        else:
+            main()
     else:
         main()
