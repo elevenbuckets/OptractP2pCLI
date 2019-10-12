@@ -141,14 +141,13 @@ def add_registry(basedir):
 
 def createConfig(basedir, dest_file):
     config = {
-        "datadir": os.path.join(basedir, "dist", "dapps"),
+        "datadir": basedir,  # while update, replace the "dist/" folder under basedir
         "rpcAddr": "https://rinkeby.infura.io/v3/f50fa6bf08fb4918acea4aadabb6f537",
         "defaultGasPrice": "20000000000",
         "gasOracleAPI": "https://ethgasstation.info/json/ethgasAPI.json",
         "condition": "sanity",
         "networkID": 4,
-        "passVault": os.path.join(basedir, "dist", "dapps", "myArchive.bcup"),  # this and 'keystore/' are hardcoded in daemon,js
-        # "passVault": os.path.join(basedir, "myArchive.bcup"),  # for now, copy into dist/dapps
+        "passVault": os.path.join(basedir, "myArchive.bcup"),  # for now, copy into dist/dapps
         "node": {
             "dappdir": os.path.join(basedir, "dist", "dapps"),
             "dns": {
@@ -193,7 +192,6 @@ def createConfig(basedir, dest_file):
         except KeyError:
             logging.warning('Cannot load "streamr" from previous config file. Use default: "false".')
 
-        # logging.warning('{0} already exists, will overwrite it'.format(dest_file))
         logging.warning('{0} already exists, will move it to {1}'.format(dest_file, dest_file + '.orig'))
         shutil.move(dest_file, dest_file+'.orig')
 
@@ -329,7 +327,7 @@ def install():
     createConfig(basedir, config_file)
 
     init_ipfs(ipfs_path)
-    sym_or_copy_data(basedir)
+    # sym_or_copy_data(basedir)
 
     # add to native message
     if sys.platform.startswith('win32'):

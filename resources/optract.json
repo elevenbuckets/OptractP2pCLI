@@ -1,12 +1,12 @@
 {
   "name": "optract",
   "description": "optract server",
-  "path": "/home/{username}/.config/Optract/dist/nativeApp",
+  "path": "/home/kai/.config/Optract/dist/nativeApp",
   "type": "stdio",
   "browser_action": {
     "default_icon": "icons/message.svg"
   },
   "allowed_origins": [
-    "chrome-extension://{extension-id}/"
+    "chrome-extension://iaapjeldngoedfbddnoknnfgfbhkkmho/"
   ]
 }
