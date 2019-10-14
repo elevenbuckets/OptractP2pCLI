@@ -102,10 +102,11 @@ def startServer():
     while (not os.path.exists(ipfsAPI) or not os.path.exists(ipfsLock)):
         time.sleep(.01)
 
-    nodeCMD = os.path.join(basedir, "dist", "bin", "node")
-    daemonCMD =  os.path.join(basedir, "dist", "lib", "daemon.js")
+    daemonCMD =  os.path.join(basedir, "dist", "lib", "OptractDaemon", "OptractDaemon")
     send_message(encode_message(' starting node processing'))
-    nodeP = subprocess.Popen([nodeCMD, daemonCMD], stdout=FNULL, stderr=subprocess.STDOUT)
+    os.chdir(os.path.join(basedir, "dist", "lib"))
+    nodeP = subprocess.Popen([daemonCMD], stdout=FNULL, stderr=subprocess.STDOUT)
+    os.chdir(basedir)
     send_message(encode_message('finish starting server'))
     send_message(encode_message(str(nodeP)))
     return ipfsP, nodeP
