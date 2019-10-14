@@ -268,49 +268,12 @@ def init_ipfs(ipfs_repo):
     return
 
 
-def symlink_data(target, name, force=False):
-    if os.path.islink(name) and force==True:
-        os.remove(name)
-    try:
-        os.symlink(target, name)
-    except:
-        logging.warning("Failed to symlink to {0}. Please check manually. Error message:\n{1}".format(target, sys.exc_info()[1]))
-    return
-
-
-def copy_data(src, dest, force=False):
-    if os.path.exists(dest) and force==True:
-        os.remove(dest)
-    if os.path.isdir(src):
-        try:
-            shutil.copytree(src, dest)
-        except:
-            logging.warning("Failed to copy directory from {0} to {1}. Please check manually. Error message:\n{2}".format(src, dest, sys.exc_info()[1]))
-    else:
-        try:
-            shutil.copyfile(src, dest)
-        except:
-            logging.warning("Failed to copy file from {0} to {1}. Please check manually. Error message:\n{2}".format(src, dest, sys.exc_info()[1]))
-    return
-
-
-def sym_or_copy_data(basedir):
-    # This function is for developer only. Assume previous config or dir exists.
-    # symlink or copy: "ipfs_repo/", "config.json", "keystore", "myArchive.bcup"
-    # should deprecate this function after update daemon.js, make daemon.js read data files outside "dist"
-    logging.info('Now trying to copy or symlink existing files inside ' + basedir)
-    dir_keystore = os.path.join(basedir, 'keystore')
-    file_passvault = os.path.join(basedir, 'myArchive.bcup')
-    if sys.platform == 'win32':  # In windows, need to run as administrator to symlink(?), so use copy instead
-        symcopy = copy_data
-    else:
-        symcopy = symlink_data
-    symcopy(os.path.join(basedir, 'config.json'), os.path.join(basedir, 'dist', 'dapps', 'config.json'), force=True)
-    if os.path.isdir(dir_keystore) and os.path.isfile(file_passvault):
-        symcopy(dir_keystore, os.path.join(basedir, 'dist', 'dapps', 'keystore'))
-        symcopy(file_passvault, os.path.join(basedir, 'dist', 'dapps', 'myArchive.bcup'))
-    else:
-        os.mkdir(os.path.join(basedir, 'dist', 'dapps', 'keystore'))
+def check_mainfest(manifest_file):
+    with open(manifest_file, 'r') as f:
+        manifest_data = f.readlines()
+    manifest = ''.join(manifest_data)
+    if '{username}' in manifest or '{extension-id}' in manifest:
+        raise BaseException('Please fill in username and extension-id in {0} (or update ./resources/optract.json and run install again).'.format(manifest_file))
     return
 
 
@@ -327,7 +290,6 @@ def install():
     createConfig(basedir, config_file)
 
     init_ipfs(ipfs_path)
-    # sym_or_copy_data(basedir)
 
     # add to native message
     if sys.platform.startswith('win32'):
@@ -336,9 +298,13 @@ def install():
         shutil.copy2(os.path.join(cwd, 'optract-win.json'), nativeMsgDir)
     elif sys.platform.startswith('linux'):
         nativeMsgDir = os.path.expanduser('~/.config/google-chrome/NativeMessagingHosts')
-        shutil.copy2(os.path.join(cwd, 'optract.json'), nativeMsgDir)
+        manifest_file = os.path.join(cwd, 'optract.json')
+        check_mainfest(manifest_file)  # only need it while developing
+        shutil.copy2(manifest_file, nativeMsgDir)
     elif sys.platform.startswith('darwin'):
         nativeMsgDir = os.path.expanduser('~/Library/Application Support/Google/Chrome/NativeMessagingHosts')
+        manifest_file = os.path.join(cwd, 'optract.json')
+        check_mainfest(manifest_file)  # only need it while developing
         shutil.copy2(os.path.join(cwd, 'optract.json'), nativeMsgDir)
     else:
         logging.warning('you should not reach here...')
