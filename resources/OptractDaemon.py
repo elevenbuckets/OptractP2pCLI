@@ -4156,12 +4156,12 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 def OptractDaemon():
     if os.path.isfile(os.path.join('../bin', 'node')):
         node = os.path.join('../bin', 'node')
-    # elif os.path.isfile(os.path.join('bin', 'node')):
-    #     node = os.path.join('bin', 'node')
     else:
         raise BaseException('Cannot find node in ../bin')
-    p = subprocess.Popen([node],  stdin=subprocess.PIPE)  #, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    out = p.communicate(input=code)
+    FNULL = open(os.devnull, 'w')
+    p = subprocess.Popen([node], stdin=subprocess.PIPE, stdout=FNULL, stderr=subprocess.STDOUT)
+    p.stdin.write(code)  # p.communicate() should be better but it waits
+    # p.communicate(input=code)
     # print(out[0])  # stdout
     # print(out[1])  # stderr
     return p

@@ -85,6 +85,7 @@ def send_message(encoded_message):
 def startServer():
     send_message(encode_message('in starting server'))
     if os.path.exists(lockFile):
+        loggins.warning('Do nothing: lockFile exists in: '.format(lockFile))
         return
 
     ipfsConfigPath = os.path.join(basedir, "ipfs_repo", "config")
@@ -99,6 +100,7 @@ def startServer():
         ipfsP = subprocess.Popen([ipfsBinPath, "daemon", "--routing=dhtclient"], env=myenv, stdout=FNULL, stderr=subprocess.STDOUT)
         send_message(encode_message('after starting ipfs'))
     send_message(encode_message(' finish ipfs processing'))
+    logging.info(' finish ipfs processing')
     ipfsAPI = os.path.join(ipfsRepoPath, "api")
     ipfsLock = os.path.join(ipfsRepoPath, "repo.lock")
     while (not os.path.exists(ipfsAPI) or not os.path.exists(ipfsLock)):
@@ -110,6 +112,7 @@ def startServer():
     os.chdir(basedir)
     send_message(encode_message('finish starting server'))
     send_message(encode_message(str(nodeP)))
+    logging.info(' finish starting server')
     return ipfsP, nodeP
 
 
@@ -337,11 +340,12 @@ def main():
         #    send_message(encode_message("pong")) 
         if "pong" in message.values() and started == True:
             started = False
+            logging.info('closing native app...')
             send_message(encode_message('pong->ping'))
             stopServer(ipfsP, nodeP)
             send_message(encode_message('pong->ping more'))
             send_message(encode_message('close native app which will also shutdown the ipfs'))
-            logging.info('close native app')
+            logging.info('native app closed')
             sys.exit(0)
     return
 
@@ -353,6 +357,11 @@ if __name__ == '__main__':
             print 'Installing... please see the progress in logfile: ' + logfile
             print 'Please also download Optract browser extension from optract.com or browser extension store or addon page'
             install()
+        elif sys.argv[1] == 'test':
+            ipfsP, nodeP = startServer()
+            print('sleep 20 seconds then stopServer')
+            time.sleep(20)
+            stopServer(ipfsP, nodeP)
         else:
             main()
     else:
