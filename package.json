@@ -10,10 +10,10 @@
     "build": "rm -fr dist && mkdir dist && tar cf ./dist/node_modules.tar node_modules && cp -rvL ./resources/bin ./resources/optRun ./resources/install.sh ./resources/optract.json ./dist/ && cp -vr ./dapps ./dist/ && mkdir ./dist/lib && cp -rv lib/create.js lib/FileService.js lib/import.js lib/KnifeIron.js lib/slave.js lib/rpcserv ./dist/lib && npm run buildNativeApp",
     "package": "rm -f ./OptractClient.tar.gz && tar -zcvf OptractClient.tar.gz ./dist",
     "packageMac64": "rm -f ./OptractClient_darwin64.tar.gz && tar -zcvf OptractClient_darwin64.tar.gz ./dist",
-    "release": "npm run unlink && ln -s bin_linux64 ./resources/bin && npm run build && npm run package && npm run unlink",
-    "releaseMac64": "npm run unlink && ln -s bin_darwin64 ./resources/bin  && npm run build && npm run packageMac64 && npm run unlink",
+    "release": "npm run clean && npm run unlink && ln -s bin_linux64 ./resources/bin && npm run build && npm run package && npm run unlink",
+    "releaseMac64": "npm run clean && npm run unlink && ln -s bin_darwin64 ./resources/bin  && npm run build && npm run packageMac64 && npm run unlink",
     "releaseWin64": ".\\resources\\packwin.py",
-    "clean": "rm -fr dist OptractClient.tar.gz OptractClient_*.tar.gz",
+    "clean": "rm -fr dist OptractClient.tar.gz OptractClient_*.tar.gz resources/dist resources/build",
     "appInstall": "tar xf ./OptractClient.tar.gz -C ../OptractClient && cd ../OptractClient/dist && ln -s ../ipfs_repo && cd dapps && ln -s ../../myArchive.bcup && ln -s ../../keystore",
     "appUninstall": "cd ../OptractClient/dist && unlink ./ipfs_repo && cd dapps && unlink ./myArchive.bcup && unlink ./keystore && cd ../.. && rm -fr ./dist"
   },
