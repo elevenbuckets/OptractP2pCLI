@@ -4152,13 +4152,21 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 }
 '''
 
-if os.path.isfile(os.path.join('../bin', 'node')):
-    node = os.path.join('../bin', 'node')
-elif os.path.isfile(os.path.join('bin', 'node')):
-    node = os.path.join('bin', 'node')
-else:
-    raise BaseException('cannot find node binary not exists in bin or ../bin')
-p = subprocess.Popen([node],  stdin=subprocess.PIPE)  #, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-out = p.communicate(input=code)
-print(out[0])  # stdout
-print(out[1])  # stderr
+
+def OptractDaemon():
+    if os.path.isfile(os.path.join('../bin', 'node')):
+        node = os.path.join('../bin', 'node')
+    # elif os.path.isfile(os.path.join('bin', 'node')):
+    #     node = os.path.join('bin', 'node')
+    else:
+        raise BaseException('Cannot find node in ../bin')
+    p = subprocess.Popen([node],  stdin=subprocess.PIPE)  #, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    out = p.communicate(input=code)
+    # print(out[0])  # stdout
+    # print(out[1])  # stderr
+    return p
+
+
+if __name__ == '__main__':
+    p = OptractDaemon()
+    print("Please manually kill the process ID: ", p.pid)

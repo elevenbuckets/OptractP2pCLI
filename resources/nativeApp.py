@@ -13,6 +13,7 @@ import signal
 import logging
 import shutil
 import tarfile
+import OptractDaemon
 
 # On Windows, the default I/O mode is O_TEXT. Set this to O_BINARY
 # to avoid unwanted modifications of the input/output streams.
@@ -23,8 +24,9 @@ if sys.platform == "win32":
     msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
 
 # global variables
-# 'cwd' is for installtion file
-cwd = os.path.dirname(os.path.realpath(sys.argv[0]))  # os.getcwd() may not correct if call it from outside(?)
+# 'cwd' is for installtion
+cwd = os.path.dirname(os.path.realpath(sys.argv[0]))  # os.getcwd() may not correct if click it from File manager
+cwd = os.path.dirname(cwd)  # after pack by pyarmor, it's one folder deeper, and here we need the parent one
 
 # determine path of basedir
 if sys.platform.startswith('linux'):
@@ -102,10 +104,9 @@ def startServer():
     while (not os.path.exists(ipfsAPI) or not os.path.exists(ipfsLock)):
         time.sleep(.01)
 
-    daemonCMD =  os.path.join(basedir, "dist", "lib", "OptractDaemon", "OptractDaemon")
     send_message(encode_message(' starting node processing'))
     os.chdir(os.path.join(basedir, "dist", "lib"))
-    nodeP = subprocess.Popen([daemonCMD], stdout=FNULL, stderr=subprocess.STDOUT)
+    nodeP = OptractDaemon.OptractDaemon()
     os.chdir(basedir)
     send_message(encode_message('finish starting server'))
     send_message(encode_message(str(nodeP)))
@@ -117,7 +118,7 @@ def stopServer(ipfsP, nodeP):
     if os.path.exists(lockFile):
        os.remove(lockFile)
        send_message(encode_message('LockFile removed'))
-    nodeP.kill()
+    nodeP.terminate()
     send_message(encode_message('nodeP killed'))
     # This will not kill the ipfs by itself, but this is needed for the sys.exit() to kill it 
     ipfsP.terminate()
@@ -230,18 +231,18 @@ def prepare_basedir():
     os.mkdir(release_dir)
 
     # copy files to basedir
-    if sys.platform == 'win32':
-        nativeApp = os.path.join('nativeApp.exe')
-    else:
-        nativeApp = os.path.join('nativeApp')
+    # if sys.platform == 'win32':
+    #     nativeApp = os.path.join('nativeApp.exe')
+    # else:
+    #     nativeApp = os.path.join('nativeApp')
     logging.info('copy {0} to {1}'.format(os.path.join(cwd, 'bin'), os.path.join(release_dir, 'bin')))
     shutil.copytree(os.path.join(cwd, 'bin'), os.path.join(release_dir, 'bin'))
     logging.info('copy {0} to {1}'.format(os.path.join(cwd, 'dapps'), os.path.join(release_dir, 'dapps')))
     shutil.copytree(os.path.join(cwd, 'dapps'), os.path.join(release_dir, 'dapps'))
     logging.info('copy {0} to {1}'.format(os.path.join(cwd, 'lib'), os.path.join(release_dir, 'lib')))
     shutil.copytree(os.path.join(cwd, 'lib'), os.path.join(release_dir, 'lib'))
-    logging.info('copy {0} to {1}'.format(nativeApp, release_dir))
-    shutil.copy2(nativeApp, release_dir)
+    logging.info('copy {0} to {1}'.format('nativeApp', release_dir))
+    shutil.copytree(os.path.join(cwd, 'nativeApp'), os.path.join(release_dir, 'nativeApp'))
     extract_node_modules(os.path.join(cwd, 'node_modules.tar'), release_dir)
 
     return

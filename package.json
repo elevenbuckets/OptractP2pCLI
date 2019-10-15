@@ -5,9 +5,8 @@
   "main": "console.js",
   "scripts": {
     "unlink": "cd resources; if [ -h bin ]; then unlink bin; fi; cd ../",
-    "pyarmor": "cd lib && pyarmor pack OptractDaemon.py && cd .. && cp -rv lib/dist/OptractDaemon ./dist/lib",
-    "buildNativeApp": "cd resources && pyinstaller -F nativeApp.py && cp dist/nativeApp ../dist && cd ..",
-    "build": "rm -fr dist && mkdir dist && tar cf ./dist/node_modules.tar node_modules && cp -rvL ./resources/bin ./resources/optRun ./resources/install.sh ./resources/optract.json ./dist/ && cp -vr ./dapps ./dist/ && mkdir ./dist/lib && cp -rv lib/create.js lib/FileService.js lib/import.js lib/KnifeIron.js lib/slave.js lib/rpcserv ./dist/lib && npm run buildNativeApp && npm run pyarmor",
+    "buildNativeApp": "cd resources && pyarmor pack nativeApp.py && cd .. && cp -rv resources/dist/nativeApp ./dist/",
+    "build": "rm -fr dist && mkdir dist && tar cf ./dist/node_modules.tar node_modules && cp -rvL ./resources/bin ./resources/optRun ./resources/install.sh ./resources/optract.json ./dist/ && cp -vr ./dapps ./dist/ && mkdir ./dist/lib && cp -rv lib/create.js lib/FileService.js lib/import.js lib/KnifeIron.js lib/slave.js lib/rpcserv ./dist/lib && npm run buildNativeApp",
     "package": "rm -f ./OptractClient.tar.gz && tar -zcvf OptractClient.tar.gz ./dist",
     "packageMac64": "rm -f ./OptractClient_darwin64.tar.gz && tar -zcvf OptractClient_darwin64.tar.gz ./dist",
     "release": "npm run unlink && ln -s bin_linux64 ./resources/bin && npm run build && npm run package && npm run unlink",

@@ -1,7 +1,7 @@
 {
   "name": "optract",
   "description": "optract server",
-  "path": "/home/{username}/.config/Optract/dist/nativeApp",
+  "path": "/home/{username}/.config/Optract/dist/nativeApp/nativeApp",
   "type": "stdio",
   "browser_action": {
     "default_icon": "icons/message.svg"

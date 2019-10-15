@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-./nativeApp install && echo Done
+./nativeApp/nativeApp install && echo Done
