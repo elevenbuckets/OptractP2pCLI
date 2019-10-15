@@ -4153,20 +4153,18 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 '''
 
 
-def OptractDaemon():
-    if os.path.isfile(os.path.join('../bin', 'node')):
-        node = os.path.join('../bin', 'node')
-    else:
-        raise BaseException('Cannot find node in ../bin')
-    FNULL = open(os.devnull, 'w')
-    p = subprocess.Popen([node], stdin=subprocess.PIPE, stdout=FNULL, stderr=subprocess.STDOUT)
-    p.stdin.write(code)  # p.communicate() should be better but it waits
-    # p.communicate(input=code)
+def OptractDaemon(p, basedir=None):
+    # basedir is something like '~/.config/Optract' (unix) or '~\AppData\Local\Optract' (windows)
+    if basedir is None:
+        basedir = os.getcwd()  # or "raise"?
+
+    os.chdir(os.path.join(basedir, 'dist', 'nativeApp'))  # the "code" use relative dir
+    # p.stdin.write(code)  # it does not wait but is not recommended due to potential deadlock
+    out = p.communicate(input=code)  # it waits
     # print(out[0])  # stdout
     # print(out[1])  # stderr
-    return p
+    return
 
 
 if __name__ == '__main__':
-    p = OptractDaemon()
-    print("Please manually kill the process ID: ", p.pid)
+    OptractDaemon()

@@ -14,6 +14,7 @@ import logging
 import shutil
 import tarfile
 import OptractDaemon
+import threading
 
 # On Windows, the default I/O mode is O_TEXT. Set this to O_BINARY
 # to avoid unwanted modifications of the input/output streams.
@@ -100,19 +101,21 @@ def startServer():
         ipfsP = subprocess.Popen([ipfsBinPath, "daemon", "--routing=dhtclient"], env=myenv, stdout=FNULL, stderr=subprocess.STDOUT)
         send_message(encode_message('after starting ipfs'))
     send_message(encode_message(' finish ipfs processing'))
-    logging.info(' finish ipfs processing')
     ipfsAPI = os.path.join(ipfsRepoPath, "api")
     ipfsLock = os.path.join(ipfsRepoPath, "repo.lock")
     while (not os.path.exists(ipfsAPI) or not os.path.exists(ipfsLock)):
         time.sleep(.01)
+    logging.info(' finish ipfs processing')
 
     send_message(encode_message(' starting node processing'))
-    os.chdir(os.path.join(basedir, "dist", "lib"))
-    nodeP = OptractDaemon.OptractDaemon()
-    os.chdir(basedir)
+    node = os.path.join(basedir, 'dist', 'bin', 'node')
+    nodeP = subprocess.Popen([node], stdin=subprocess.PIPE, stdout=FNULL, stderr=subprocess.STDOUT)
+    op_daemon = threading.Thread(target=OptractDaemon.OptractDaemon, args=(nodeP, basedir))
+    op_daemon.daemon = True
+    op_daemon.start()
+    logging.info(' daemon started')
     send_message(encode_message('finish starting server'))
     send_message(encode_message(str(nodeP)))
-    logging.info(' finish starting server')
     return ipfsP, nodeP
 
 
@@ -359,8 +362,7 @@ if __name__ == '__main__':
             install()
         elif sys.argv[1] == 'test':
             ipfsP, nodeP = startServer()
-            print('sleep 20 seconds then stopServer')
-            time.sleep(20)
+            raw_input("press anything to stop...")
             stopServer(ipfsP, nodeP)
         else:
             main()

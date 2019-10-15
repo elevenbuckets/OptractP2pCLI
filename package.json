@@ -6,6 +6,7 @@
   "scripts": {
     "unlink": "cd resources; if [ -h bin ]; then unlink bin; fi; cd ../",
     "buildNativeApp": "cd resources && pyarmor pack nativeApp.py && cd .. && cp -rv resources/dist/nativeApp ./dist/",
+    "buildNativeAppNoArmor": "cd resources && pyinstaller -F nativeApp.py && cd .. && mkdir dist/nativeApp && cp -rv resources/dist/nativeApp ./dist/nativeApp",
     "build": "rm -fr dist && mkdir dist && tar cf ./dist/node_modules.tar node_modules && cp -rvL ./resources/bin ./resources/optRun ./resources/install.sh ./resources/optract.json ./dist/ && cp -vr ./dapps ./dist/ && mkdir ./dist/lib && cp -rv lib/create.js lib/FileService.js lib/import.js lib/KnifeIron.js lib/slave.js lib/rpcserv ./dist/lib && npm run buildNativeApp",
     "package": "rm -f ./OptractClient.tar.gz && tar -zcvf OptractClient.tar.gz ./dist",
     "packageMac64": "rm -f ./OptractClient_darwin64.tar.gz && tar -zcvf OptractClient_darwin64.tar.gz ./dist",
