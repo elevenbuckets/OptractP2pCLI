@@ -36,7 +36,7 @@ module.exports =
 	{
 		return true;
 	},
-        BlockRegistry_claimReward_sanity(addr, jobObj)
+        BlockRegistry_withdraw_sanity(addr, jobObj)
 	{
 		return true;
 	},
