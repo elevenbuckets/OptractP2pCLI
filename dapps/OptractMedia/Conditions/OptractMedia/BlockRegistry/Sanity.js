@@ -40,15 +40,11 @@ module.exports =
 	{
 		return true;
 	},
+        BlockRegistry_verifySignatureWithPrefix_sanity(addr, jobObj)
+	{
+		return true;
+	},
         BlockRegistry_merkleTreeValidator_sanity(addr, jobObj)
-	{
-		return true;
-	},
-        BlockRegistry_calcLeaf_sanity(addr, jobObj)
-	{
-		return true;
-	},
-        BlockRegistry_calcLeaf2_sanity(addr, jobObj)
 	{
 		return true;
 	},
