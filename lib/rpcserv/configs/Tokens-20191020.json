@@ -3465,7 +3465,7 @@
     "QOT": {
       "name": "Quote Token",
       "decimals": 12,
-      "addr": "0xB2e690F72cB992999b99510b4c75D8e829eadEF2"
+      "addr": "0x24F36b757bD07cf4F6202296b2fF7F7bEa76F1d9"
     },
     "ETH": {
       "addr": "0x0000000000000000000000000000000000000000",
