@@ -1,5 +1,13 @@
 module.exports = 
 {
+ 	MemberShip_airdrop_sanity(addr, jobObj)
+        {
+		return true;
+	},
+ 	MemberShip_giveMembership_sanity(addr, jobObj)
+        {
+		return true;
+	},
  	MemberShip_buyMembership_sanity(addr, jobObj)
         {
 		return true;
