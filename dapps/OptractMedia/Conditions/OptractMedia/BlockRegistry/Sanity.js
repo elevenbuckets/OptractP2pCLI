@@ -28,6 +28,10 @@ module.exports =
 	{
 		return true;
 	},
+        BlockRegistry_lotteryWins_sanity(addr, jobObj)
+	{
+		return true;
+	},
         BlockRegistry_isWinningTicket_sanity(addr, jobObj)
 	{
 		return true;
@@ -41,6 +45,10 @@ module.exports =
 		return true;
 	},
         BlockRegistry_verifySignatureWithPrefix_sanity(addr, jobObj)
+	{
+		return true;
+	},
+        BlockRegistry_genV2Txhash_sanity(addr, jobObj)
 	{
 		return true;
 	},
