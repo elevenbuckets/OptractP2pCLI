@@ -158,7 +158,7 @@ def add_registry_chrome(basedir):
 
         # create optract-win-chrome.json
         with open(nativeMessagingMainfest, 'w') as f:
-            manifest_content = create_manifest_chrome('nativeApp.exe', "{extension_id}")
+            manifest_content = create_manifest_chrome('nativeApp.exe')
             f.write(manifest_content)
     return
 
@@ -320,7 +320,8 @@ def check_mainfest(manifest_file):
     return
 
 
-def create_manifest_chrome(nativeAppPath, extension_id):
+def create_manifest_chrome(nativeAppPath):
+    extension_id = "jlanclpnebjipbolljoenepmcofibpmk"
     template = '''
 {
   "name": "optract",
@@ -334,19 +335,28 @@ def create_manifest_chrome(nativeAppPath, extension_id):
 
 
 def create_manifest_firefox(nativeAppPath):
+    extension_id = "{5b2b58c5-1a22-4893-ac58-9ca33f27cdd4}"
     template = '''
 {
   "name": "optract",
   "description": "optract server",
   "path": "{nativeAppPath}",
   "type": "stdio",
-  "allowed_extensions": [ "{5b2b58c5-1a22-4893-ac58-9ca33f27cdd4}" ]
+  "allowed_extensions": [ "{extension_id}" ]
 }
     '''
     return template.format(nativeAppPath)
 
 
+def mkdir(dirname):  # if parent dir exists and dirname does not exist
+    if os.path.isdir(os.path.dirname(dirname)) and not os.path.isdir(dirname):
+        os.mkdir(dirname)
+    else:
+
 def create_and_write_manifest(browser):
+    if browser != 'firefox' or browser != 'chrome':
+        raise BaseException('Unsupported browser')
+
     # create manifest file and write to native message folder
     if sys.platform.startswith('win32'):
         if browser == 'chrome':
@@ -366,15 +376,13 @@ def create_and_write_manifest(browser):
         else:
             logging.warning('you should not reach here...')
             raise BaseException('Unsupported platform')
+        mkdir(nativeMsgDir)
 
         # create content for manifest file of native messaging
         if browser == 'chrome':
-            manifest_content = create_manifest_chrome(nativeAppPath, "extension_id")
+            manifest_content = create_manifest_chrome(nativeAppPath)
         elif browser == 'firefox':
             manifest_content = create_manifest_firefox(nativeAppPath)
-        else:
-            logging.warning('you should not reach here...')
-            raise BaseException('Unsupported browser')
 
         # write manifest file
         manifest_path = os.path.join(nativeMsgDir, 'optract.json')
@@ -397,7 +405,9 @@ def install(browser):
 
     init_ipfs(ipfs_path)
 
-    create_and_write_manifest(browser)
+    # install for all supporting browsers
+    create_and_write_manifest("firefox")
+    create_and_write_manifest("chrome")
 
     # done
     logging.info('Done! Optract is ready to use.')
@@ -439,15 +449,9 @@ if __name__ == '__main__':
     # startServer()
     if len(sys.argv) > 1:
         if sys.argv[1] == 'install':
-            if len(sys.argv) != 2:
-                print('Please specify either "firefox" or "chrome"')
-                sys.exit(1)
-                if (sys.argv[2] != 'firefox' or sys.argv[2] != 'chrome'):
-                    print('Only "firefox" or "chrome" are supported at this time.')
-                    sys.exit(1)
             print('Installing... please see the progress in logfile: ' + logfile)
             print('Please also download Optract browser extension.')
-            install(browser)
+            install()
         elif sys.argv[1] == 'test':
             ipfsP, nodeP = startServer()
             raw_input("enter anything to stop...")
