@@ -26,8 +26,8 @@ if sys.platform == "win32":
     msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
 
 # global variables
-# 'cwd' is for installtion
-cwd = os.path.dirname(os.path.realpath(sys.argv[0]))  # os.getcwd() may not correct if click it from File manager
+# 'cwd' is for installtion, it may look like ~/Downloads/optract_release
+cwd = os.path.dirname(os.path.realpath(sys.argv[0]))  # os.getcwd() may not correct if click it from File manager(?)
 cwd = os.path.dirname(cwd)  # after pack by pyarmor, it's one folder deeper, and here we need the parent one
 
 # determine path of basedir
@@ -110,7 +110,9 @@ def startServer():
 
     send_message(encode_message(' starting node processing'))
     node = os.path.join(basedir, 'dist', 'bin', 'node')
-    nodeP = subprocess.Popen([node], stdin=subprocess.PIPE, stdout=FNULL, stderr=subprocess.STDOUT)
+    # nodeP = subprocess.Popen([node], stdin=subprocess.PIPE, stdout=FNULL, stderr=subprocess.STDOUT)
+    f = open(os.path.join(basedir, 'nodep.log'), 'w')  # TODO: only active log for developer
+    nodeP = subprocess.Popen([node], stdin=subprocess.PIPE, stdout=f, stderr=f)
     op_daemon = threading.Thread(target=OptractDaemon.OptractDaemon, args=(nodeP, basedir))
     op_daemon.daemon = True
     op_daemon.start()
@@ -131,6 +133,14 @@ def stopServer(ipfsP, nodeP):
     ipfsP.terminate()
     # os.kill(ipfsP.pid, signal.SIGINT)
     send_message(encode_message('ipfsP killed signal sent'))
+    # just in case, help ipfs to remove ipfsAPI and ipfsLock
+    # ipfsAPI = os.path.join(ipfsRepoPath, "api")
+    # ipfsLock = os.path.join(ipfsRepoPath, "repo.lock")
+    # time.sleep(7)  # wait ipfs to finish; the default grace period is 10500 ms
+    # if os.path.isfile(ipfsAPI):
+    #     os.remove(ipfsAPI):
+    # if os.path.isfile(ipfsLock)
+    #     os.remove(ipfsLock)
 
 
 # functions related to installation
@@ -440,7 +450,7 @@ if __name__ == '__main__':
             install(browser)
         elif sys.argv[1] == 'test':
             ipfsP, nodeP = startServer()
-            raw_input("press anything to stop...")
+            raw_input("enter anything to stop...")
             stopServer(ipfsP, nodeP)
         else:
             main()
