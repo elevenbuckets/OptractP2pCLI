@@ -4,7 +4,11 @@ module.exports =
 	{
 		return true;
 	},
-        BlockRegistry_updateMaxVoteTime_sanity(addr, jobObj)
+        BlockRegistry_updateMaxVoteTime1_sanity(addr, jobObj)
+	{
+		return true;
+	},
+        BlockRegistry_updateMaxVoteTime2_sanity(addr, jobObj)
 	{
 		return true;
 	},

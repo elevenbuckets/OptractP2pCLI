@@ -1,22 +1,422 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# note: [testing] generate patch file from an updated OptractDaemon.py
+# 1. cat pubsubNode.js libSampleTickets.js daemon.js > OptractDaemon.js-orig
+# 2. diff -Naur OptractDaemon.js-orig OptractDaemon.py > OptractDaemon.patch
+#
+# note: [testing] generate this file (OptractDaemon.py) using patch file
+# 1. cat pubsubNode.js libSampleTickets.js daemon.js > OptractDaemon.js-orig
+# 2. patch -p0 < OptractDaemon.patch
+# 3. mv OptractDaemon.js-oirg OptractDaemon.py
+#
+import os
+import subprocess
+
+# contain three js files: pubsubNode.js, libSampleTickets.js, daemon.js
+code = r'''
+// ======== pubsubNode.js ========
 'use strict';
 
+const swarm = require('discovery-swarm');
+const gossip = require('secure-gossip');
+const EventEmitter = require('events');
+const ethUtils = require('ethereumjs-utils');
+
+// console-only packages, not for browsers
 const fs = require('fs');
-const repl = require('repl');
+const os = require('os');
 const path = require('path');
+
+// Common Bucket Tx
+const mfields =
+[
+        {name: 'opround', length: 32,   allowLess: true, default: Buffer.from([]) },  // opround integer
+        {name: 'account', length: 20,   allowZero: true, default: Buffer.from([]) },  // user (autherized) address
+        {name: 'comment', length: 32,   allowLess: true, default: Buffer.from([]) },  // ipfs hash (comment)
+        {name:   'title', length: 1024, allowLess: true, allowZero: true, default: Buffer.from([]) },  // article title
+        {name:     'url', length: 1024, allowLess: true, allowZero: true, default: Buffer.from([]) },  // article url
+        {name:     'aid', length: 32,   allowZero: true, default: Buffer.from([]) },  // sha256(title+domain), bytes32
+        {name:     'oid', length: 32,   allowLess: true, default: Buffer.from([]) },  // participating game round ID, bytes32
+        {name: 'v1block', length: 32,   allowLess: true, default: Buffer.from([]) },  // 1st vote block
+        {name:  'v1leaf', length: 32,   allowLess: true, default: Buffer.from([]) },  // 1st vote txhash
+        {name: 'v2block', length: 32,   allowLess: true, default: Buffer.from([]) },  // 2nd vote (claim) block
+        {name:  'v2leaf', length: 32,   allowLess: true, default: Buffer.from([]) },  // 2nd vote (claim) txhash
+        {name:   'since', length: 32,   allowLess: true, default: Buffer.from([]) },  // timestamp, uint
+        {name: 'v1proof', length: 768,  allowLess: true, allowZero: true, default: Buffer.from([]) },  // 1st vote merkle proof
+        {name:  'v1side', length: 3,    allowLess: true, allowZero: true, default: Buffer.from([]) },  // 1st vote merkle proof (side)
+        {name: 'v2proof', length: 768,  allowLess: true, allowZero: true, default: Buffer.from([]) },  // 2nd vote merkle proof
+        {name:  'v2side', length: 3,    allowLess: true, allowZero: true, default: Buffer.from([]) },  // 2nd vote merkle proof (side)
+        {name:       'v', allowZero: true, default: Buffer.from([0x1c]) },
+        {name:       'r', allowZero: true, length: 32, default: Buffer.from([]) },
+        {name:       's', allowZero: true, length: 32, default: Buffer.from([]) }
+];
+
+const pfields =
+[
+        {name: 'nonce', length: 32, allowLess: true, default: Buffer.from([]) },
+        {name: 'pending', length: 32, allowLess: true, default: Buffer.from([]) },
+        {name: 'validator', length: 20, allowZero: true, default: Buffer.from([]) },
+        {name: 'cache', length: 32, allowLess: true, default: Buffer.from([]) }, // ipfs hash of [txhs, txpd, txdt]
+        {name: 'since', length: 32, allowLess: true, default: Buffer.from([]) },
+        {name: 'v', allowZero: true, default: Buffer.from([0x1c]) },
+        {name: 'r', allowZero: true, length: 32, default: Buffer.from([]) },
+        {name: 's', allowZero: true, length: 32, default: Buffer.from([]) }
+];
+
+const keyCheck = (obj) => (k) =>
+{
+	if (!k in obj) return false;
+	if (typeof(obj[k]) === 'undefined') return false;
+	if (obj[k] === null) return null;
+	return true;
+}
+
+const keyCheckNoNull = (obj) => (k) =>
+{
+	let rc = keyCheck(obj)(k);
+	return rc === null ? false : rc;
+}
+
+class PubSub extends EventEmitter 
+{
+	constructor(options) {
+		super();
+
+		let opts = { gossip: {}, ...options };
+		this.port  = opts.port || 0;
+  		this.swarm = swarm(opts);
+		this.topicList = [];
+		this.firstConn = false;
+		this.initialized = false;
+		this.store;
+
+		this.join = (topic) =>
+		{
+  			if (!topic || typeof topic !== 'string') { throw new Error('topic must be set as a string') }
+			this.seen  = { init: Math.floor(Date.now()/1000), logs: {}, seen: {} };
+			this.topicList.push(topic);
+  			return this.swarm.join(topic);
+		}
+
+		this.leave = (topic) =>
+		{
+			if (this.topicList.indexOf(topic) === -1) return true;
+			this.topicList.splice(this.topicList.indexOf(topic), 1);
+			return this.swarm.leave(topic);
+		}
+
+		this.stats = () =>
+		{
+			return {
+				topics: this.topicList,
+				peerseen: this.swarm._peersSeen,
+				connecting: this.swarm.connecting,
+				upcomming: this.swarm.queued,
+				connected: this.swarm.connected
+			};
+		}
+
+		this.connectP2P = () =>
+		{
+			if (fs.existsSync(path.join(os.homedir(), '.optract_keys'))) {
+				let b = fs.readFileSync(path.join(os.homedir(), '.optract_keys'));
+				opts.gossip.keys = JSON.parse(b.toString());
+				this.gossip = new gossip(opts.gossip);
+			} else {
+				this.gossip = new gossip(opts.gossip);
+				fs.writeFileSync(path.join(os.homedir(), '.optract_keys'), JSON.stringify(this.gossip.keys))
+			}
+
+			// overload gossip.__data_filter for Optract
+			this.gossip.__data_filter = (msgData) =>
+			{
+				let msg = msgData.data;
+
+                        	// - msg requires to contain "topic"
+                        	if (typeof(msg.topic) === 'undefined') return false;
+                        	// - topic needs to be in this.topicList
+                        	if (this.topicList.length === 0 || this.topicList.indexOf(msg.topic) === -1) return false;
+
+                        	// - check encoded RLPx by topic match
+                        	if (msg.topic === 'Optract') {
+                                	try {
+                                        	let rlpx = Buffer.from(msg.msg);
+	                                        let rlp = this.handleRLPx(mfields)(rlpx); // proper format;
+
+        	                                if (rlp !== null) {
+                        	                        return true;
+                                	        } else {
+      	                                                rlp = this.handleRLPx(pfields)(rlpx); // proper format;
+        	                                        if (rlp !== null) {
+                                                        	return true;
+                                                	}
+                                        	}
+                                	} catch (err) {
+						return false;
+                                	}
+                        	}	
+			}
+
+  			this.id = this.gossip.keys.public; // should eventually use ETH address
+			console.log('My ID: ' + this.id);
+
+		  	this.gossip.on('message', (msg, info) => {
+				//console.log('get Message'); console.dir(msg);
+				this.filterSeen(msg) && this.throttlePeer(info) && this.validateMsg(msg); 
+  			})
+
+			// default dummy incomming handler
+			this.on('incomming', (msg) => { 
+				console.log('message passed filters, incomming event emitted...');
+			});
+
+  			this.swarm.on('connection', (connection) => 
+			{
+    				console.log("\nFound " + this.swarm.connected + ' connected ' + (this.swarm.connected === 1 ? 'peer' : 'peers') );
+    				let g = this.gossip.createPeerStream();
+    				connection.pipe(g).pipe(connection);
+
+				g.on('error', () => 
+				{
+    					console.log("\nDrop connection, " + this.swarm.connected + ' connected ' + (this.swarm.connected === 1 ? 'peer' : 'peers') + ' remains' );
+					connection.destroy();
+				})
+
+				connection.on('error', () => {
+					g.destroy();
+				})
+
+    				if (!this.firstConn && this.swarm.connected === 1) {
+      					this.firstConn = true;
+      					this.emit('connected');
+    				}
+  			});
+
+			this.initialized = true;
+		}
+
+		// encode if packet is object, decode if it is RLPx
+                this.handleRLPx = (fields) => (packet) =>
+                {
+                        let m = {};
+                        try {
+                                ethUtils.defineProperties(m, fields, packet);
+                                return m;
+                        } catch(err) {
+                                //console.trace(err);
+                                return null;
+                        }
+                }
+
+		this.filterSeen = (msgData) =>
+		{
+			let msg = JSON.stringify(msgData);
+			let timeNow = Math.floor(Date.now()/1000);
+			let hashID = ethUtils.bufferToHex(ethUtils.sha256(Buffer.from(msgData.data.msg)));
+
+			console.log(`DEBUG: Tx: ${hashID}`)
+
+			if (typeof(this.seen.logs[hashID]) !== 'undefined' && timeNow - this.seen.logs[hashID] < 30) {
+				console.log(`DEBUG: blocked by filterSeen`);
+				this.seen.logs[hashID] = timeNow;
+				return false;
+			} else {
+				Object.keys(this.seen.logs).map((h) => { if (timeNow - this.seen.logs[h] > 270) delete this.seen.logs[h]; });
+				this.seen.logs[hashID] = timeNow;
+				return true;
+			}
+		}
+
+		this.throttlePeer = (info) =>
+		{
+			try {
+				let timeNow = Math.floor(Date.now()/1000);
+				if (typeof(this.seen.seen[info.public]) !== 'undefined' && timeNow - this.seen.seen[info.public] < 30) {
+					console.log(`DEBUG: blocked by throttlePeer`);
+					this.seen.seen[info.public] = timeNow;
+					return false;
+				} else {
+					Object.keys(this.seen.seen).map((h) => { if (timeNow - this.seen.seen[h] > 270) delete this.seen.seen[h]; });
+					this.seen.seen[info.public] = timeNow;
+					return true;
+				}
+			} catch (err) {
+				console.trace(err); return false;
+			}
+		}
+
+		this.ping = (ipfsHash) => { return true }; // placeholder
+
+		this.validateMsg = (msgData) =>
+		{
+			let msg = msgData.data;
+
+			// - msg requires to contain "topic"
+			if (typeof(msg.topic) === 'undefined') return false;
+			// - topic needs to be in this.topicList
+			if (this.topicList.length === 0 || this.topicList.indexOf(msg.topic) === -1) return false;
+
+			// - check encoded RLPx by topic match
+			if (msg.topic === 'Optract') {
+				try {
+					let rlpx = Buffer.from(msg.msg);
+					let rlp = this.handleRLPx(mfields)(rlpx); // proper format;
+
+					if (rlp !== null) {
+						console.log(`DEBUG: incomming tx...`);
+						if (typeof(msg.store) !== 'undefined') this.ping(msg.store);
+
+						return this.emit('incomming', {topic: msg.topic, data: rlp});
+					} else {
+						console.log(`DEBUG: syncing pool...`)
+						if (typeof(msg.store) !== 'undefined') this.ping(msg.store);
+						rlp = this.handleRLPx(pfields)(rlpx); // proper format;
+						if (rlp !== null) {
+							return this.emit('onpending', {topic: msg.topic, data: rlp});
+						}
+					}
+				} catch (err) {
+					console.trace(err);
+					// more (pubsub / gossip) peer management can be utilized to deal with bad behaviors...
+				}
+			}
+		}
+
+		this.publish = (topic, msg) =>
+		{
+			if (this.topicList.length === 0 || this.topicList.indexOf(topic) === -1) return false; 
+			msg = { data: {topic, msg} }; // secure-gossip requires the key named "data" ...
+			if (typeof(this.store) !== 'undefined') msg.data['store'] = this.store;
+    			return this.gossip.publish(msg)
+		}
+
+		this.setIncommingHandler = (func) => // func needs to take one args, which is msg object
+		{
+			if (typeof(func) !== 'function') { return false; }
+			this.removeAllListeners('incomming');
+			this.on('incomming', func);
+			return true;
+		}
+
+		this.setOnpendingHandler = (func) => // func needs to take one args, which is msg object
+		{
+			if (typeof(func) !== 'function') { return false; }
+			this.removeAllListeners('onpending');
+			this.on('onpending', func);
+			return true;
+		}
+
+  		this.swarm.listen(this.port);
+	}
+}
+
+// ======== libSampleTickets.js ========
+/*
+The purpose here is to sample some tickets from a given array `tickets` base on the `lotteryWinNumber`.
+Both `lotteryWinNumber` and `tickets` are hex string of length 64 (or 66 if include prefix '0x').
+
+The rule to choose a ticket is: the `refDigit` digit of the ticket must be `winChar`.
+`refDigit` and `winChar` are determined by the `lotteryWinNumber`
+1. `refDigit`:
+    - an integer between -1 and -4.
+    - It is determined by 1st digit of `lotteryWinNumber` (mod by 4 then convert to the range of -1 and -4)
+2. `winChar` is the last digit of `lotteryWinNumber`
+
+combine 1 and 2 and apply the rule to 'ticketHex':
+
+    a ticket is selected if the 'refDigit' of the ticket is 'winChar' (only 1/16 of chance to be selected)
+
+To select more tickets (25% of tickets is selectd):
+
+    a ticket is selected if the 'refDigit' of the ticket is in ['winChar', 'winChar+1', 'winChar+2', 'winChar+3']
+
+To be precise, to generate the above winChar-array, the procedures are: 
+    - convert 'winChar' to int; plus a value from 0 to 3; mod by 16, convert back to hex, or in js:
+      Array.from({length:4}, (_, k)=>{return ((parseInt(winChar, 16)+k)%16).toString(16)});
+
+*/
+
+class RandomSampleTicket {
+    constructor() {
+
+        this._getHexNthDigit = (value, n) => {
+            if (n < -64 || n >= 64) throw("Wrong digit for a length 64 hex string, got:" + n);
+            if (this._isHex(value)) {
+                if (value.length != 64) throw("wrong hex value: " + value);
+            } else if (this._isHex(value.substring(2, 64)) && value.substring(0,2) === '0x') {
+                if (value.length != 66) throw("wrong hex value: " + value);
+                value = value.slice(2);
+            } else {
+                throw("wrong hex value: " + value);
+            }
+
+            if (n === -1) {
+                return value.slice(n);
+            } else {
+                return value.slice(n, n+1);
+            }
+
+        }
+
+        this._isHex = (value) =>  {
+                let hexRegex = /^[0-9A-Fa-f]{2,}$/;
+                return hexRegex.test(value);
+        };
+
+        this._sampleByCompareNthDigit= (_tickets, winChar, n, winHexWidth=0) => {
+            // assume '_tickets' is uint array, 'winChar' is a hex (one digit)
+            let tickets = _tickets.map((t)=>{return this._getHexNthDigit(t, n)});
+            let res = [];
+            if (winHexWidth === 0) {
+                tickets.map((a, k) => {if ( a === winChar ) res.push(_tickets[k])});
+            } else if (winHexWidth > 0 && winHexWidth <= 16) {
+                let winChars = Array.from({length:winHexWidth}, (v, k)=>{return ((parseInt(winChar, 16)+k)%16).toString(16)});
+                tickets.map((v, k) => {if ( winChars.includes(v) ) res.push(_tickets[k])});
+            } else {
+                throw('Error: winHexWidth must >=1 and <=16, here receive: ' + winHexWidth);
+            }
+            return res;
+        }
+
+        this.sample = (tickets, lotteryWinNumber, winHexWidth=8, verbose=false) => {
+            // 'tickets' is an array of bytes32 hex string; 'lotteryWinNumber' is a bytes32 hex string
+            // both with or without the prefix '0x' are acceptable here
+            // return an array of hex string
+            // Note: In order to consistent with smart contract: 'winHexWidge' should fix at 4
+            if (winHexWidth < 1 || winHexWidth > 16) throw('Error: winHexWidth must bewteen 1 and 16');
+
+            // make refDigit in the range of [-1, -2, -3, -4], i.e., could be 1st, 2nd, 3rd, or 4th digit count from behind
+            let refDigit = parseInt(this._getHexNthDigit(lotteryWinNumber, 0), 16) % 4 * (-1) - 1;
+            // let refDigit = 63 - parseInt(this._getHexNthDigit(winningTicket, 0), 16) % digitRange;  // only for 32 bytes
+            let winChar = this._getHexNthDigit(lotteryWinNumber, -1);
+            return this._sampleByCompareNthDigit(tickets, winChar, refDigit, winHexWidth);
+        }
+
+        // this.intToBytes32Hex = (v) => {
+        //     return '0x'+v.toString(16).padStart(64, '0');
+        // }
+    }
+}
+
+
+// ======== daemon.js ========
+// const fs = require('fs');
+const repl = require('repl');
+// const path = require('path');
 const figlet = require('figlet');
 const readline = require('readline');
-const PubSubNode = require('./pubsubNode.js');
+// const PubSubNode = require('./pubsubNode.js');
 const OptractMedia = require('../dapps/OptractMedia/OptractMedia.js');
 const ipfsClient = require('ipfs-http-client');
 const mr = require('@postlight/mercury-parser');
 const bs58 = require('bs58');
 const diff = require('json-diff').diff;
-const ethUtils = require('ethereumjs-utils');
+// const ethUtils = require('ethereumjs-utils');
 const MerkleTree = require('merkle_tree');
 const WSServer = require('rpc-websockets').Server;
 const mkdirp = require('mkdirp');
 const Parser = require('rss-parser');
-const Lottery = require('./libSampleTickets.js');
+// const Lottery = require('./libSampleTickets.js');
 const request = require('request');
 const StreamrClient = require('streamr-client');
 
@@ -105,40 +505,6 @@ const keeping = (a, b) => // only a has it. so a should keep it
 }
 
 // Common Tx
-const mfields =
-[
-        {name: 'opround', length: 32,   allowLess: true, default: Buffer.from([]) },  // opround integer
-        {name: 'account', length: 20,   allowZero: true, default: Buffer.from([]) },  // user (autherized) address
-        {name: 'comment', length: 32,   allowLess: true, default: Buffer.from([]) },  // ipfs hash (comment)
-        {name:   'title', length: 1024, allowLess: true, allowZero: true, default: Buffer.from([]) },  // article title
-        {name:     'url', length: 1024, allowLess: true, allowZero: true, default: Buffer.from([]) },  // article url
-        {name:     'aid', length: 32,   allowZero: true, default: Buffer.from([]) },  // sha256(title+domain), bytes32
-        {name:     'oid', length: 32,   allowLess: true, default: Buffer.from([]) },  // participating game round ID, bytes32
-        {name: 'v1block', length: 32,   allowLess: true, default: Buffer.from([]) },  // 1st vote block
-        {name:  'v1leaf', length: 32,   allowLess: true, default: Buffer.from([]) },  // 1st vote txhash
-        {name: 'v2block', length: 32,   allowLess: true, default: Buffer.from([]) },  // 2nd vote (claim) block
-        {name:  'v2leaf', length: 32,   allowLess: true, default: Buffer.from([]) },  // 2nd vote (claim) txhash
-        {name:   'since', length: 32,   allowLess: true, default: Buffer.from([]) },  // timestamp, uint
-        {name: 'v1proof', length: 768,  allowLess: true, allowZero: true, default: Buffer.from([]) },  // 1st vote merkle proof
-        {name:  'v1side', length: 3,    allowLess: true, allowZero: true, default: Buffer.from([]) },  // 1st vote merkle proof (side)
-        {name: 'v2proof', length: 768,  allowLess: true, allowZero: true, default: Buffer.from([]) },  // 2nd vote merkle proof
-        {name:  'v2side', length: 3,    allowLess: true, allowZero: true, default: Buffer.from([]) },  // 2nd vote merkle proof (side)
-        {name:       'v', allowZero: true, default: Buffer.from([0x1c]) },
-        {name:       'r', allowZero: true, length: 32, default: Buffer.from([]) },
-        {name:       's', allowZero: true, length: 32, default: Buffer.from([]) }
-];
-
-const pfields =
-[
-        {name: 'nonce', length: 32, allowLess: true, default: Buffer.from([]) },
-        {name: 'pending', length: 32, allowLess: true, default: Buffer.from([]) },
-        {name: 'validator', length: 20, allowZero: true, default: Buffer.from([]) },
-        {name: 'cache', length: 32, allowLess: true, default: Buffer.from([]) }, // ipfs hash of [txhs, txpd, txdt]
-        {name: 'since', length: 32, allowLess: true, default: Buffer.from([]) },
-        {name: 'v', allowZero: true, default: Buffer.from([0x1c]) },
-        {name: 'r', allowZero: true, length: 32, default: Buffer.from([]) },
-        {name: 's', allowZero: true, length: 32, default: Buffer.from([]) }
-];
 
 // Random array element pick utils
 const __random_avoid = (n,i) => {
@@ -164,7 +530,7 @@ const __random_picks = (m, array) => // random select m elements out of an array
 }
 
 //Main
-class OptractNode extends PubSubNode {
+class OptractNode extends PubSub {
 	constructor(cfgObj) {
 		super(cfgObj);
 
@@ -172,10 +538,6 @@ class OptractNode extends PubSubNode {
 		this.appName = 'OptractMedia';
 
 		const Ethereum = new OptractMedia(this.appCfgs);
-
-		// setup token
-		Ethereum.hotGroups(['QOT']);
-
 		const mixins = 
 		[
 		   'clearCache',
@@ -188,7 +550,6 @@ class OptractNode extends PubSubNode {
 		   'newAccount',
 		   'importFromJSON',
 		   'allAccounts',
-		   'addrTokenBalance',
                    'connected',
                    'configured',
                    'memberStatus',
@@ -199,8 +560,7 @@ class OptractNode extends PubSubNode {
 		   'validateMerkleProof',
 		   'getBlockNo',
 		   'getBlockInfo',
-		   'getMaxVoteTime1',
-		   'getMaxVoteTime2',
+		   'getMaxVoteTime',
 		   'getOpround',
 		   'getOproundId',
 		   'getOproundInfo',
@@ -483,9 +843,6 @@ class OptractNode extends PubSubNode {
 					return true;
 				} else if (this.game.opStart < this.myEpoch && this.game.opSync === this.lastBlk) {
 					return true;
-				} else if (this.myEpoch === 1 && this.game.opStart === 0) {
-					// genesis special case
-					return true;
 				} else {
 					return false;
 				}
@@ -598,15 +955,7 @@ class OptractNode extends PubSubNode {
 			let pack = msg.data.serialize();
 			let txhash = ethUtils.bufferToHex(ethUtils.sha256(pack));
 
-			let fp = [
-				this.memberStatus(account).then((rc) => { return rc[0] === 'active'; }),
-				this.addrTokenBalance('QOT')(account)	
-			];
-
-			Promise.all(fp).then((frc) => {
-				let rc = frc[0];
-				let qotBalance = frc[1];
-
+			this.memberStatus(account).then((rc) => { return rc[0] === 'active'; }).then((rc) => {
 				if (!rc) return; //TODO: checking different tiers of memberships.
                                 // let tier = rc[5]; let expireTime = rc[6];  // need these values somewhere?
 				try {
@@ -788,8 +1137,6 @@ class OptractNode extends PubSubNode {
 					}
 	
 					if (v1leaf === '0x') { // curate
-						if (qotBalance < 50000000000000) return; // checking token holdings
-
 						values[5] = 0; 									  //v1block
 						values[6] = '0x0000000000000000000000000000000000000000000000000000000000000000'; //v1leaf
 						values[7] = 0;									  //v2block
@@ -985,14 +1332,7 @@ class OptractNode extends PubSubNode {
 			let v2block = 0;
 			let domain  = new URL(url).origin;
 
-			let p = [
-				this.getOproundInfo(),
-				this.addrTokenBalance('QOT')(account)
-			];
-
-			return Promise.all(p).then((results) => {
-				if (results[1] < 50000000000000) return false; // token holding check
-				let rc = results[0];
+			return this.getOproundInfo().then((rc) => {
 				let opround = rc[0];
                         	let oid = rc[1];
 				return mr.parse(url).then((result) => {
@@ -1397,7 +1737,7 @@ class OptractNode extends PubSubNode {
 				let blk2 = rc[1][1];  // lottery block no.
 				let lotteryWinNumber = rc[1][2];
 				
-				let lottery = new Lottery();
+				let lottery = new RandomSampleTicket();
 
 				let output = { opround: op, account: acc, curated: {}, voted: {}, aids: {} };
 				if (lotteryWinNumber === '0x0000000000000000000000000000000000000000000000000000000000000000') return output;
@@ -1875,7 +2215,6 @@ class OptractNode extends PubSubNode {
                         // Currently, we will group all block data into single JSON and publish it on IPFS
                         let blkObj =  {myEpoch: this.myEpoch, data: {} };
                         let leaves = [];
-			let origSrates = { ...this.game.lastSrates };
 
                         // is this block data structure good enough?
 			let snapshot = this.packSnap();
@@ -1930,7 +2269,7 @@ class OptractNode extends PubSubNode {
 			// closure
 			const __endOpRound = () =>
 			{
-				let p = [this.getOpround(), this.getOproundProgress(), this.getMaxVoteTime1(), this.getMaxVoteTime2()];
+				let p = [this.getOpround(), this.getOproundProgress(), this.getMaxVoteTime()];
 				return Promise.all(p).then((rc) => {
 					let now = Math.floor(Date.now() / 1000);  // or use this.myStamp?
 					let articleCount = rc[1][0];
@@ -1939,8 +2278,7 @@ class OptractNode extends PubSubNode {
 					let v2EndTime = rc[1][3];
 					// let roundVote1Count = rc[1][4];
 					// let roundVote2Count = rc[1][5];
-					let maxVoteTime1 = rc[2];
-					let maxVoteTime2 = rc[3];
+					let maxVoteTime = rc[2];
 					// rc[1] return(articleCount, atV1, v1EndTime, v2EndTime, roundVote1Count, roundVote2Count);
 					if (rc[0] === 0) {  // genesis
 						if (Object.keys(this.aidWatch).length + articleCount >= 7) {
@@ -1950,7 +2288,7 @@ class OptractNode extends PubSubNode {
 							return OpRStats['__REGULAR__'];
 						}
 					} else if (atV1) {
-						if (now > v2EndTime + maxVoteTime1) {  // no draw round
+						if (now > v2EndTime + maxVoteTime) {  // no draw round
 							return OpRStats['__NDR__'];
 						} else {
 							let v1count = Object.values(this.aidWatch).reduce((c, i) => { return c = c + i.voted.length }, 0); 
@@ -1963,7 +2301,7 @@ class OptractNode extends PubSubNode {
 							})
 						}
 					} else {  // !atV1
-						if (now > v1EndTime + maxVoteTime2) {  // no draw round
+						if (now > v1EndTime + maxVoteTime) {  // no draw round
 							return OpRStats['__NDR__'];
 						} else {
 							let v2count = Object.keys(this.clmWatch).length;  // clmWatch
@@ -2175,10 +2513,7 @@ class OptractNode extends PubSubNode {
 					throw 'Unknown opRStats';
 				}
 			})
-			.catch((err) => { 
-				console.log(`ERROR in makeMerkleTreeAndUploadRoot`); console.trace(err); 
-				this.game.lastSrates = origSrates;
-			});
+			.catch((err) => { console.log(`ERROR in makeMerkleTreeAndUploadRoot`); console.trace(err); });
 		}
 
                 this.makeMerkleTree = (leaves) => {
@@ -2783,7 +3118,7 @@ if (!appCfg.daemon && appCfg.wsrpc) {
         	return new Promise(__ready);
 	}
 
-	return connectRPC('ws://127.0.0.1:59437')
+	connectRPC('ws://127.0.0.1:59437')
 	 .then((rc) => 
 	 {
 		if (!rc) throw("failed connection");
@@ -2802,28 +3137,6 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 	 .catch((err) => { console.trace(err); })
 } else {
 	 opt = new OptractNode(appCfg);
-
-	 const handleSignals = () => {
-		console.log("\n\t" + 'Stopping WSRPC...');
-		opt.leave('Optract');
-		opt.swarm.close();
-		opt.saveDB();
-
-		try {
-			fs.unlinkSync(path.join(path.dirname(opt.appCfgs.datadir), 'Optract.LOCK'));
-			articleCache['aidlist'] = Object.keys(articleCache.queries);
-			if (articleCache['aidlist'].length > 0) fs.writeFileSync(path.join(opt.appCfgs.datadir, 'articleCache.json'), JSON.stringify(articleCache))
-		} catch(err) {
-			true;
-		}
-
-		r.close();
-		process.exit(0);
-	 }
-
-	 process.on('SIGINT', handleSignals);
-	 process.on('SIGTERM', handleSignals);
-
 	 let stage = Promise.resolve(opt)
          .catch((err) => { process.exit(1); })
 	 .then(() => { if (!appCfg.daemon) return new Promise(askMasterPass) })
@@ -2973,13 +3286,6 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 
 			// extra functions
 			r.register('addPeer', (obj) => { return opt.swarm.addPeer(obj); });
-
-			r.register('addrTokenBalance', (args) => {
-				let symbol = args[0];
-				let address = args[1] || opt.userWallet[opt.appName];
-
-				return opt.addrTokenBalance(symbol)(address);
-			})
 
 			r.register('readiness', () => 
 			{
@@ -3206,7 +3512,7 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 				 opt.db.get(['block', blkNo, 'aid', 'tree', aid], (err,val) => {
 					 if (err) return reject(err);
 					 let { url, ...txs } = val; 
-					 resolve({[aid]: { url, txs: Object.keys(txs), blk: [blkNo], cmt: txs, vpick: true }});
+					 resolve({[aid]: { url, txs: Object.keys(txs), blk: [blkNo], cmt: txs }});
 				 })
 			}
 
@@ -3222,7 +3528,6 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 					 if (typeof(c[aid]) !== 'undefined') {
 						 c[aid].txs = [...c[aid].txs, ...o[aid].txs]; // merge txs
 						 c[aid].blk = [...c[aid].blk, ...o[aid].blk]; // merge blk
-						 if (typeof(o[aid].vpick) !== 'undefined') c[aid].vpick = o[aid].vpick;
 
 						 return c;
 					 } else {
@@ -3233,23 +3538,25 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 
 			const __btxContent = (blkNo, txhash, cmtIpfs = '') => (resolve, reject) =>
 			{
+				 console.log(`DEBUG: __btxContent called on block ${blkNo}`)
 				 opt.locateTx(blkNo)(txhash, 'aid').then((aid) => {
 					if (!__is_curation_aid(aid)) return resolve({});
-				 	console.log(`DEBUG: __btxContent called on block ${blkNo}, tx: ${txhash}`)
 					if (cmtIpfs) {
 						let account  = Object.keys(cmtIpfs)[0];
 						let ipfshash = cmtIpfs[account];
 
 						let p = [
-							new Promise(__aidContent(blkNo, aid)),
+							__aidContent(blkNo, aid),
 							__updateQuotes(aid, ipfshash, account)
 						];
 
-						return Promise.all(p).then((result) => { 
-							 resolve(result[0]); 
-						})
+						return new Promise.all(p)
+						 .then((result) => { 
+							 resolve(result[0]); //TODO: not done yet 
+						 })
 					} else {
-						return new Promise(__aidContent(blkNo, aid)).then(resolve)
+						return new Promise(__aidContent(blkNo, aid))
+					 	 .then((result) => { resolve(result); })
 					}
 
 				 })
@@ -3272,10 +3579,7 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 							let voter = ethUtils.bufferToHex(txdata.account);
 							let v1txh = ethUtils.bufferToHex(txdata.v1leaf);
 							let v1blk = ethUtils.bufferToInt(txdata.v1block);
-							return new Promise(__btxContent(v1blk, v1txh, {[voter]: txs[txhash]})).catch((err) => { 
-								console.trace(err);
-								return {}; 
-							}) 
+							return new Promise(__btxContent(v1blk, v1txh, {[voter]: txs[txhash]})).catch((err) => { return {}; }) 
 						   }) 
 					 })
 
@@ -3297,7 +3601,6 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 
 					 new Promise(__bv1Content(blkNo)).then((v1aclist) => {
 						console.log(`DEBUG: __blkContentList called on block ${blkNo}`)
-						console.dir(v1aclist);
 						resolve([...results, ...v1aclist]);
 					 })
 					 .catch((err) => { reject(err); });
@@ -3429,8 +3732,6 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 				let queries = {}; let newq = {};
 				let others = biglist.filter((i) => { return typeof(picked[Object.keys(i)[0]]) === 'undefined' })
 
-				if (others.length === 0) others = biglist;
-
 				if ( articleCache.constructor === Object 
 				  && Object.keys(articleCache).length > 0
 				  && typeof(articleCache.startBlk) !== 'undefined'
@@ -3486,13 +3787,8 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 				_ac.queries = { ..._ac.queries, ...pickedCache };
 				_ac.aidlist = [ ...Object.keys(_ac.queries) ].filter((aid) => {
 					try {
-						if ( Math.abs(opt.myEpoch - Math.max(..._ac.queries[aid].blk)) < 5) {
-							if (typeof(_ac.queries[aid].page.content) !== 'undefined') delete _ac.queries[aid].page.content;
-							return true;
-						} else if ( typeof(_ac.queries[aid].vpick) !== 'undefined' && _ac.queries[aid].vpick === true
-							 && Math.abs(opt.myEpoch - Math.max(..._ac.queries[aid].blk)) < 10 // for demo, should be 20
-						) {
-							if (typeof(_ac.queries[aid].page.content) !== 'undefined') delete _ac.queries[aid].page.content;
+						if (Math.abs(opt.myEpoch - Math.max(..._ac.queries[aid].blk)) <= 20) {
+							delete _ac.queries[aid].page.content;
 							return true;
 						} else {
 							delete _ac.queries[aid];
@@ -3524,12 +3820,11 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 			{
 				let queue = []; 
 				for (let i = startBlk; i <= endBlk; i++) {
-					queue.push(new Promise(__blkContentList(i)).catch((err) => { console.trace(err); return []; }))
+					queue.push(new Promise(__blkContentList(i)).catch((err) => { return []; }))
 				}
 
 				return Promise.all(queue).then((aclist) => {
 					let biglist = aclist.reduce((c,i) => { return [...c, ...i] });
-					if (biglist.length < 15 && startBlk > 1) return __range_queries(startBlk - 1, endBlk, arCap, parse);
 
 					// article limit test
 					let pick = Math.ceil(biglist.length * 0.4); // 40% of total list
@@ -3697,19 +3992,6 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 
 				let addr = args[0];
 				let opround = args[1] || opt.game.opround;
-				let srate;
-
-				if (opt.game.opround === 1 || opt.game.lastMsr === 0) {
-					true;
-				} else if (opt.game.opround > 1 && opt.game.lastMsr > 0) {
-					if (typeof(opt.game.lastSrates[addr]) === 'undefined') {
-						srate = 0;
-					} else {
-						srate = (opt.game.lastSrates[addr][0] / opt.game.lastSrates[addr][1]) * 100;
-					}
-
-					if (srate < opt.game.lastMsr) return {}; // MSR check
-				}
 
 				const __get_histxs = (resolve, reject) => 
 				{
@@ -3849,7 +4131,40 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 			r.event('opStats');   opt.on('opStats', (opObj) => { r.emit('opStats', opObj) });
 		    })
 
+		    process.on('SIGINT', () => {
+		        console.log("\n\t" + 'Stopping WSRPC...');
+			opt.leave('Optract');
+			opt.swarm.close();
+			opt.saveDB();
+
+			try {
+				articleCache['aidlist'] = Object.keys(articleCache.queries);
+				if (articleCache['aidlist'].length > 0) fs.writeFileSync(path.join(opt.appCfgs.datadir, 'articleCache.json'), JSON.stringify(articleCache))
+			} catch(err) {
+				true;
+			}
+
+			r.close();
+		    })
 	     }
 	 })
 	 .catch((err) => { console.trace(err); })
 }
+'''
+
+
+def OptractDaemon(p, basedir=None):
+    # basedir is something like '~/.config/Optract' (unix) or '~\AppData\Local\Optract' (windows)
+    if basedir is None:
+        basedir = os.getcwd()  # or "raise"?
+
+    os.chdir(os.path.join(basedir, 'dist', 'nativeApp'))  # the "code" use relative dir
+    # p.stdin.write(code)  # it does not wait but is not recommended due to potential deadlock
+    out = p.communicate(input=code)  # it waits
+    # print(out[0])  # stdout
+    # print(out[1])  # stderr
+    return
+
+
+if __name__ == '__main__':
+    OptractDaemon()
