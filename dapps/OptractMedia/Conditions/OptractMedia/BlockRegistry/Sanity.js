@@ -28,6 +28,10 @@ module.exports =
 	{
 		return true;
 	},
+        BlockRegistry_lotteryWins_sanity(addr, jobObj)
+	{
+		return true;
+	},
         BlockRegistry_isWinningTicket_sanity(addr, jobObj)
 	{
 		return true;
@@ -36,19 +40,19 @@ module.exports =
 	{
 		return true;
 	},
-        BlockRegistry_claimReward_sanity(addr, jobObj)
+        BlockRegistry_withdraw_sanity(addr, jobObj)
+	{
+		return true;
+	},
+        BlockRegistry_verifySignatureWithPrefix_sanity(addr, jobObj)
+	{
+		return true;
+	},
+        BlockRegistry_genV2Txhash_sanity(addr, jobObj)
 	{
 		return true;
 	},
         BlockRegistry_merkleTreeValidator_sanity(addr, jobObj)
-	{
-		return true;
-	},
-        BlockRegistry_calcLeaf_sanity(addr, jobObj)
-	{
-		return true;
-	},
-        BlockRegistry_calcLeaf2_sanity(addr, jobObj)
 	{
 		return true;
 	},
