@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# note: [testing] generate patch file from an updated OptractDaemon.py
+# note: generate patch file from an updated OptractDaemon.py
 # 1. cat pubsubNode.js libSampleTickets.js daemon.js > OptractDaemon.js-orig
 # 2. diff -Naur OptractDaemon.js-orig OptractDaemon.py > OptractDaemon.patch
 #
-# note: [testing] generate this file (OptractDaemon.py) using patch file
+# note: generate this file (OptractDaemon.py) using patch file
 # 1. cat pubsubNode.js libSampleTickets.js daemon.js > OptractDaemon.js-orig
 # 2. patch -p0 < OptractDaemon.patch
 # 3. mv OptractDaemon.js-oirg OptractDaemon.py
@@ -14,7 +14,7 @@ import subprocess
 
 # contain three js files: pubsubNode.js, libSampleTickets.js, daemon.js
 code = r'''
-// ======== pubsubNode.js ========
++// ======== pubsubNode.js ========
 'use strict';
 
 const swarm = require('discovery-swarm');
@@ -46,6 +46,7 @@ const mfields =
         {name:  'v1side', length: 3,    allowLess: true, allowZero: true, default: Buffer.from([]) },  // 1st vote merkle proof (side)
         {name: 'v2proof', length: 768,  allowLess: true, allowZero: true, default: Buffer.from([]) },  // 2nd vote merkle proof
         {name:  'v2side', length: 3,    allowLess: true, allowZero: true, default: Buffer.from([]) },  // 2nd vote merkle proof (side)
+	{name:  'txhash', length: 32,   allowZero: true, default: Buffer.from([]) },  // txhash
         {name:       'v', allowZero: true, default: Buffer.from([0x1c]) },
         {name:       'r', allowZero: true, length: 32, default: Buffer.from([]) },
         {name:       's', allowZero: true, length: 32, default: Buffer.from([]) }
@@ -310,7 +311,7 @@ class PubSub extends EventEmitter
 	}
 }
 
-// ======== libSampleTickets.js ========
++// ======== libSampleTickets.js ========
 /*
 The purpose here is to sample some tickets from a given array `tickets` base on the `lotteryWinNumber`.
 Both `lotteryWinNumber` and `tickets` are hex string of length 64 (or 66 if include prefix '0x').
@@ -399,26 +400,22 @@ class RandomSampleTicket {
 }
 
 
-// ======== daemon.js ========
-// const fs = require('fs');
++// ======== daemon.js ========
 const repl = require('repl');
-// const path = require('path');
 const figlet = require('figlet');
 const readline = require('readline');
-// const PubSubNode = require('./pubsubNode.js');
 const OptractMedia = require('../dapps/OptractMedia/OptractMedia.js');
 const ipfsClient = require('ipfs-http-client');
 const mr = require('@postlight/mercury-parser');
 const bs58 = require('bs58');
 const diff = require('json-diff').diff;
-// const ethUtils = require('ethereumjs-utils');
 const MerkleTree = require('merkle_tree');
 const WSServer = require('rpc-websockets').Server;
 const mkdirp = require('mkdirp');
 const Parser = require('rss-parser');
-// const Lottery = require('./libSampleTickets.js');
 const request = require('request');
 const StreamrClient = require('streamr-client');
+const { soliditySha3 } = require('web3-utils');
 
 //configuration
 const config = JSON.parse(fs.readFileSync(path.join(__dirname, '/../../', 'config.json')).toString()); // can become part of cfgObj
@@ -538,11 +535,16 @@ class OptractNode extends PubSub {
 		this.appName = 'OptractMedia';
 
 		const Ethereum = new OptractMedia(this.appCfgs);
+
+		// setup token
+		Ethereum.hotGroups(['QOT']);
+
 		const mixins = 
 		[
 		   'clearCache',
 		   'call', 
                    'sendTk',
+		   'sendTx',
 		   'ethNetStatus',
 		   'linkAccount',
 		   'password',
@@ -550,6 +552,7 @@ class OptractNode extends PubSub {
 		   'newAccount',
 		   'importFromJSON',
 		   'allAccounts',
+		   'addrTokenBalance',
                    'connected',
                    'configured',
                    'memberStatus',
@@ -560,7 +563,8 @@ class OptractNode extends PubSub {
 		   'validateMerkleProof',
 		   'getBlockNo',
 		   'getBlockInfo',
-		   'getMaxVoteTime',
+		   'getMaxVoteTime1',
+		   'getMaxVoteTime2',
 		   'getOpround',
 		   'getOproundId',
 		   'getOproundInfo',
@@ -655,6 +659,7 @@ class OptractNode extends PubSub {
 			"/ipfs/QmPrZzP9UffmgJjLd1FQzeUZsGvv7YFpeoL3BEVQzbDwzK",
 			"/ipfs/QmZvNGaxC5fHmYUG7e1nPWui7nQrwyNi5LSctKbvT8AyBj",
 			"/ipfs/QmPKSjMv3Zp9tdAGFEPMjUtmQjdyHC6HKbEyCgfPNEFDAh",
+			"/ipfs/QmZ8UKL6ceuMXEk2WdDGfEx8KLR6ZAAKbyYHcLTcjpibLW",
 			"/ipfs/QmWqVP4i86MWg8qmKir52oyyK7vCmFK4sXvwaCapM9C2mg"
 		];
 
@@ -673,7 +678,6 @@ class OptractNode extends PubSub {
 				'https://rinkeby.infura.io/v3/6731392aff054ac394819096e01b4c8e',
 				'https://rinkeby.infura.io/v3/e58d5891ebaf464dbcad6a926a107adf',
 				'https://rinkeby.infura.io/v3/dc22c9c6245742069d5fe663bfa8a698',
-				'https://rinkeby.infura.io/metamask',
 				'https://rinkeby.infura.io/v3/c02fff6b5daa434d8422b8ece54c7286',
 				'https://rinkeby.infura.io/v3/027bb869b03f4456aa1e9d13aa1f6506',
 				'https://rinkeby.infura.io/v3/8ec0911ee74c4583b1346bbc1afdf22d',
@@ -706,11 +710,14 @@ class OptractNode extends PubSub {
 		{
 			let src = this.infuraLB[this.networkID];
 			let avoid = src.indexOf(Ethereum.rpcAddr);
-
 			let newpick = src[__random_avoid(src.length, avoid)];
-			Ethereum.switchProvider(newpick); //TODO: fallback mode?
 
-			console.log(`DEBUG: __infuraLB: new infura address is: ${Ethereum.rpcAddr}`);
+			if (Ethereum.switchProvider(newpick) === false) {
+				this.infuraLB[this.networkID].splice(this.infuraLB[this.networkID].indexOf(newpick),1);
+				console.log(`DEBUG: badsrc: ${newpick}`)
+			} else {
+				console.log(`DEBUG: __infuraLB: new infura address is: ${Ethereum.rpcAddr}`);
+			}
 		}
 
 		const observer = (sec = 300000) =>
@@ -843,6 +850,9 @@ class OptractNode extends PubSub {
 					return true;
 				} else if (this.game.opStart < this.myEpoch && this.game.opSync === this.lastBlk) {
 					return true;
+				} else if (this.myEpoch === 1 && this.game.opStart === 0) {
+					// genesis special case
+					return true;
 				} else {
 					return false;
 				}
@@ -953,9 +963,18 @@ class OptractNode extends PubSub {
 			let data = msg.data;
 			let account = ethUtils.bufferToHex(data.account);
 			let pack = msg.data.serialize();
-			let txhash = ethUtils.bufferToHex(ethUtils.sha256(pack));
+			//let txhash = ethUtils.bufferToHex(ethUtils.sha256(pack));
+			let txhash  = ethUtils.bufferToHex(data.txhash);
 
-			this.memberStatus(account).then((rc) => { return rc[0] === 'active'; }).then((rc) => {
+			let fp = [
+				this.memberStatus(account).then((rc) => { return rc[0] === 'active'; }),
+				this.addrTokenBalance('QOT')(account)	
+			];
+
+			Promise.all(fp).then((frc) => {
+				let rc = frc[0];
+				let qotBalance = frc[1];
+
 				if (!rc) return; //TODO: checking different tiers of memberships.
                                 // let tier = rc[5]; let expireTime = rc[6];  // need these values somewhere?
 				try {
@@ -999,6 +1018,18 @@ class OptractNode extends PubSub {
                                         //payload arrays
                                         let labels = ['uint', 'address', 'bytes32', 'bytes32', 'bytes32', 'uint', 'bytes32', 'uint', 'bytes32', 'uint'];
                                         let values = [opround,  account,  comment,        aid,       oid, v1block,   v1leaf, v2block,   v2leaf,  since];
+
+					// txhash check
+					let txLabels = [ ...labels, 'uint8', 'bytes32', 'bytes32' ];
+					let txValues = [ ...values,  ethUtils.bufferToInt(data.v), ethUtils.bufferToHex(data.r), ethUtils.bufferToHex(data.s) ];
+					let _txhash  = soliditySha3(this.abi.encodeParameters(txLabels, txValues));
+
+					if (_txhash !== txhash) {
+						console.log(`ERROR: mismatch txhash!!!!!!`);
+						console.log(`DEBUG: got txhash: ${txhash}`);
+						console.log(`DEBUG: calculated: ${_txhash}`);
+						return;
+					}
 
 					const __handle_vote = (type) => (data) =>
 					{
@@ -1137,6 +1168,8 @@ class OptractNode extends PubSub {
 					}
 	
 					if (v1leaf === '0x') { // curate
+						if (qotBalance < 50000000000000) return; // checking token holdings
+
 						values[5] = 0; 									  //v1block
 						values[6] = '0x0000000000000000000000000000000000000000000000000000000000000000'; //v1leaf
 						values[7] = 0;									  //v2block
@@ -1274,6 +1307,9 @@ class OptractNode extends PubSub {
 			let labels = ['uint', 'address', 'bytes32', 'bytes32', 'bytes32', 'uint', 'bytes32', 'uint', 'bytes32', 'uint'];
 			let values = [opround,  account,   comment,       aid,      oid, v1block,   v1leaf,  v2block,    v2leaf, since];
 
+			let txLabels = [ ...labels ];
+			let txValues = [ ...values ];
+
 			if (typeof(txData.v1proof) !== 'undefined' && typeof(txData.v1side) !== 'undefined') {
 				v1side  = txData.v1side;
 				labels.splice(10, 0, 'bytes32[]');  // v1proof
@@ -1308,6 +1344,16 @@ class OptractNode extends PubSub {
 				if (typeof(v1proof) !== 'undefined' && typeof(v1side) !== 'undefined') params = { ...params, v1proof, v1side}
 				if (typeof(v2proof) !== 'undefined' && typeof(v2side) !== 'undefined') params = { ...params, v2proof, v2side}
 
+				// generate txhash
+				txLabels = [ ...txLabels, 'uint8', 'bytes32' , 'bytes32' ];
+				txValues = [ ...txValues,  sig.v,  ethUtils.bufferToHex(sig.r),  ethUtils.bufferToHex(sig.s) ];
+
+				let txHashPayload = this.abi.encodeParameters(txLabels, txValues);
+				let txhash = soliditySha3(txHashPayload); 
+
+				// insert txhash into RLP
+				params = { ...params, txhash };
+
 				let rlp = this.handleRLPx(mfields)(params);
 				this.publish('Optract', rlp.serialize());
 
@@ -1332,7 +1378,14 @@ class OptractNode extends PubSub {
 			let v2block = 0;
 			let domain  = new URL(url).origin;
 
-			return this.getOproundInfo().then((rc) => {
+			let p = [
+				this.getOproundInfo(),
+				this.addrTokenBalance('QOT')(account)
+			];
+
+			return Promise.all(p).then((results) => {
+				if (results[1] < 50000000000000) return false; // token holding check
+				let rc = results[0];
 				let opround = rc[0];
                         	let oid = rc[1];
 				return mr.parse(url).then((result) => {
@@ -1416,24 +1469,99 @@ class OptractNode extends PubSub {
 			})
 		}
 
-		this.claimReward = (opround, block, txhash) => {
-			// function claimReward(
-			//     uint _opRound, bytes32[] calldata proof, bool[] calldata isLeft, bytes32 txHash, uint _sblockNo,
-			//     bytes32 _payload, uint8 _v, bytes32 _r, bytes32 _s
-			let p = [ this.locateTx(block)(txhash, 'payloadvrs'), this.getProofSet(block, txhash)];
-			return Promise.all(p).then((rc)=>{
-				let payload = rc[0][0];
-				let v = rc[0][1];
-				let r = rc[0][2];
-				let s = rc[0][3];
-				let proof = rc[1][0];
-				let isLeft = rc[1][1];
-				console.log(opround, proof, isLeft, txhash, block, payload, v, r, s);
-				// if check before send
-				// this.call(this.appName)('BlockRegistry')('verifySignature')(this.userWallet[this.appName], payload, v, r, s).then(()=>{})
-				return this.sendTk(this.appName)('BlockRegistry')('claimReward')(
-				    opround, proof, isLeft, txhash, block, payload, v, r, s)();
+		this.withdraw = (claimBlock, claimLeaf) => {
+			return this.locateTx(claimBlock)(claimLeaf).then((txdata) => {
+				let opround = ethUtils.bufferToInt(txdata.opround);
+				let v1block = ethUtils.bufferToInt(txdata.v1block);
+				let v1leaf  = ethUtils.bufferToHex(txdata.v1leaf);
+				let v2block = ethUtils.bufferToInt(txdata.v2block);
+				let v2leaf  = ethUtils.bufferToHex(txdata.v2leaf);
+
+				let p = [ 
+					    this.getProofSet(v1block, v1leaf),
+					    this.getProofSet(v2block, v2leaf),
+					    this.getProofSet(claimBlock, claimLeaf),
+					    this.locateTx(claimBlock)(claimLeaf, 'payloadvrs')
+					];
+
+				const sideToInt = ((side) => {
+					return side.map((v, k)=>{
+						return v===true ? 2**(side.length-1-k) : 0
+					}).reduce((_a, _b)=> _a+_b)
+				});
+
+				return Promise.all(p).then((rc)=>{
+					// for the components of the newClaim tx
+					let v1proof = rc[0][0];
+					let v1side = rc[0][1];
+					v1side = sideToInt(v1side);
+					let v2proof = rc[1][0];
+					let v2side = rc[1][1];
+					v2side = sideToInt(v2side);
+
+					// newClaim tx itself
+					let proof = rc[2][0];
+					let side = rc[2][1];
+					side = sideToInt(side);
+					let payload = rc[3][0];
+					let v = rc[3][1];
+					let r = rc[3][2];
+					let s = rc[3][3];
+					let comment = rc[3][4].padEnd(66, 0);
+					let since = rc[3][5];
+
+					// group the arguments for smart contract
+					let b32s = [comment, v1leaf, v2leaf, payload, r, s];
+					let uints = [opround, v1block, v2block, claimBlock, since];
+					let uintIsLeft = [side, v1side, v2side];
+					console.log('DEBUG: arguments for withdraw ')
+					console.log(b32s)
+					console.log(uints)
+					console.log(proof)
+					console.log(v1proof)
+					console.log(v2proof)
+					console.log(uintIsLeft)
+					console.log(v)
+
+					// verify then send
+				        // let p = [
+					    // this.getOproundLottery(opround),
+					    // this.call(this.appName)('BlockRegistry')('isWinningTicket')(opround, v1leaf),
+					    // this.call(this.appName)('BlockRegistry')('isWinningTicket')(opround, v2leaf),
+					    // this.call(this.appName)('BlockRegistry')('verifySignatureWithPrefix')(this.userWallet[this.appName], b32s, v),
+					    // this.call(this.appName)('BlockRegistry')('genV2Txhash')(this.userWallet[this.appName], opround, comment, v1block, v1leaf, v2block, v2leaf, since, v, r, s),
+					    // this.call(this.appName)('BlockRegistry')('txExistUintSide')(v1proof, v1side, v1leaf, v1block),
+					    // this.call(this.appName)('BlockRegistry')('txExistUintSide')(v2proof, v2side, v2leaf, v2block)
+                                        // ]
+                                        // return Promise.all(p).then((rc) => {
+                                            // console.log(`DEBUG: opround, lotteryBlockNo, winNumber`);
+                                            // console.dir(rc[0]);
+                                            // let lotteryBlockNo = rc[0][1];
+                                            // let ans1 = [uints[1] <= lotteryBlockNo, uints[2] <= lotteryBlockNo];
+                                            // let ans2 = [rc[1][0],  rc[2][0]];
+                                            // let ans3 = rc[3];
+                                            // let contractClacClaimLeaf = rc[4];
+                                            // let ans4 = rc[4];
+                                            // let ans5 = [rc[5], rc[6]];
+                                            // // return [ans1, ans2, ans3, ans4, ans5]; // blcokNo[12], winTickets[12]; signature; claimLeave; txExist[12]
+                                            // console.log(rc[1][0]);
+					    // return this.call(this.appName)('BlockRegistry')('lotteryWins')(rc[0][2], v1leaf, 8)
+
+                                        // })
+				        
+					return this.call(this.appName)('BlockRegistry')('verifySignatureWithPrefix')(this.userWallet[this.appName], b32s, v).then((yn)=>{
+						// TODO: contract also check: txExist of 3 leaves, isWinningTicket v1, isWinningTicket v2,
+						//       v1block is before lottery, v2block is after lottery, current opRound not too far
+						//       from the withdraw (<16 opround difference)
+						if (yn === true) {
+							return this.sendTk(this.appName)('BlockRegistry')('withdraw')(
+							    b32s, uints, proof, v1proof, v2proof, uintIsLeft, v)();
+						}
+					})
+				})
+				.catch((err) => { console.trace(err); })
 			})
+			.catch((err) => { console.trace(err); })
 		}
 
 		this.rssParser = new Parser();
@@ -2215,6 +2343,9 @@ class OptractNode extends PubSub {
                         // Currently, we will group all block data into single JSON and publish it on IPFS
                         let blkObj =  {myEpoch: this.myEpoch, data: {} };
                         let leaves = [];
+					
+			if (this.game.opround === 1) this.game.lastSrates = {}; // first opround, no 'last' Srates
+			let origSrates = { ...this.game.lastSrates };
 
                         // is this block data structure good enough?
 			let snapshot = this.packSnap();
@@ -2269,7 +2400,7 @@ class OptractNode extends PubSub {
 			// closure
 			const __endOpRound = () =>
 			{
-				let p = [this.getOpround(), this.getOproundProgress(), this.getMaxVoteTime()];
+				let p = [this.getOpround(), this.getOproundProgress(), this.getMaxVoteTime1(), this.getMaxVoteTime2()];
 				return Promise.all(p).then((rc) => {
 					let now = Math.floor(Date.now() / 1000);  // or use this.myStamp?
 					let articleCount = rc[1][0];
@@ -2278,7 +2409,8 @@ class OptractNode extends PubSub {
 					let v2EndTime = rc[1][3];
 					// let roundVote1Count = rc[1][4];
 					// let roundVote2Count = rc[1][5];
-					let maxVoteTime = rc[2];
+					let maxVoteTime1 = rc[2];
+					let maxVoteTime2 = rc[3];
 					// rc[1] return(articleCount, atV1, v1EndTime, v2EndTime, roundVote1Count, roundVote2Count);
 					if (rc[0] === 0) {  // genesis
 						if (Object.keys(this.aidWatch).length + articleCount >= 7) {
@@ -2288,7 +2420,7 @@ class OptractNode extends PubSub {
 							return OpRStats['__REGULAR__'];
 						}
 					} else if (atV1) {
-						if (now > v2EndTime + maxVoteTime) {  // no draw round
+						if (now > v2EndTime + maxVoteTime1) {  // no draw round
 							return OpRStats['__NDR__'];
 						} else {
 							let v1count = Object.values(this.aidWatch).reduce((c, i) => { return c = c + i.voted.length }, 0); 
@@ -2301,7 +2433,7 @@ class OptractNode extends PubSub {
 							})
 						}
 					} else {  // !atV1
-						if (now > v1EndTime + maxVoteTime) {  // no draw round
+						if (now > v1EndTime + maxVoteTime2) {  // no draw round
 							return OpRStats['__NDR__'];
 						} else {
 							let v2count = Object.keys(this.clmWatch).length;  // clmWatch
@@ -2505,6 +2637,7 @@ class OptractNode extends PubSub {
                                             console.log(merkleRoot, ipfscid, snapshot[0].length);
                                             console.log(v1count, v2count, minSuccessRate, baseline);
                                             console.log(successRateDB, finalistIPFS);
+						if (minSuccessRate >= 100) minSuccessRate = 90;
 						return this.sendTk(this.appName)('BlockRegistry')('submitMerkleRoot')(
 						    merkleRoot, ipfscid, aidMerkleRoot, aidIpfscid, successRateDB, finalistIPFS, [snapshot[0].length, v1count, v2count, minSuccessRate, baseline])();
 						})
@@ -2513,7 +2646,10 @@ class OptractNode extends PubSub {
 					throw 'Unknown opRStats';
 				}
 			})
-			.catch((err) => { console.log(`ERROR in makeMerkleTreeAndUploadRoot`); console.trace(err); });
+			.catch((err) => { 
+				console.log(`ERROR in makeMerkleTreeAndUploadRoot`); console.trace(err); 
+				this.game.lastSrates = origSrates;
+			});
 		}
 
                 this.makeMerkleTree = (leaves) => {
@@ -2749,12 +2885,14 @@ class OptractNode extends PubSub {
 								let bksnap = JSON.parse(bd.toString()).data;
 								// this.pinBlockDelta(bksnap, bksnap[0]);
 								let i = bksnap[0].indexOf(txhash); // assuming already pass merkle check
-                                                                let payload = ethUtils.bufferToHex(bksnap[1][i].data);
+								let payload = ethUtils.bufferToHex(bksnap[1][i].data);
 								let txdata = this.parseMsgRLPx(Buffer.from(bksnap[2][i]));
-							        let v = ethUtils.bufferToInt(txdata.v);
-							        let r = ethUtils.bufferToHex(txdata.r);
-							        let s = ethUtils.bufferToHex(txdata.s);
-								resolve([payload, v, r, s]);
+								let v = ethUtils.bufferToInt(txdata.v);
+								let r = ethUtils.bufferToHex(txdata.r);
+								let s = ethUtils.bufferToHex(txdata.s);
+								let comment = ethUtils.bufferToHex(txdata.comment);
+								let since = ethUtils.bufferToInt(txdata.since);
+								resolve([payload, v, r, s, comment, since]);
 							})
 						})
 					} else {
@@ -3137,6 +3275,28 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 	 .catch((err) => { console.trace(err); })
 } else {
 	 opt = new OptractNode(appCfg);
+
+	 const handleSignals = () => {
+		console.log("\n\t" + 'Stopping WSRPC...');
+		opt.leave('Optract');
+		opt.swarm.close();
+		opt.saveDB();
+
+		try {
+			fs.unlinkSync(path.join(path.dirname(opt.appCfgs.datadir), 'Optract.LOCK'));
+			articleCache['aidlist'] = Object.keys(articleCache.queries);
+			if (articleCache['aidlist'].length > 0) fs.writeFileSync(path.join(opt.appCfgs.datadir, 'articleCache.json'), JSON.stringify(articleCache))
+		} catch(err) {
+			true;
+		}
+
+		r.close();
+		process.exit(0);
+	 }
+
+	 process.on('SIGINT', handleSignals);
+	 process.on('SIGTERM', handleSignals);
+
 	 let stage = Promise.resolve(opt)
          .catch((err) => { process.exit(1); })
 	 .then(() => { if (!appCfg.daemon) return new Promise(askMasterPass) })
@@ -3188,7 +3348,7 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 				vars: ['networkID', 'userWallet', 'pending', 'game'],
 				stat: ['reports', 'getPrevBlockData', 'validPass', 'allAccounts', 'getBlockNo', 'makeMerkleTreeAndUploadRoot', 'buyMembership' ,'statProbe', 'dbsync'],
 				func: ['getOproundInfo', 'memberStatus', 'ping', 'queueReceipts', 'getOproundLottery', 'parseMsgRLPx', 'get', 'isValidator'],
-				main: ['newArticle', 'newClaim', 'importFromJSON', 'listAccLotteryWins'] // obj.args = [arg0, arg1 ...] (ordered args passed as object)
+				main: ['newArticle', 'newClaim', 'withdraw', 'importFromJSON', 'listAccLotteryWins', 'sendTx'] // obj.args = [arg0, arg1 ...] (ordered args passed as object)
 			}
 
 			expose.vars.map((i) => { r.register(i, () => { return opt[i]; }); })
@@ -3286,6 +3446,13 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 
 			// extra functions
 			r.register('addPeer', (obj) => { return opt.swarm.addPeer(obj); });
+
+			r.register('addrTokenBalance', (args) => {
+				let symbol = args[0];
+				let address = args[1] || opt.userWallet[opt.appName];
+
+				return opt.addrTokenBalance(symbol)(address);
+			})
 
 			r.register('readiness', () => 
 			{
@@ -3512,7 +3679,7 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 				 opt.db.get(['block', blkNo, 'aid', 'tree', aid], (err,val) => {
 					 if (err) return reject(err);
 					 let { url, ...txs } = val; 
-					 resolve({[aid]: { url, txs: Object.keys(txs), blk: [blkNo], cmt: txs }});
+					 resolve({[aid]: { url, txs: Object.keys(txs), blk: [blkNo], cmt: txs, vpick: true }});
 				 })
 			}
 
@@ -3528,6 +3695,7 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 					 if (typeof(c[aid]) !== 'undefined') {
 						 c[aid].txs = [...c[aid].txs, ...o[aid].txs]; // merge txs
 						 c[aid].blk = [...c[aid].blk, ...o[aid].blk]; // merge blk
+						 if (typeof(o[aid].vpick) !== 'undefined') c[aid].vpick = o[aid].vpick;
 
 						 return c;
 					 } else {
@@ -3538,25 +3706,23 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 
 			const __btxContent = (blkNo, txhash, cmtIpfs = '') => (resolve, reject) =>
 			{
-				 console.log(`DEBUG: __btxContent called on block ${blkNo}`)
 				 opt.locateTx(blkNo)(txhash, 'aid').then((aid) => {
 					if (!__is_curation_aid(aid)) return resolve({});
+				 	console.log(`DEBUG: __btxContent called on block ${blkNo}, tx: ${txhash}`)
 					if (cmtIpfs) {
 						let account  = Object.keys(cmtIpfs)[0];
 						let ipfshash = cmtIpfs[account];
 
 						let p = [
-							__aidContent(blkNo, aid),
+							new Promise(__aidContent(blkNo, aid)),
 							__updateQuotes(aid, ipfshash, account)
 						];
 
-						return new Promise.all(p)
-						 .then((result) => { 
-							 resolve(result[0]); //TODO: not done yet 
-						 })
+						return Promise.all(p).then((result) => { 
+							 resolve(result[0]); 
+						})
 					} else {
-						return new Promise(__aidContent(blkNo, aid))
-					 	 .then((result) => { resolve(result); })
+						return new Promise(__aidContent(blkNo, aid)).then(resolve)
 					}
 
 				 })
@@ -3579,7 +3745,10 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 							let voter = ethUtils.bufferToHex(txdata.account);
 							let v1txh = ethUtils.bufferToHex(txdata.v1leaf);
 							let v1blk = ethUtils.bufferToInt(txdata.v1block);
-							return new Promise(__btxContent(v1blk, v1txh, {[voter]: txs[txhash]})).catch((err) => { return {}; }) 
+							return new Promise(__btxContent(v1blk, v1txh, {[voter]: txs[txhash]})).catch((err) => { 
+								console.trace(err);
+								return {}; 
+							}) 
 						   }) 
 					 })
 
@@ -3601,6 +3770,7 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 
 					 new Promise(__bv1Content(blkNo)).then((v1aclist) => {
 						console.log(`DEBUG: __blkContentList called on block ${blkNo}`)
+						console.dir(v1aclist);
 						resolve([...results, ...v1aclist]);
 					 })
 					 .catch((err) => { reject(err); });
@@ -3732,6 +3902,8 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 				let queries = {}; let newq = {};
 				let others = biglist.filter((i) => { return typeof(picked[Object.keys(i)[0]]) === 'undefined' })
 
+				if (others.length === 0) others = biglist;
+
 				if ( articleCache.constructor === Object 
 				  && Object.keys(articleCache).length > 0
 				  && typeof(articleCache.startBlk) !== 'undefined'
@@ -3787,8 +3959,13 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 				_ac.queries = { ..._ac.queries, ...pickedCache };
 				_ac.aidlist = [ ...Object.keys(_ac.queries) ].filter((aid) => {
 					try {
-						if (Math.abs(opt.myEpoch - Math.max(..._ac.queries[aid].blk)) <= 20) {
-							delete _ac.queries[aid].page.content;
+						if ( Math.abs(opt.myEpoch - Math.max(..._ac.queries[aid].blk)) < 5) {
+							if (typeof(_ac.queries[aid].page.content) !== 'undefined') delete _ac.queries[aid].page.content;
+							return true;
+						} else if ( typeof(_ac.queries[aid].vpick) !== 'undefined' && _ac.queries[aid].vpick === true
+							 && Math.abs(opt.myEpoch - Math.max(..._ac.queries[aid].blk)) < 20
+						) {
+							if (typeof(_ac.queries[aid].page.content) !== 'undefined') delete _ac.queries[aid].page.content;
 							return true;
 						} else {
 							delete _ac.queries[aid];
@@ -3808,6 +3985,7 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 					return c; 
 				}, {});
 
+				articleCache = { ..._ac };
 				_ac = { ..._ac, quoteCache: _qc };
 
 				fs.writeFileSync(path.join(opt.appCfgs.datadir, 'articleCache.json'), JSON.stringify(_ac));
@@ -3820,11 +3998,12 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 			{
 				let queue = []; 
 				for (let i = startBlk; i <= endBlk; i++) {
-					queue.push(new Promise(__blkContentList(i)).catch((err) => { return []; }))
+					queue.push(new Promise(__blkContentList(i)).catch((err) => { console.trace(err); return []; }))
 				}
 
 				return Promise.all(queue).then((aclist) => {
 					let biglist = aclist.reduce((c,i) => { return [...c, ...i] });
+					if (biglist.length < 15 && startBlk > 1) return __range_queries(startBlk - 1, endBlk, arCap, parse);
 
 					// article limit test
 					let pick = Math.ceil(biglist.length * 0.4); // 40% of total list
@@ -3874,7 +4053,9 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 			const __random_pick_from_cache = (length = 10) =>
 			{
 				let aidpicks = __random_picks(length, articleCache.aidlist);
-				articleCache.aidlist = articleCache.aidlist.filter((aid) => { return aidpicks.indexOf(aid) === -1 });
+				articleCache.aidlist = articleCache.aidlist.filter((aid) => { 
+					return typeof(articleCache.queries[aid]) !== 'undefined' && aidpicks.indexOf(aid) === -1 
+				});
 
 				let output = {};
 				aidpicks.map((aid) => { output[aid] = articleCache.queries[aid]; });
@@ -3910,7 +4091,7 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 				} else if ( articleCache.constructor === Object 
 				  && Object.keys(articleCache).length > 0
 				  && articleCache.aidlist.length > 0
-				  && Math.abs(blkNo - articleCache.startBlk) <= 20
+				  && Math.abs(blkNo - articleCache.startBlk) < 20
 				) {
 					return __random_pick_from_cache(arCap);
 				} else if ( opt.dbsync()
@@ -3919,8 +4100,8 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 					 && typeof(articleCache.queries) !== 'undefined'
 				  	 && articleCache.aidlist.length === 0
 					 && Object.keys(articleCache.queries).length > 0
-				         && Math.abs(blkNo - articleCache.startBlk) <= 20
-				         && Math.abs(articleCache.startBlk - opt.myEpoch) <= 20
+				         && Math.abs(blkNo - articleCache.startBlk) < 20
+				         && Math.abs(articleCache.startBlk - opt.myEpoch) < 20
 				) {
 					console.log(`DEBUG: Reset cache and wait for new block data.. (${blkNo})`)
 					articleCache.aidlist = Object.keys(articleCache.queries).sort();
@@ -3945,7 +4126,7 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 				} else if ( articleCache.constructor === Object 
 				  && Object.keys(articleCache).length > 0
 				  && articleCache.aidlist.length > 0
-				  && Math.abs(startBlk - articleCache.startBlk) <= 20
+				  && Math.abs(startBlk - articleCache.startBlk) < 20
 				) {
 					return __random_pick_from_cache(arCap);
 				} else if ( opt.dbsync()
@@ -3954,8 +4135,8 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 					 && typeof(articleCache.queries) !== 'undefined'
 				  	 && articleCache.aidlist.length === 0
 					 && Object.keys(articleCache.queries).length > 0
-				         && Math.abs(startBlk - articleCache.startBlk) <= 20
-				         && Math.abs(articleCache.startBlk - opt.myEpoch) <= 20
+				         && Math.abs(startBlk - articleCache.startBlk) < 20
+				         && Math.abs(articleCache.startBlk - opt.myEpoch) < 20
 				) {
 					console.log(`DEBUG: Reset cache and wait for new block data.. (${endBlk})`)
 					articleCache.aidlist = Object.keys(articleCache.queries).sort();
@@ -3992,6 +4173,19 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 
 				let addr = args[0];
 				let opround = args[1] || opt.game.opround;
+				let srate;
+
+				if (opt.game.opround === 1 || opt.game.lastMsr === 0) {
+					true;
+				} else if (opt.game.opround > 1 && opt.game.lastMsr > 0) {
+					if (typeof(opt.game.lastSrates[addr]) === 'undefined') {
+						srate = 0;
+					} else {
+						srate = (opt.game.lastSrates[addr][0] / opt.game.lastSrates[addr][1]) * 100;
+					}
+				
+					if (srate < opt.game.lastMsr) return {}; // MSR check
+				}
 
 				const __get_histxs = (resolve, reject) => 
 				{
@@ -4111,6 +4305,29 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 				
 			})
 
+                        // r.register('lotteryWins', (args) =>
+                        // {
+                        //         let winHex = args[0];
+                        //         let leave = args[1];
+                        //         let numRange = args[2];
+                        //         return opt.call(opt.appName)('BlockRegistry')('lotteryWins')(opround, leaf);
+                        // })
+
+                        // r.register('isWinningTicket', (args) =>
+                        // {
+                        //         let opround = args[0];
+                        //         let leaf = args[1];
+                        //         return opt.call(opt.appName)('BlockRegistry')('isWinningTicket')(opround, leaf);
+                        // })
+
+                        // r.register('lotteryWins', (args) =>
+                        // {
+                        //         let winNumber = args[0];
+                        //         let ticket = args[1];
+                        //         let numRange = args[2];
+                        //         return opt.call(opt.appName)('BlockRegistry')('lotteryWins')(winNumber, ticket, numRange);
+                        // })
+
 			r.register('getMyVault', (args) =>
 			{
 				let account = args[0];
@@ -4131,40 +4348,19 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 			r.event('opStats');   opt.on('opStats', (opObj) => { r.emit('opStats', opObj) });
 		    })
 
-		    process.on('SIGINT', () => {
-		        console.log("\n\t" + 'Stopping WSRPC...');
-			opt.leave('Optract');
-			opt.swarm.close();
-			opt.saveDB();
-
-			try {
-				articleCache['aidlist'] = Object.keys(articleCache.queries);
-				if (articleCache['aidlist'].length > 0) fs.writeFileSync(path.join(opt.appCfgs.datadir, 'articleCache.json'), JSON.stringify(articleCache))
-			} catch(err) {
-				true;
-			}
-
-			r.close();
-		    })
 	     }
 	 })
 	 .catch((err) => { console.trace(err); })
 }
 '''
 
-
-def OptractDaemon(p, basedir=None):
-    # basedir is something like '~/.config/Optract' (unix) or '~\AppData\Local\Optract' (windows)
-    if basedir is None:
-        basedir = os.getcwd()  # or "raise"?
-
-    os.chdir(os.path.join(basedir, 'dist', 'nativeApp'))  # the "code" use relative dir
-    # p.stdin.write(code)  # it does not wait but is not recommended due to potential deadlock
-    out = p.communicate(input=code)  # it waits
-    # print(out[0])  # stdout
-    # print(out[1])  # stderr
-    return
-
-
-if __name__ == '__main__':
-    OptractDaemon()
+if os.path.isfile(os.path.join('../bin', 'node')):
+    node = os.path.join('../bin', 'node')
+elif os.path.isfile(os.path.join('bin', 'node')):
+    node = os.path.join('bin', 'node')
+else:
+    raise BaseException('cannot find node binary not exists in bin or ../bin')
+p = subprocess.Popen([node],  stdin=subprocess.PIPE)  #, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+out = p.communicate(input=code)
+# print(out[0])  # stdout
+# print(out[1])  # stderr

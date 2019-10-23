@@ -353,6 +353,7 @@ def mkdir(dirname):  # if parent dir exists and dirname does not exist
         os.mkdir(dirname)
     else:
 
+
 def create_and_write_manifest(browser):
     if browser != 'firefox' or browser != 'chrome':
         raise BaseException('Unsupported browser')
@@ -365,6 +366,7 @@ def create_and_write_manifest(browser):
             add_registry_firefox(basedir)
     else:  # unix-like
         # determine native message directory for different OS and browsers
+        # TODO: make sure user already has at least one browser installed
         if sys.platform.startswith('linux') and browser == 'chrome':
             nativeMsgDir = os.path.expanduser('~/.config/google-chrome/NativeMessagingHosts')
         elif sys.platform.startswith('linux') and browser == 'firefox':
