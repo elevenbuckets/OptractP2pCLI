@@ -13,6 +13,7 @@ import signal
 import logging
 import shutil
 import tarfile
+from __future__ import print_function
 
 # On Windows, the default I/O mode is O_TEXT. Set this to O_BINARY
 # to avoid unwanted modifications of the input/output streams.
@@ -42,8 +43,8 @@ ipfs_path = os.path.join(basedir, 'ipfs_repo')
 myenv['IPFS_PATH'] = ipfs_path
 
 FNULL = open(os.devnull, 'w')
-ipfsP = None
-nodeP = None
+# ipfsP = None  # no need to be global
+# nodeP = None
 
 # logging
 log_format = '[%(asctime)s] %(levelname)-7s : %(message)s'
@@ -125,7 +126,7 @@ def stopServer(ipfsP, nodeP):
 
 
 # functions related to installation
-def add_registry(basedir):
+def add_registry_chrome(basedir):
     # TODO: add remove_registry()
     if sys.platform == 'win32':
         keyVal = r'Software\Google\Chrome\NativeMessagingHosts\optract'
@@ -133,9 +134,33 @@ def add_registry(basedir):
             key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, keyVal, 0, winreg.KEY_ALL_ACCESS)
         except:
             key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, keyVal)
-        nativeMessagingMainfest = os.path.join(basedir, 'dist', 'optract-win.json')
+        nativeMessagingMainfest = os.path.join(basedir, 'dist', 'optract-win-chrome.json')
         winreg.SetValueEx(key, "", 0, winreg.REG_SZ, nativeMessagingMainfest)
         winreg.CloseKey(key)
+
+        # create optract-win-chrome.json
+        with open(nativeMessagingMainfest, 'w') as f:
+            manifest_content = create_manifest_chrome('nativeApp.exe', "{extension_id}")
+            f.write(manifest_content)
+    return
+
+
+def add_registry_firefox(basedir):
+    # TODO: add remove_registry()
+    if sys.platform == 'win32':
+        keyVal = r'SOFTWARE\Mozilla\NativeMessagingHosts\optract'
+        try:
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, keyVal, 0, winreg.KEY_ALL_ACCESS)
+        except:
+            key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, keyVal)
+        nativeMessagingMainfest = os.path.join(basedir, 'dist', 'optract-win-firefox.json')
+        winreg.SetValueEx(key, "", 0, winreg.REG_SZ, nativeMessagingMainfest)
+        winreg.CloseKey(key)
+
+        # create optract-win-firefox.json
+        with open(nativeMessagingMainfest, 'w') as f:
+            manifest_content = create_manifest_firefox('nativeApp.exe')
+            f.write(manifest_content)
     return
 
 
@@ -316,8 +341,71 @@ def sym_or_copy_data(basedir):
     return
 
 
+def create_manifest_chrome(nativeAppPath, extension_id):
+    template = '''
+{
+  "name": "optract",
+  "description": "optract server",
+  "path": "{nativeAppPath}",
+  "type": "stdio",
+  "allowed_origins": [ "chrome-extension://{extension_id}/" ]
+}
+    '''
+    return template.format(nativeAppPath, extension_id)
+
+
+def create_manifest_firefox(nativeAppPath):
+    template = '''
+{
+  "name": "optract",
+  "description": "optract server",
+  "path": "{nativeAppPath}",
+  "type": "stdio",
+  "allowed_extensions": [ "{5b2b58c5-1a22-4893-ac58-9ca33f27cdd4}" ]
+}
+    '''
+    return template.format(nativeAppPath)
+
+
+def create_and_write_manifest(browser):
+    # create manifest file and write to native message folder
+    if sys.platform.startswith('win32'):
+        if browser == 'chrome':
+            add_registry_chrome(basedir)
+        elif browser == 'firefox':
+            add_registry_firefox(basedir)
+    else:  # unix-like
+        # determine native message directory for different OS and browsers
+        if sys.platform.startswith('linux') and browser == 'chrome':
+            nativeMsgDir = os.path.expanduser('~/.config/google-chrome/NativeMessagingHosts')
+        elif sys.platform.startswith('linux') and browser == 'firefox':
+            nativeMsgDir = os.path.expanduser('~/.mozilla/native-messaging-hosts')
+        elif sys.platform.startswith('darwin') and browser == 'chrome':
+            nativeMsgDir = os.path.expanduser('~/Library/Application Support/Google/Chrome/NativeMessagingHosts')
+        elif sys.platform.startswith('darwin') and browser == 'firefox':
+            nativeMsgDir = os.path.expanduser('~/Library/Application Support/Mozilla/NativeMessagingHosts')
+        else:
+            logging.warning('you should not reach here...')
+            raise BaseException('Unsupported platform')
+
+        # create content for manifest file of native messaging
+        if browser == 'chrome':
+            manifest_content = create_manifest_chrome(nativeAppPath, "extension_id")
+        elif browser == 'firefox':
+            manifest_content = create_manifest_firefox(nativeAppPath)
+        else:
+            logging.warning('you should not reach here...')
+            raise BaseException('Unsupported browser')
+
+        # write manifest file
+        manifest_path = os.path.join(nativeMsgDir, 'optract.json')
+        with open(manifest_path, 'w') as f:
+            f.write(manifest_content)
+    return
+
+
 # major functions
-def install():
+def install(browser):
     logging.info('Initializing Optract...')
     if not (sys.platform.startswith('linux') or sys.platform.startswith('darwin') or sys.platform.startswith('win32')):
         raise BaseException('Unsupported platform')
@@ -331,19 +419,7 @@ def install():
     init_ipfs(ipfs_path)
     sym_or_copy_data(basedir)
 
-    # add to native message
-    if sys.platform.startswith('win32'):
-        add_registry(basedir)
-        nativeMsgDir = os.path.join(basedir, "dist")
-        shutil.copy2(os.path.join(cwd, 'optract-win.json'), nativeMsgDir)
-    elif sys.platform.startswith('linux'):
-        nativeMsgDir = os.path.expanduser('~/.config/google-chrome/NativeMessagingHosts')
-        shutil.copy2(os.path.join(cwd, 'optract.json'), nativeMsgDir)
-    elif sys.platform.startswith('darwin'):
-        nativeMsgDir = os.path.expanduser('~/Library/Application Support/Google/Chrome/NativeMessagingHosts')
-        shutil.copy2(os.path.join(cwd, 'optract.json'), nativeMsgDir)
-    else:
-        logging.warning('you should not reach here...')
+    create_and_write_manifest(browser)
 
     # done
     logging.info('Done! Optract is ready to use.')
@@ -384,9 +460,15 @@ if __name__ == '__main__':
     # startServer()
     if len(sys.argv) > 1:
         if sys.argv[1] == 'install':
-            print 'Installing... please see the progress in logfile: ' + logfile
-            print 'Please also download Optract browser extension from optract.com or browser extension store or addon page'
-            install()
+            if len(sys.argv) != 2:
+                print('Please specify either "firefox" or "chrome"')
+                sys.exit(1)
+                if (sys.argv[2] != 'firefox' or sys.argv[2] != 'chrome'):
+                    print('Only "firefox" or "chrome" are supported at this time.')
+                    sys.exit(1)
+            print('Installing... please see the progress in logfile: ' + logfile)
+            print('Please also download Optract browser extension.')
+            install(browser)
         else:
             main()
     else:
