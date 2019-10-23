@@ -15,6 +15,14 @@ if os.path.isdir(distdir):
     shutil.rmtree(distdir)
 os.mkdir(distdir)
 
+# rm build dir (pyarmor)
+resource_dir = os.path.join(basedir, 'resources')
+tmp_folders = [ os.path.join(resource_dir, 'dist'),
+                os.path.join(resource_dir, 'build') ]
+for _ in tmp_folders:
+    if os.path.exists(_):
+        shutil.rmtree(_)
+
 # create node_modules.tar  (use relative path)
 print('# pack node_modules')
 with tarfile.open('dist/node_modules.tar', 'w') as tar:
@@ -25,7 +33,7 @@ print('# copy files')
 shutil.copytree(os.path.join(basedir, 'resources', 'bin_win64'),
                 os.path.join(basedir, 'dist', 'bin'))
 shutil.copytree(os.path.join(basedir, 'lib'),
-                os.path.join(basedir, 'dist', 'lib'))
+                os.path.join(basedir, 'dist', 'lib'))  # only copy selected files
 shutil.copytree(os.path.join(basedir, 'dapps'),
                 os.path.join(basedir, 'dist', 'dapps'))
 shutil.copy2(os.path.join(basedir, 'resources', 'optract-win.json'),
@@ -35,9 +43,12 @@ shutil.copy2(os.path.join(basedir, 'resources', 'install.bat'),
 
 # copy nativeApp.py
 os.chdir(os.path.join(basedir, 'resources'))
-subprocess.check_call(["pyinstaller", "-F", "nativeApp.py"])
-shutil.copy2(os.path.join(basedir, 'resources', 'dist', 'nativeApp.exe'),
-             os.path.join(basedir, 'dist'))
+# subprocess.check_call(["pyinstaller", "-F", "nativeApp.py"])
+subprocess.check_call(["pyarmor", "pack", "nativeApp.py"])
+shutil.copytree(os.path.join(basedir, 'resources', 'dist', 'nativeApp'),
+                os.path.join(basedir, 'dist', 'nativeApp'))
+# shutil.copy2(os.path.join(basedir, 'resources', 'dist', 'nativeApp.exe'),
+#              os.path.join(basedir, 'dist'))
 os.chdir(os.path.join(basedir))
 
 # pack

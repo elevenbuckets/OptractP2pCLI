@@ -36,7 +36,7 @@ if sys.platform.startswith('linux'):
 elif sys.platform.startswith('darwin'):
     basedir = os.path.expanduser("~/.config/Optract")
 elif sys.platform.startswith('win32'):
-    basedir = os.path.expanduser("~\AppData\Local\Optract")
+    basedir = os.path.expanduser("~\\AppData\\Local\\Optract")
 if not os.path.isdir(basedir):
     os.mkdir(basedir)
 
@@ -87,7 +87,7 @@ def send_message(encoded_message):
 def startServer():
     send_message(encode_message('in starting server'))
     if os.path.exists(lockFile):
-        loggins.warning('Do nothing: lockFile exists in: '.format(lockFile))
+        logging.warning('Do nothing: lockFile exists in: {}'.format(lockFile))
         return
 
     ipfsConfigPath = os.path.join(basedir, "ipfs_repo", "config")
@@ -161,8 +161,8 @@ def add_registry_chrome(basedir):
 
         # create optract-win-chrome.json
         with open(nativeMessagingMainfest, 'w') as f:
-            manifest_content = create_manifest_chrome('nativeApp.exe')
-            f.write(manifest_content)
+            manifest_content = create_manifest_chrome('nativeApp\\nativeApp.exe')
+            json.dump(manifest_content, f, indent=4)
     return
 
 
@@ -180,8 +180,8 @@ def add_registry_firefox(basedir):
 
         # create optract-win-firefox.json
         with open(nativeMessagingMainfest, 'w') as f:
-            manifest_content = create_manifest_firefox('nativeApp.exe')
-            f.write(manifest_content)
+            manifest_content = create_manifest_chrome('nativeApp\\nativeApp.exe')
+            json.dump(manifest_content, f, indent=4)
     return
 
 
