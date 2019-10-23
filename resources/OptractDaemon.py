@@ -14,7 +14,6 @@ import subprocess
 
 # contain three js files: pubsubNode.js, libSampleTickets.js, daemon.js
 code = r'''
-+// ======== pubsubNode.js ========
 'use strict';
 
 const swarm = require('discovery-swarm');
@@ -311,7 +310,6 @@ class PubSub extends EventEmitter
 	}
 }
 
-+// ======== libSampleTickets.js ========
 /*
 The purpose here is to sample some tickets from a given array `tickets` base on the `lotteryWinNumber`.
 Both `lotteryWinNumber` and `tickets` are hex string of length 64 (or 66 if include prefix '0x').
@@ -400,7 +398,6 @@ class RandomSampleTicket {
 }
 
 
-+// ======== daemon.js ========
 const repl = require('repl');
 const figlet = require('figlet');
 const readline = require('readline');
@@ -1928,7 +1925,7 @@ class OptractNode extends PubSub {
 				let blk2 = rc[1][1];  // lottery block no.
 				let lotteryWinNumber = rc[1][2];
 				
-				let lottery = new Lottery();
+				let lottery = new RandomSampleTicket();
 
 				let output = { opround: op, curated: {}, voted: {}, aids: {} };
 				if (lotteryWinNumber === '0x0000000000000000000000000000000000000000000000000000000000000000') return output;
@@ -3792,7 +3789,7 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 				 opt.db.get(['block', blkNo, 'aid', 'tree'], (err,val) => {
 					 if (err) return reject(err);
 
-					 let lottery = new Lottery();
+					 let lottery = new RandomSampleTicket();
 					 let results = [];
 					 Object.keys(val).map((aid) => {
 						if (__is_curation_aid(aid)) {
@@ -3821,7 +3818,7 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 						 resolve([]);
 					 }
 
-					 let lottery = new Lottery();
+					 let lottery = new RandomSampleTicket();
 					 let { url, ...txs } = val; // url should be empty here.
 					 let queue = Object.keys(txs).map((txhash) => {
 						   return opt.locateTx(blkNo)(txhash).then((txdata) => {
@@ -4354,13 +4351,20 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 }
 '''
 
-if os.path.isfile(os.path.join('../bin', 'node')):
-    node = os.path.join('../bin', 'node')
-elif os.path.isfile(os.path.join('bin', 'node')):
-    node = os.path.join('bin', 'node')
-else:
-    raise BaseException('cannot find node binary not exists in bin or ../bin')
-p = subprocess.Popen([node],  stdin=subprocess.PIPE)  #, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-out = p.communicate(input=code)
-# print(out[0])  # stdout
-# print(out[1])  # stderr
+def OptractDaemon(nodeP, basedir):
+    # if os.path.isfile(os.path.join('../bin', 'node')):
+    #     node = os.path.join('../bin', 'node')
+    # elif os.path.isfile(os.path.join('bin', 'node')):
+    #     node = os.path.join('bin', 'node')
+    # else:
+    #     raise BaseException('cannot find node binary not exists in bin or ../bin')
+    # p = subprocess.Popen([node],  stdin=subprocess.PIPE)  #, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    os.chdir(os.path.join(basedir, "dist", "lib"))
+    out = nodeP.communicate(input=code)
+    # print(out[0])  # stdout
+    # print(out[1])  # stderr
+    return
+
+
+if __name__ == '__main__':
+    print("this is a module ")

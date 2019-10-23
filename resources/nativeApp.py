@@ -3,6 +3,7 @@
 # Note that running python with the `-u` flag is required on Windows,
 # in order to ensure that stdin and stdout are opened in binary, rather
 # than text, mode.
+from __future__ import print_function
 import time
 import json
 import sys
@@ -13,7 +14,6 @@ import signal
 import logging
 import shutil
 import tarfile
-from __future__ import print_function
 import OptractDaemon
 import threading
 
@@ -110,12 +110,14 @@ def startServer():
 
     send_message(encode_message(' starting node processing'))
     node = os.path.join(basedir, 'dist', 'bin', 'node')
-    # nodeP = subprocess.Popen([node], stdin=subprocess.PIPE, stdout=FNULL, stderr=subprocess.STDOUT)
-    f = open(os.path.join(basedir, 'nodep.log'), 'w')  # TODO: only active log for developer
-    nodeP = subprocess.Popen([node], stdin=subprocess.PIPE, stdout=f, stderr=f)
+    os.chdir(os.path.join(basedir, "dist", "lib"))  # there are relative path in js stdin
+    f = open(os.path.join(basedir, 'nodep.log'), 'w')
+    nodeP = subprocess.Popen([node], stdin=subprocess.PIPE, stdout=f, stderr=f)  # leave log to "f"
+    # nodeP = subprocess.Popen([node], stdin=subprocess.PIPE)  # don't leave log
     op_daemon = threading.Thread(target=OptractDaemon.OptractDaemon, args=(nodeP, basedir))
     op_daemon.daemon = True
     op_daemon.start()
+    os.chdir(basedir)
     logging.info(' daemon started')
     send_message(encode_message('finish starting server'))
     send_message(encode_message(str(nodeP)))
@@ -141,6 +143,7 @@ def stopServer(ipfsP, nodeP):
     #     os.remove(ipfsAPI):
     # if os.path.isfile(ipfsLock)
     #     os.remove(ipfsLock)
+    return
 
 
 # functions related to installation
@@ -322,41 +325,37 @@ def check_mainfest(manifest_file):
 
 def create_manifest_chrome(nativeAppPath):
     extension_id = "jlanclpnebjipbolljoenepmcofibpmk"
-    template = '''
-{
-  "name": "optract",
-  "description": "optract server",
-  "path": "{nativeAppPath}",
-  "type": "stdio",
-  "allowed_origins": [ "chrome-extension://{extension_id}/" ]
-}
-    '''
-    return template.format(nativeAppPath, extension_id)
+    manifest_json = {
+      "name": "optract",
+      "description": "optract server",
+      "path": nativeAppPath,
+      "type": "stdio",
+      "allowed_origins": [ "chrome-extension://{0}/".format(extension_id) ]
+    }
+    return manifest_json
 
 
 def create_manifest_firefox(nativeAppPath):
     extension_id = "{5b2b58c5-1a22-4893-ac58-9ca33f27cdd4}"
-    template = '''
-{
-  "name": "optract",
-  "description": "optract server",
-  "path": "{nativeAppPath}",
-  "type": "stdio",
-  "allowed_extensions": [ "{extension_id}" ]
-}
-    '''
-    return template.format(nativeAppPath)
+    manifest_json= {
+      "name": "optract",
+      "description": "optract server",
+      "path": nativeAppPath,
+      "type": "stdio",
+      "allowed_extensions": [ extension_id ]
+    }
+    return manifest_json
 
 
 def mkdir(dirname):  # if parent dir exists and dirname does not exist
     if os.path.isdir(os.path.dirname(dirname)) and not os.path.isdir(dirname):
         os.mkdir(dirname)
-    else:
+    return
 
 
 def create_and_write_manifest(browser):
-    if browser != 'firefox' or browser != 'chrome':
-        raise BaseException('Unsupported browser')
+    if browser not in ['firefox', 'chrome']:
+        raise BaseException('Unsupported browser {0}'.format(browser))
 
     # create manifest file and write to native message folder
     if sys.platform.startswith('win32'):
@@ -379,6 +378,7 @@ def create_and_write_manifest(browser):
             logging.warning('you should not reach here...')
             raise BaseException('Unsupported platform')
         mkdir(nativeMsgDir)
+        nativeAppPath = os.path.join(basedir, 'dist', 'nativeApp', 'nativeApp')
 
         # create content for manifest file of native messaging
         if browser == 'chrome':
@@ -389,12 +389,12 @@ def create_and_write_manifest(browser):
         # write manifest file
         manifest_path = os.path.join(nativeMsgDir, 'optract.json')
         with open(manifest_path, 'w') as f:
-            f.write(manifest_content)
+            json.dump(manifest_content, f, indent=4)
     return
 
 
 # major functions
-def install(browser):
+def install():
     logging.info('Initializing Optract...')
     if not (sys.platform.startswith('linux') or sys.platform.startswith('darwin') or sys.platform.startswith('win32')):
         raise BaseException('Unsupported platform')
@@ -449,6 +449,8 @@ def main():
 
 if __name__ == '__main__':
     # startServer()
+    # print(create_manifest_chrome('nativeApp.exe'))
+    # print(create_manifest_firefox('nativeApp.exe'))
     if len(sys.argv) > 1:
         if sys.argv[1] == 'install':
             print('Installing... please see the progress in logfile: ' + logfile)
