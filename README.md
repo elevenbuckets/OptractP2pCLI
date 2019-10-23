@@ -44,7 +44,8 @@ Under `$basedir` there (will) contain files and directories:
     - only need to change a few lines if migrate to python3 in future
 - `git clone git@github.com:elevenbuckets/OptractP2pCLI.git` 
 - `npm install`
-- For unix-like platform: edit `resources/optract.json`, update the `path` and `extension-id`
+- edit `resources/optract.json` (unix-like) or `resources/optrac-win.json` (windows), insert the `username` and `extension-id`
+    - note that the `nativeApp` will be a executable binary (no need to append `.py`)
 - Build release for different platform:
     - linux: `npm run release`
     - mac: `npm run releaseMac64`

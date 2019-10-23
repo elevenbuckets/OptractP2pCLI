@@ -3,6 +3,7 @@
 # Note that running python with the `-u` flag is required on Windows,
 # in order to ensure that stdin and stdout are opened in binary, rather
 # than text, mode.
+from __future__ import print_function
 import time
 import json
 import sys
@@ -13,6 +14,8 @@ import signal
 import logging
 import shutil
 import tarfile
+import OptractDaemon
+import threading
 
 # On Windows, the default I/O mode is O_TEXT. Set this to O_BINARY
 # to avoid unwanted modifications of the input/output streams.
@@ -23,8 +26,9 @@ if sys.platform == "win32":
     msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
 
 # global variables
-# 'cwd' is for installtion file
-cwd = os.path.dirname(os.path.realpath(sys.argv[0]))  # os.getcwd() may not correct if call it from outside(?)
+# 'cwd' is for installtion, it may look like ~/Downloads/optract_release
+cwd = os.path.dirname(os.path.realpath(sys.argv[0]))  # os.getcwd() may not correct if click it from File manager(?)
+cwd = os.path.dirname(cwd)  # after pack by pyarmor, it's one folder deeper, and here we need the parent one
 
 # determine path of basedir
 if sys.platform.startswith('linux'):
@@ -42,8 +46,8 @@ ipfs_path = os.path.join(basedir, 'ipfs_repo')
 myenv['IPFS_PATH'] = ipfs_path
 
 FNULL = open(os.devnull, 'w')
-ipfsP = None
-nodeP = None
+# ipfsP = None  # no need to be global
+# nodeP = None
 
 # logging
 log_format = '[%(asctime)s] %(levelname)-7s : %(message)s'
@@ -83,6 +87,7 @@ def send_message(encoded_message):
 def startServer():
     send_message(encode_message('in starting server'))
     if os.path.exists(lockFile):
+        loggins.warning('Do nothing: lockFile exists in: '.format(lockFile))
         return
 
     ipfsConfigPath = os.path.join(basedir, "ipfs_repo", "config")
@@ -101,11 +106,19 @@ def startServer():
     ipfsLock = os.path.join(ipfsRepoPath, "repo.lock")
     while (not os.path.exists(ipfsAPI) or not os.path.exists(ipfsLock)):
         time.sleep(.01)
+    logging.info(' finish ipfs processing')
 
-    nodeCMD = os.path.join(basedir, "dist", "bin", "node")
-    daemonCMD =  os.path.join(basedir, "dist", "lib", "daemon.js")
     send_message(encode_message(' starting node processing'))
-    nodeP = subprocess.Popen([nodeCMD, daemonCMD], stdout=FNULL, stderr=subprocess.STDOUT)
+    node = os.path.join(basedir, 'dist', 'bin', 'node')
+    os.chdir(os.path.join(basedir, "dist", "lib"))  # there are relative path in js stdin
+    f = open(os.path.join(basedir, 'nodep.log'), 'w')
+    nodeP = subprocess.Popen([node], stdin=subprocess.PIPE, stdout=f, stderr=f)  # leave log to "f"
+    # nodeP = subprocess.Popen([node], stdin=subprocess.PIPE)  # don't leave log
+    op_daemon = threading.Thread(target=OptractDaemon.OptractDaemon, args=(nodeP, basedir))
+    op_daemon.daemon = True
+    op_daemon.start()
+    os.chdir(basedir)
+    logging.info(' daemon started')
     send_message(encode_message('finish starting server'))
     send_message(encode_message(str(nodeP)))
     return ipfsP, nodeP
@@ -116,16 +129,25 @@ def stopServer(ipfsP, nodeP):
     if os.path.exists(lockFile):
        os.remove(lockFile)
        send_message(encode_message('LockFile removed'))
-    nodeP.kill()
+    nodeP.terminate()
     send_message(encode_message('nodeP killed'))
     # This will not kill the ipfs by itself, but this is needed for the sys.exit() to kill it 
     ipfsP.terminate()
     # os.kill(ipfsP.pid, signal.SIGINT)
     send_message(encode_message('ipfsP killed signal sent'))
+    # just in case, help ipfs to remove ipfsAPI and ipfsLock
+    # ipfsAPI = os.path.join(ipfsRepoPath, "api")
+    # ipfsLock = os.path.join(ipfsRepoPath, "repo.lock")
+    # time.sleep(7)  # wait ipfs to finish; the default grace period is 10500 ms
+    # if os.path.isfile(ipfsAPI):
+    #     os.remove(ipfsAPI):
+    # if os.path.isfile(ipfsLock)
+    #     os.remove(ipfsLock)
+    return
 
 
 # functions related to installation
-def add_registry(basedir):
+def add_registry_chrome(basedir):
     # TODO: add remove_registry()
     if sys.platform == 'win32':
         keyVal = r'Software\Google\Chrome\NativeMessagingHosts\optract'
@@ -133,22 +155,45 @@ def add_registry(basedir):
             key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, keyVal, 0, winreg.KEY_ALL_ACCESS)
         except:
             key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, keyVal)
-        nativeMessagingMainfest = os.path.join(basedir, 'dist', 'optract-win.json')
+        nativeMessagingMainfest = os.path.join(basedir, 'dist', 'optract-win-chrome.json')
         winreg.SetValueEx(key, "", 0, winreg.REG_SZ, nativeMessagingMainfest)
         winreg.CloseKey(key)
+
+        # create optract-win-chrome.json
+        with open(nativeMessagingMainfest, 'w') as f:
+            manifest_content = create_manifest_chrome('nativeApp.exe')
+            f.write(manifest_content)
+    return
+
+
+def add_registry_firefox(basedir):
+    # TODO: add remove_registry()
+    if sys.platform == 'win32':
+        keyVal = r'SOFTWARE\Mozilla\NativeMessagingHosts\optract'
+        try:
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, keyVal, 0, winreg.KEY_ALL_ACCESS)
+        except:
+            key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, keyVal)
+        nativeMessagingMainfest = os.path.join(basedir, 'dist', 'optract-win-firefox.json')
+        winreg.SetValueEx(key, "", 0, winreg.REG_SZ, nativeMessagingMainfest)
+        winreg.CloseKey(key)
+
+        # create optract-win-firefox.json
+        with open(nativeMessagingMainfest, 'w') as f:
+            manifest_content = create_manifest_firefox('nativeApp.exe')
+            f.write(manifest_content)
     return
 
 
 def createConfig(basedir, dest_file):
     config = {
-        "datadir": os.path.join(basedir, "dist", "dapps"),
+        "datadir": basedir,  # while update, replace the "dist/" folder under basedir
         "rpcAddr": "https://rinkeby.infura.io/v3/f50fa6bf08fb4918acea4aadabb6f537",
         "defaultGasPrice": "20000000000",
         "gasOracleAPI": "https://ethgasstation.info/json/ethgasAPI.json",
         "condition": "sanity",
         "networkID": 4,
-        "passVault": os.path.join(basedir, "dist", "dapps", "myArchive.bcup"),  # this and 'keystore/' are hardcoded in daemon,js
-        # "passVault": os.path.join(basedir, "myArchive.bcup"),  # for now, copy into dist/dapps
+        "passVault": os.path.join(basedir, "myArchive.bcup"),  # for now, copy into dist/dapps
         "node": {
             "dappdir": os.path.join(basedir, "dist", "dapps"),
             "dns": {
@@ -193,7 +238,6 @@ def createConfig(basedir, dest_file):
         except KeyError:
             logging.warning('Cannot load "streamr" from previous config file. Use default: "false".')
 
-        # logging.warning('{0} already exists, will overwrite it'.format(dest_file))
         logging.warning('{0} already exists, will move it to {1}'.format(dest_file, dest_file + '.orig'))
         shutil.move(dest_file, dest_file+'.orig')
 
@@ -231,18 +275,18 @@ def prepare_basedir():
     os.mkdir(release_dir)
 
     # copy files to basedir
-    if sys.platform == 'win32':
-        nativeApp = os.path.join('nativeApp.exe')
-    else:
-        nativeApp = os.path.join('nativeApp')
+    # if sys.platform == 'win32':
+    #     nativeApp = os.path.join('nativeApp.exe')
+    # else:
+    #     nativeApp = os.path.join('nativeApp')
     logging.info('copy {0} to {1}'.format(os.path.join(cwd, 'bin'), os.path.join(release_dir, 'bin')))
     shutil.copytree(os.path.join(cwd, 'bin'), os.path.join(release_dir, 'bin'))
     logging.info('copy {0} to {1}'.format(os.path.join(cwd, 'dapps'), os.path.join(release_dir, 'dapps')))
     shutil.copytree(os.path.join(cwd, 'dapps'), os.path.join(release_dir, 'dapps'))
     logging.info('copy {0} to {1}'.format(os.path.join(cwd, 'lib'), os.path.join(release_dir, 'lib')))
     shutil.copytree(os.path.join(cwd, 'lib'), os.path.join(release_dir, 'lib'))
-    logging.info('copy {0} to {1}'.format(nativeApp, release_dir))
-    shutil.copy2(nativeApp, release_dir)
+    logging.info('copy {0} to {1}'.format('nativeApp', release_dir))
+    shutil.copytree(os.path.join(cwd, 'nativeApp'), os.path.join(release_dir, 'nativeApp'))
     extract_node_modules(os.path.join(cwd, 'node_modules.tar'), release_dir)
 
     return
@@ -270,49 +314,82 @@ def init_ipfs(ipfs_repo):
     return
 
 
-def symlink_data(target, name, force=False):
-    if os.path.islink(name) and force==True:
-        os.remove(name)
-    try:
-        os.symlink(target, name)
-    except:
-        logging.warning("Failed to symlink to {0}. Please check manually. Error message:\n{1}".format(target, sys.exc_info()[1]))
+def check_mainfest(manifest_file):
+    with open(manifest_file, 'r') as f:
+        manifest_data = f.readlines()
+    manifest = ''.join(manifest_data)
+    if '{username}' in manifest or '{extension-id}' in manifest:
+        raise BaseException('Please fill in username and extension-id in {0} (or update ./resources/optract.json and run install again).'.format(manifest_file))
     return
 
 
-def copy_data(src, dest, force=False):
-    if os.path.exists(dest) and force==True:
-        os.remove(dest)
-    if os.path.isdir(src):
-        try:
-            shutil.copytree(src, dest)
-        except:
-            logging.warning("Failed to copy directory from {0} to {1}. Please check manually. Error message:\n{2}".format(src, dest, sys.exc_info()[1]))
-    else:
-        try:
-            shutil.copyfile(src, dest)
-        except:
-            logging.warning("Failed to copy file from {0} to {1}. Please check manually. Error message:\n{2}".format(src, dest, sys.exc_info()[1]))
+def create_manifest_chrome(nativeAppPath):
+    extension_id = "jlanclpnebjipbolljoenepmcofibpmk"
+    manifest_json = {
+      "name": "optract",
+      "description": "optract server",
+      "path": nativeAppPath,
+      "type": "stdio",
+      "allowed_origins": [ "chrome-extension://{0}/".format(extension_id) ]
+    }
+    return manifest_json
+
+
+def create_manifest_firefox(nativeAppPath):
+    extension_id = "{5b2b58c5-1a22-4893-ac58-9ca33f27cdd4}"
+    manifest_json= {
+      "name": "optract",
+      "description": "optract server",
+      "path": nativeAppPath,
+      "type": "stdio",
+      "allowed_extensions": [ extension_id ]
+    }
+    return manifest_json
+
+
+def mkdir(dirname):  # if parent dir exists and dirname does not exist
+    if os.path.isdir(os.path.dirname(dirname)) and not os.path.isdir(dirname):
+        os.mkdir(dirname)
     return
 
 
-def sym_or_copy_data(basedir):
-    # This function is for developer only. Assume previous config or dir exists.
-    # symlink or copy: "ipfs_repo/", "config.json", "keystore", "myArchive.bcup"
-    # should deprecate this function after update daemon.js, make daemon.js read data files outside "dist"
-    logging.info('Now trying to copy or symlink existing files inside ' + basedir)
-    dir_keystore = os.path.join(basedir, 'keystore')
-    file_passvault = os.path.join(basedir, 'myArchive.bcup')
-    if sys.platform == 'win32':  # In windows, need to run as administrator to symlink(?), so use copy instead
-        symcopy = copy_data
-    else:
-        symcopy = symlink_data
-    symcopy(os.path.join(basedir, 'config.json'), os.path.join(basedir, 'dist', 'dapps', 'config.json'), force=True)
-    if os.path.isdir(dir_keystore) and os.path.isfile(file_passvault):
-        symcopy(dir_keystore, os.path.join(basedir, 'dist', 'dapps', 'keystore'))
-        symcopy(file_passvault, os.path.join(basedir, 'dist', 'dapps', 'myArchive.bcup'))
-    else:
-        os.mkdir(os.path.join(basedir, 'dist', 'dapps', 'keystore'))
+def create_and_write_manifest(browser):
+    if browser not in ['firefox', 'chrome']:
+        raise BaseException('Unsupported browser {0}'.format(browser))
+
+    # create manifest file and write to native message folder
+    if sys.platform.startswith('win32'):
+        if browser == 'chrome':
+            add_registry_chrome(basedir)
+        elif browser == 'firefox':
+            add_registry_firefox(basedir)
+    else:  # unix-like
+        # determine native message directory for different OS and browsers
+        # TODO: make sure user already has at least one browser installed
+        if sys.platform.startswith('linux') and browser == 'chrome':
+            nativeMsgDir = os.path.expanduser('~/.config/google-chrome/NativeMessagingHosts')
+        elif sys.platform.startswith('linux') and browser == 'firefox':
+            nativeMsgDir = os.path.expanduser('~/.mozilla/native-messaging-hosts')
+        elif sys.platform.startswith('darwin') and browser == 'chrome':
+            nativeMsgDir = os.path.expanduser('~/Library/Application Support/Google/Chrome/NativeMessagingHosts')
+        elif sys.platform.startswith('darwin') and browser == 'firefox':
+            nativeMsgDir = os.path.expanduser('~/Library/Application Support/Mozilla/NativeMessagingHosts')
+        else:
+            logging.warning('you should not reach here...')
+            raise BaseException('Unsupported platform')
+        mkdir(nativeMsgDir)
+        nativeAppPath = os.path.join(basedir, 'dist', 'nativeApp', 'nativeApp')
+
+        # create content for manifest file of native messaging
+        if browser == 'chrome':
+            manifest_content = create_manifest_chrome(nativeAppPath)
+        elif browser == 'firefox':
+            manifest_content = create_manifest_firefox(nativeAppPath)
+
+        # write manifest file
+        manifest_path = os.path.join(nativeMsgDir, 'optract.json')
+        with open(manifest_path, 'w') as f:
+            json.dump(manifest_content, f, indent=4)
     return
 
 
@@ -329,21 +406,10 @@ def install():
     createConfig(basedir, config_file)
 
     init_ipfs(ipfs_path)
-    sym_or_copy_data(basedir)
 
-    # add to native message
-    if sys.platform.startswith('win32'):
-        add_registry(basedir)
-        nativeMsgDir = os.path.join(basedir, "dist")
-        shutil.copy2(os.path.join(cwd, 'optract-win.json'), nativeMsgDir)
-    elif sys.platform.startswith('linux'):
-        nativeMsgDir = os.path.expanduser('~/.config/google-chrome/NativeMessagingHosts')
-        shutil.copy2(os.path.join(cwd, 'optract.json'), nativeMsgDir)
-    elif sys.platform.startswith('darwin'):
-        nativeMsgDir = os.path.expanduser('~/Library/Application Support/Google/Chrome/NativeMessagingHosts')
-        shutil.copy2(os.path.join(cwd, 'optract.json'), nativeMsgDir)
-    else:
-        logging.warning('you should not reach here...')
+    # install for all supporting browsers
+    create_and_write_manifest("firefox")
+    create_and_write_manifest("chrome")
 
     # done
     logging.info('Done! Optract is ready to use.')
@@ -371,22 +437,29 @@ def main():
         #    send_message(encode_message("pong")) 
         if "pong" in message.values() and started == True:
             started = False
+            logging.info('closing native app...')
             send_message(encode_message('pong->ping'))
             stopServer(ipfsP, nodeP)
             send_message(encode_message('pong->ping more'))
             send_message(encode_message('close native app which will also shutdown the ipfs'))
-            logging.info('close native app')
+            logging.info('native app closed')
             sys.exit(0)
     return
 
 
 if __name__ == '__main__':
     # startServer()
+    # print(create_manifest_chrome('nativeApp.exe'))
+    # print(create_manifest_firefox('nativeApp.exe'))
     if len(sys.argv) > 1:
         if sys.argv[1] == 'install':
-            print 'Installing... please see the progress in logfile: ' + logfile
-            print 'Please also download Optract browser extension from optract.com or browser extension store or addon page'
+            print('Installing... please see the progress in logfile: ' + logfile)
+            print('Please also download Optract browser extension.')
             install()
+        elif sys.argv[1] == 'test':
+            ipfsP, nodeP = startServer()
+            raw_input("enter anything to stop...")
+            stopServer(ipfsP, nodeP)
         else:
             main()
     else:
