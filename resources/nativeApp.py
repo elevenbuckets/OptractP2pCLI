@@ -16,6 +16,7 @@ import shutil
 import tarfile
 import OptractDaemon
 import threading
+import ctypes
 
 # On Windows, the default I/O mode is O_TEXT. Set this to O_BINARY
 # to avoid unwanted modifications of the input/output streams.
@@ -36,7 +37,7 @@ if sys.platform.startswith('linux'):
 elif sys.platform.startswith('darwin'):
     basedir = os.path.expanduser("~/.config/Optract")
 elif sys.platform.startswith('win32'):
-    basedir = os.path.expanduser("~\AppData\Local\Optract")
+    basedir = os.path.expanduser("~\\AppData\\Local\\Optract")
 if not os.path.isdir(basedir):
     os.mkdir(basedir)
 
@@ -84,36 +85,60 @@ def send_message(encoded_message):
     sys.stdout.flush()
 
 
+def _set_pdeathsig(sig=signal.SIGTERM):
+    """help function to ensure once parent process exits, its childrent processes will automatically die
+    """
+    def callable():
+        libc = ctypes.CDLL("libc.so.6")
+        return libc.prctl(1, signal.SIGTERM)
+    return callable
+
+
 def startServer():
     send_message(encode_message('in starting server'))
     if os.path.exists(lockFile):
-        loggins.warning('Do nothing: lockFile exists in: '.format(lockFile))
+        logging.error('Do nothing: lockFile exists in: {}'.format(lockFile))
         return
 
     ipfsConfigPath = os.path.join(basedir, "ipfs_repo", "config")
     ipfsBinPath = os.path.join(basedir, "dist", "bin", "ipfs")
     ipfsRepoPath = ipfs_path
+    ipfsAPI = os.path.join(ipfsRepoPath, "api")
+    ipfsLock = os.path.join(ipfsRepoPath, "repo.lock")
+
     if not os.path.exists(ipfsConfigPath):
         send_message(encode_message('before init ipfs'))
         subprocess.check_call([ipfsBinPath, "init"], env=myenv, stdout=FNULL, stderr=subprocess.STDOUT)
         return startServer()
     else:
         send_message(encode_message('before starting ipfs'))
-        ipfsP = subprocess.Popen([ipfsBinPath, "daemon", "--routing=dhtclient"], env=myenv, stdout=FNULL, stderr=subprocess.STDOUT)
+        if os.path.exists(ipfsAPI):
+            os.remove(ipfsAPI)
+        if os.path.exists(ipfsLock):
+            os.remove(ipfsLock)
+        if sys.platform.startswith('linux'):
+            ipfsP = subprocess.Popen([ipfsBinPath, "daemon", "--routing=dhtclient"], env=myenv, stdout=FNULL,
+                                     stderr=subprocess.STDOUT, preexec_fn=_set_pdeathsig(signal.SIGTERM))
+        else:
+            ipfsP = subprocess.Popen([ipfsBinPath, "daemon", "--routing=dhtclient"], env=myenv, stdout=FNULL,
+                                     stderr=subprocess.STDOUT)
         send_message(encode_message('after starting ipfs'))
+
     send_message(encode_message(' finish ipfs processing'))
-    ipfsAPI = os.path.join(ipfsRepoPath, "api")
-    ipfsLock = os.path.join(ipfsRepoPath, "repo.lock")
     while (not os.path.exists(ipfsAPI) or not os.path.exists(ipfsLock)):
         time.sleep(.01)
     logging.info(' finish ipfs processing')
 
     send_message(encode_message(' starting node processing'))
-    node = os.path.join(basedir, 'dist', 'bin', 'node')
+    nodeCMD = os.path.join(basedir, 'dist', 'bin', 'node')
     os.chdir(os.path.join(basedir, "dist", "lib"))  # there are relative path in js stdin
-    f = open(os.path.join(basedir, 'nodep.log'), 'w')
-    nodeP = subprocess.Popen([node], stdin=subprocess.PIPE, stdout=f, stderr=f)  # leave log to "f"
-    # nodeP = subprocess.Popen([node], stdin=subprocess.PIPE)  # don't leave log
+    # f = open(os.path.join(basedir, 'nodep.log'), 'w')  # for debug, uncomment this 2 lines and comment the second nodeP
+    # nodeP = subprocess.Popen([node], stdin=subprocess.PIPE, stdout=f, stderr=f)  # leave log to "f"
+    if sys.platform.startswith('linux'):
+        nodeP = subprocess.Popen([nodeCMD], stdin=subprocess.PIPE, stdout=FNULL, stderr=subprocess.STDOUT,
+                                 preexec_fn=_set_pdeathsig(signal.SIGTERM))
+    else:
+        nodeP = subprocess.Popen([nodeCMD], stdin=subprocess.PIPE, stdout=FNULL, stderr=subprocess.STDOUT)
     op_daemon = threading.Thread(target=OptractDaemon.OptractDaemon, args=(nodeP, basedir))
     op_daemon.daemon = True
     op_daemon.start()
@@ -135,14 +160,6 @@ def stopServer(ipfsP, nodeP):
     ipfsP.terminate()
     # os.kill(ipfsP.pid, signal.SIGINT)
     send_message(encode_message('ipfsP killed signal sent'))
-    # just in case, help ipfs to remove ipfsAPI and ipfsLock
-    # ipfsAPI = os.path.join(ipfsRepoPath, "api")
-    # ipfsLock = os.path.join(ipfsRepoPath, "repo.lock")
-    # time.sleep(7)  # wait ipfs to finish; the default grace period is 10500 ms
-    # if os.path.isfile(ipfsAPI):
-    #     os.remove(ipfsAPI):
-    # if os.path.isfile(ipfsLock)
-    #     os.remove(ipfsLock)
     return
 
 
@@ -161,8 +178,8 @@ def add_registry_chrome(basedir):
 
         # create optract-win-chrome.json
         with open(nativeMessagingMainfest, 'w') as f:
-            manifest_content = create_manifest_chrome('nativeApp.exe')
-            f.write(manifest_content)
+            manifest_content = create_manifest_chrome('nativeApp\\nativeApp.exe')
+            json.dump(manifest_content, f, indent=4)
     return
 
 
@@ -180,8 +197,8 @@ def add_registry_firefox(basedir):
 
         # create optract-win-firefox.json
         with open(nativeMessagingMainfest, 'w') as f:
-            manifest_content = create_manifest_firefox('nativeApp.exe')
-            f.write(manifest_content)
+            manifest_content = create_manifest_firefox('nativeApp\\nativeApp.exe')
+            json.dump(manifest_content, f, indent=4)
     return
 
 
@@ -289,6 +306,11 @@ def prepare_basedir():
     shutil.copytree(os.path.join(cwd, 'nativeApp'), os.path.join(release_dir, 'nativeApp'))
     extract_node_modules(os.path.join(cwd, 'node_modules.tar'), release_dir)
 
+    logging.info('creating keystore folder if necessary')
+    key_folder = os.path.join(basedir, 'keystore')
+    if not os.path.isdir(key_folder):
+        os.mkdir(key_folder)
+
     return
 
 
@@ -324,7 +346,8 @@ def check_mainfest(manifest_file):
 
 
 def create_manifest_chrome(nativeAppPath):
-    extension_id = "jlanclpnebjipbolljoenepmcofibpmk"
+    # extension_id = "jlanclpnebjipbolljoenepmcofibpmk"
+    extension_id = extid['chrome']
     manifest_json = {
       "name": "optract",
       "description": "optract server",
@@ -336,7 +359,8 @@ def create_manifest_chrome(nativeAppPath):
 
 
 def create_manifest_firefox(nativeAppPath):
-    extension_id = "{5b2b58c5-1a22-4893-ac58-9ca33f27cdd4}"
+    # extension_id = "{5b2b58c5-1a22-4893-ac58-9ca33f27cdd4}"
+    extension_id = extid['firefox']
     manifest_json= {
       "name": "optract",
       "description": "optract server",
@@ -407,9 +431,12 @@ def install():
 
     init_ipfs(ipfs_path)
 
-    # install for all supporting browsers
+    # install for all supporting browsers (for now assume firefox is the must)
     create_and_write_manifest("firefox")
-    create_and_write_manifest("chrome")
+    try:
+        create_and_write_manifest("chrome")
+    except:
+        pass
 
     # done
     logging.info('Done! Optract is ready to use.')
@@ -455,6 +482,9 @@ if __name__ == '__main__':
         if sys.argv[1] == 'install':
             print('Installing... please see the progress in logfile: ' + logfile)
             print('Please also download Optract browser extension.')
+            extid_file = os.path.join(cwd, 'extension_id.json')
+            with open(extid_file, 'r') as f:
+                extid = json.load(f)
             install()
         elif sys.argv[1] == 'test':
             ipfsP, nodeP = startServer()
