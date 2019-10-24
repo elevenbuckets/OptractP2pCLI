@@ -53,6 +53,7 @@ Under `$basedir` there (will) contain files and directories:
 - Now there's a `dist` folder and the corresponding archive `Optract*.tar.gz`.
 
 ## To install
+- **close browsers which has optract installed**
 - (optional) copy existing `keystore/` and `myArchive.bcup` to `$basedir`. The install script
   will symlink to those files.
 - (optional) copy or move existing `ipfs_repo` to the `$basedir`.

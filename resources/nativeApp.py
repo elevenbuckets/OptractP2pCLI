@@ -112,9 +112,9 @@ def startServer():
         return startServer()
     else:
         send_message(encode_message('before starting ipfs'))
-	if os.path.exists(ipfsAPI):
+        if os.path.exists(ipfsAPI):
             os.remove(ipfsAPI)
-	if os.path.exists(ipfsLock):
+        if os.path.exists(ipfsLock):
             os.remove(ipfsLock)
         if sys.platform.startswith('linux'):
             ipfsP = subprocess.Popen([ipfsBinPath, "daemon", "--routing=dhtclient"], env=myenv, stdout=FNULL,
@@ -305,6 +305,11 @@ def prepare_basedir():
     logging.info('copy {0} to {1}'.format('nativeApp', release_dir))
     shutil.copytree(os.path.join(cwd, 'nativeApp'), os.path.join(release_dir, 'nativeApp'))
     extract_node_modules(os.path.join(cwd, 'node_modules.tar'), release_dir)
+
+    logging.info('creating keystore folder if necessary')
+    key_folder = os.path.join(basedir, 'keystore')
+    if not os.path.isdir(key_folder):
+        os.mkdir(key_folder)
 
     return
 

@@ -55,12 +55,13 @@ shutil.copytree(os.path.join(basedir, 'resources', 'dist', 'nativeApp'),
 os.chdir(os.path.join(basedir))
 
 # pack
-package = 'OptractClient_win64.tar.gz'
+package = 'OptractClient_win64'
 if os.path.isfile(package):
     os.remove(package)
 
 print('# packing...')
-# with tarfile.open(package, 'w') as tar:  # use uncompres during dev only
-with tarfile.open(package, 'w:gz') as tar:
-    tar.add('dist')  # use relative path
+shutil.make_archive(package, 'zip', 'dist')
+# with tarfile.open(package, 'w') as tar:  # do not compres 
+# with tarfile.open(package, 'w:gz') as tar:
+#     tar.add('dist')  # use relative path
 print('Done!')
