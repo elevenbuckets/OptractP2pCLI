@@ -474,7 +474,7 @@ if __name__ == '__main__':
         if sys.argv[1] == 'install':
             print('Installing... please see the progress in logfile: ' + logfile)
             print('Please also download Optract browser extension.')
-            extid_file = os.path.join(cwd, '..', 'resources', 'extension_id.json')
+            extid_file = os.path.join(cwd, 'extension_id.json')
             with open(extid_file, 'r') as f:
                 extid = json.load(f)
             install()
