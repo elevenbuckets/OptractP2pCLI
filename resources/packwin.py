@@ -38,10 +38,13 @@ shutil.copytree(os.path.join(basedir, 'dapps'),
                 os.path.join(basedir, 'dist', 'dapps'))
 shutil.copy2(os.path.join(basedir, 'resources', 'optract-win.json'),
              os.path.join(basedir, 'dist'))
+shutil.copy2(os.path.join(basedir, 'resources', 'extension_id.json'),
+             os.path.join(basedir, 'dist'))
 shutil.copy2(os.path.join(basedir, 'resources', 'install.bat'),
              os.path.join(basedir, 'dist'))
 
-# copy nativeApp.py
+# pack and copy nativeApp
+print('# pack nativeApp')
 os.chdir(os.path.join(basedir, 'resources'))
 # subprocess.check_call(["pyinstaller", "-F", "nativeApp.py"])
 subprocess.check_call(["pyarmor", "pack", "nativeApp.py"])

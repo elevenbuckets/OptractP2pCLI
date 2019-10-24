@@ -197,7 +197,7 @@ def add_registry_firefox(basedir):
 
         # create optract-win-firefox.json
         with open(nativeMessagingMainfest, 'w') as f:
-            manifest_content = create_manifest_chrome('nativeApp\\nativeApp.exe')
+            manifest_content = create_manifest_firefox('nativeApp\\nativeApp.exe')
             json.dump(manifest_content, f, indent=4)
     return
 
@@ -426,9 +426,12 @@ def install():
 
     init_ipfs(ipfs_path)
 
-    # install for all supporting browsers
+    # install for all supporting browsers (for now assume firefox is the must)
     create_and_write_manifest("firefox")
-    create_and_write_manifest("chrome")
+    try:
+        create_and_write_manifest("chrome")
+    except:
+        pass
 
     # done
     logging.info('Done! Optract is ready to use.')
