@@ -341,7 +341,8 @@ def check_mainfest(manifest_file):
 
 
 def create_manifest_chrome(nativeAppPath):
-    extension_id = "jlanclpnebjipbolljoenepmcofibpmk"
+    # extension_id = "jlanclpnebjipbolljoenepmcofibpmk"
+    extension_id = extid['chrome']
     manifest_json = {
       "name": "optract",
       "description": "optract server",
@@ -353,7 +354,8 @@ def create_manifest_chrome(nativeAppPath):
 
 
 def create_manifest_firefox(nativeAppPath):
-    extension_id = "{5b2b58c5-1a22-4893-ac58-9ca33f27cdd4}"
+    # extension_id = "{5b2b58c5-1a22-4893-ac58-9ca33f27cdd4}"
+    extension_id = extid['firefox']
     manifest_json= {
       "name": "optract",
       "description": "optract server",
@@ -472,6 +474,9 @@ if __name__ == '__main__':
         if sys.argv[1] == 'install':
             print('Installing... please see the progress in logfile: ' + logfile)
             print('Please also download Optract browser extension.')
+            extid_file = os.path.join(cwd, '..', 'resources', 'extension_id.json')
+            with open(extid_file, 'r') as f:
+                extid = json.load(f)
             install()
         elif sys.argv[1] == 'test':
             ipfsP, nodeP = startServer()
