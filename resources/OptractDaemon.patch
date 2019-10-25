@@ -1,0 +1,178 @@
+--- pld.js	2019-10-25 23:26:29.000000000 +0100
++++ OptractDaemon.py	2019-10-25 23:25:34.000000000 +0100
+@@ -1,3 +1,19 @@
++#!/usr/bin/env python
++# -*- coding: utf-8 -*-
++# note: generate patch file from an updated OptractDaemon.py
++# 1. cat pubsubNode.js libSampleTickets.js daemon.js > OptractDaemon.js-orig
++# 2. diff -Naur OptractDaemon.js-orig OptractDaemon.py > OptractDaemon.patch
++#
++# note: generate this file (OptractDaemon.py) using patch file
++# 1. cat pubsubNode.js libSampleTickets.js daemon.js > OptractDaemon.js-orig
++# 2. patch -p0 < OptractDaemon.patch
++# 3. mv OptractDaemon.js-oirg OptractDaemon.py
++#
++import os
++import subprocess
++
++# contain three js files: pubsubNode.js, libSampleTickets.js, daemon.js
++code = r'''
+ 'use strict';
+ 
+ const swarm = require('discovery-swarm');
+@@ -294,9 +310,6 @@
+ 	}
+ }
+ 
+-module.exports = PubSub;
+-#!/usr/bin/env node
+-'use strict';
+ /*
+ The purpose here is to sample some tickets from a given array `tickets` base on the `lotteryWinNumber`.
+ Both `lotteryWinNumber` and `tickets` are hex string of length 64 (or 66 if include prefix '0x').
+@@ -385,26 +398,18 @@
+ }
+ 
+ 
+-module.exports = RandomSampleTicket;
+-'use strict';
+-
+-const fs = require('fs');
+ const repl = require('repl');
+-const path = require('path');
+ const figlet = require('figlet');
+ const readline = require('readline');
+-const PubSubNode = require('./pubsubNode.js');
+ const OptractMedia = require('../dapps/OptractMedia/OptractMedia.js');
+ const ipfsClient = require('ipfs-http-client');
+ const mr = require('@postlight/mercury-parser');
+ const bs58 = require('bs58');
+ const diff = require('json-diff').diff;
+-const ethUtils = require('ethereumjs-utils');
+ const MerkleTree = require('merkle_tree');
+ const WSServer = require('rpc-websockets').Server;
+ const mkdirp = require('mkdirp');
+ const Parser = require('rss-parser');
+-const Lottery = require('./libSampleTickets.js');
+ const request = require('request');
+ const StreamrClient = require('streamr-client');
+ const { soliditySha3 } = require('web3-utils');
+@@ -494,41 +499,6 @@
+ }
+ 
+ // Common Tx
+-const mfields =
+-[
+-        {name: 'opround', length: 32,   allowLess: true, default: Buffer.from([]) },  // opround integer
+-        {name: 'account', length: 20,   allowZero: true, default: Buffer.from([]) },  // user (autherized) address
+-        {name: 'comment', length: 32,   allowLess: true, default: Buffer.from([]) },  // ipfs hash (comment)
+-        {name:   'title', length: 1024, allowLess: true, allowZero: true, default: Buffer.from([]) },  // article title
+-        {name:     'url', length: 1024, allowLess: true, allowZero: true, default: Buffer.from([]) },  // article url
+-        {name:     'aid', length: 32,   allowZero: true, default: Buffer.from([]) },  // sha256(title+domain), bytes32
+-        {name:     'oid', length: 32,   allowLess: true, default: Buffer.from([]) },  // participating game round ID, bytes32
+-        {name: 'v1block', length: 32,   allowLess: true, default: Buffer.from([]) },  // 1st vote block
+-        {name:  'v1leaf', length: 32,   allowLess: true, default: Buffer.from([]) },  // 1st vote txhash
+-        {name: 'v2block', length: 32,   allowLess: true, default: Buffer.from([]) },  // 2nd vote (claim) block
+-        {name:  'v2leaf', length: 32,   allowLess: true, default: Buffer.from([]) },  // 2nd vote (claim) txhash
+-        {name:   'since', length: 32,   allowLess: true, default: Buffer.from([]) },  // timestamp, uint
+-        {name: 'v1proof', length: 768,  allowLess: true, allowZero: true, default: Buffer.from([]) },  // 1st vote merkle proof
+-        {name:  'v1side', length: 3,    allowLess: true, allowZero: true, default: Buffer.from([]) },  // 1st vote merkle proof (side)
+-        {name: 'v2proof', length: 768,  allowLess: true, allowZero: true, default: Buffer.from([]) },  // 2nd vote merkle proof
+-        {name:  'v2side', length: 3,    allowLess: true, allowZero: true, default: Buffer.from([]) },  // 2nd vote merkle proof (side)
+-        {name:  'txhash', length: 32,   allowZero: true, default: Buffer.from([]) },  // txhash
+-        {name:       'v', allowZero: true, default: Buffer.from([0x1c]) },
+-        {name:       'r', allowZero: true, length: 32, default: Buffer.from([]) },
+-        {name:       's', allowZero: true, length: 32, default: Buffer.from([]) }
+-];
+-
+-const pfields =
+-[
+-        {name: 'nonce', length: 32, allowLess: true, default: Buffer.from([]) },
+-        {name: 'pending', length: 32, allowLess: true, default: Buffer.from([]) },
+-        {name: 'validator', length: 20, allowZero: true, default: Buffer.from([]) },
+-        {name: 'cache', length: 32, allowLess: true, default: Buffer.from([]) }, // ipfs hash of [txhs, txpd, txdt]
+-        {name: 'since', length: 32, allowLess: true, default: Buffer.from([]) },
+-        {name: 'v', allowZero: true, default: Buffer.from([0x1c]) },
+-        {name: 'r', allowZero: true, length: 32, default: Buffer.from([]) },
+-        {name: 's', allowZero: true, length: 32, default: Buffer.from([]) }
+-];
+ 
+ // Random array element pick utils
+ const __random_avoid = (n,i) => {
+@@ -554,7 +524,7 @@
+ }
+ 
+ //Main
+-class OptractNode extends PubSubNode {
++class OptractNode extends PubSub {
+ 	constructor(cfgObj) {
+ 		super(cfgObj);
+ 
+@@ -1893,7 +1863,7 @@
+ 				let blk2 = rc[1][1];  // lottery block no.
+ 				let lotteryWinNumber = rc[1][2];
+ 				
+-				let lottery = new Lottery();
++				let lottery = new RandomSampleTicket();
+ 
+ 				let output = { opround: op, account: acc, curated: {}, voted: {}, aids: {} };
+ 				if (lotteryWinNumber === '0x0000000000000000000000000000000000000000000000000000000000000000') return output;
+@@ -1956,7 +1926,7 @@
+ 				let blk2 = rc[1][1];  // lottery block no.
+ 				let lotteryWinNumber = rc[1][2];
+ 				
+-				let lottery = new Lottery();
++				let lottery = new RandomSampleTicket();
+ 
+ 				let output = { opround: op, curated: {}, voted: {}, aids: {} };
+ 				if (lotteryWinNumber === '0x0000000000000000000000000000000000000000000000000000000000000000') return output;
+@@ -3284,7 +3254,7 @@
+         	return new Promise(__ready);
+ 	}
+ 
+-	return connectRPC('ws://127.0.0.1:59437')
++	connectRPC('ws://127.0.0.1:59437')
+ 	 .then((rc) => 
+ 	 {
+ 		if (!rc) throw("failed connection");
+@@ -3857,7 +3827,7 @@
+ 				 opt.db.get(['block', blkNo, 'aid', 'tree'], (err,val) => {
+ 					 if (err) return reject(err);
+ 
+-					 let lottery = new Lottery();
++					 let lottery = new RandomSampleTicket();
+ 					 let results = [];
+ 					 Object.keys(val).map((aid) => {
+ 						if (__is_curation_aid(aid)) {
+@@ -3886,7 +3856,7 @@
+ 						 resolve([]);
+ 					 }
+ 
+-					 let lottery = new Lottery();
++					 let lottery = new RandomSampleTicket();
+ 					 let { url, ...txs } = val; // url should be empty here.
+ 					 let queue = Object.keys(txs).map((txhash) => {
+ 						   return opt.locateTx(blkNo)(txhash).then((txdata) => {
+@@ -4431,3 +4401,22 @@
+ 	 })
+ 	 .catch((err) => { console.trace(err); })
+ }
++'''
++
++def OptractDaemon(nodeP, basedir):
++    # if os.path.isfile(os.path.join('../bin', 'node')):
++    #     node = os.path.join('../bin', 'node')
++    # elif os.path.isfile(os.path.join('bin', 'node')):
++    #     node = os.path.join('bin', 'node')
++    # else:
++    #     raise BaseException('cannot find node binary not exists in bin or ../bin')
++    # p = subprocess.Popen([node],  stdin=subprocess.PIPE)  #, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
++    os.chdir(os.path.join(basedir, "dist", "lib"))
++    out = nodeP.communicate(input=code)
++    # print(out[0])  # stdout
++    # print(out[1])  # stderr
++    return
++
++
++if __name__ == '__main__':
++    print("this is a module ")

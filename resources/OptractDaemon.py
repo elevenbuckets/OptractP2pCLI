@@ -657,7 +657,8 @@ class OptractNode extends PubSub {
 			"/ipfs/QmZvNGaxC5fHmYUG7e1nPWui7nQrwyNi5LSctKbvT8AyBj",
 			"/ipfs/QmPKSjMv3Zp9tdAGFEPMjUtmQjdyHC6HKbEyCgfPNEFDAh",
 			"/ipfs/QmZ8UKL6ceuMXEk2WdDGfEx8KLR6ZAAKbyYHcLTcjpibLW",
-			"/ipfs/QmWqVP4i86MWg8qmKir52oyyK7vCmFK4sXvwaCapM9C2mg"
+			"/ipfs/QmWqVP4i86MWg8qmKir52oyyK7vCmFK4sXvwaCapM9C2mg",
+			"/ipfs/QmeFxsaJHmntYuiUnLy7JRm44HiE8GbYyD4dakxcGsfcn6"
 		];
 
 		this.infuraLB = {
@@ -3543,6 +3544,7 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 			})
 
 			var streamrSurvey;
+			var streamrSignUp;
 
 			const __surveyInfluence = (msg) =>
 			{
@@ -3577,6 +3579,35 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 				}).catch((err) => { console.log('Error in surveyInfluence:'); console.trace(err); })
 			}
 
+			const __registration = (msg) =>
+			{
+				// msg format:
+				// { ethAddress, notes: {} }
+
+				let apiKey = 'sAUr1J40SfizLiz3NSVftAlUCknR9DQIeq25Hjp6VC0w';
+				let streamId = 'hJroNiZSTK6hWlj6C0hQaQ';
+
+				if (typeof (streamrSignUp) === 'undefined' || !streamrSignUp instanceof StreamrClient) {
+					streamrSignUp = new StreamrClient({ auth: { apiKey }});
+
+					streamrSignUp.on('connected', () => {
+						console.log(`DEBUG streamr: connected with apiKey ${apiKey}`)
+					});
+
+					streamrSignUp.on('disconnected', () => {
+						console.log(`DEBUG streamr: ByeBye, ${apiKey}`)
+					});
+
+					streamrSignUp.connect();
+				}
+
+				return streamrSignUp.ensureConnected().then(()=>{
+					return streamrSignUp.getStream(streamId).then((stream) => {
+						return stream.publish(msg);
+					})
+				}).catch((err) => { console.log('Error in registration:'); console.trace(err); })
+			}
+
 			r.register('sendInfluence', (msg) => { return __surveyInfluence(msg); });
 
 			r.register('surveyClaim', (obj) => {
@@ -3588,6 +3619,13 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 				];
 
 				return Promise.all(p).catch((err) => { console.log('Error in surveyClaim'); console.trace(err); });
+			})
+
+			r.register('signMeUp', () => {
+				let ethAddress = opt.userWallet[opt.appName];
+				console.log(`DEBUG: my address: ${ethAddress}`);
+				if (!ethAddress) return Promise.reject(false);
+				return __registration({ethAddress, notes: {} });
 			})
 
 			r.register('locateTx', (obj) =>
@@ -4273,6 +4311,20 @@ if (!appCfg.daemon && appCfg.wsrpc) {
 						   })
                                 })
 			}
+
+			// membership and token
+			r.register('airdrop', (args) =>
+			{
+				let account = args[0];
+				let QOTamount = args[1];   // remember there are 12 digits for QOT
+				return opt.sendTk(opt.appName)('MemberShip')('airdrop')(account, QOTamount)();
+			})
+
+			r.register('giveMembership', (args) =>
+			{
+				let account = args[0];
+				return opt.sendTk(opt.appName)('MemberShip')('giveMembership')(account)();
+			})
 
 			//NOTE: DEBUG only
 			r.register('dumpCaches', () => {
