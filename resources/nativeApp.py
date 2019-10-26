@@ -88,9 +88,11 @@ def send_message(encode_message):
 def startServer():
     logging.info('debug: basedir={0}'.format(basedir)) 
     # send_message(encode_message('in starting server'))
-    if os.path.exists(lockFile):
-        logging.error('Do nothing: lockFile exists in: {0}'.format(lockFile))
-        return
+    if not sys.platform.startswith('win32'):
+        if os.path.exists(lockFile):
+            logging.error('Do nothing: lockFile exists in: {0}'.format(lockFile))
+            sys.exit(0)
+            return
 
     ipfsConfigPath = os.path.join(basedir, "ipfs_repo", "config")
     ipfsBinPath = os.path.join(basedir, "dist", "bin", "ipfs")
@@ -484,7 +486,7 @@ def launcher():
         pl = pl.split("\n")[0:-1]
         if (len(pl) == 0):
             stopServer(ipfsP, nodeP)
-            sys.exit(0);
+            sys.exit(0)
     return
 
 

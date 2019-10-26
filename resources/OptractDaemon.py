@@ -895,7 +895,7 @@ class OptractNode extends PubSub {
                         fs.closeSync(fs.openSync(lpath, 'w'))
                 }
 
-		__lock_file(path.dirname(this.appCfgs.datadir));
+		__lock_file(path.join(this.appCfgs.datadir, 'dist'));
 
 		// JSON for now, leveldb soon
 		const Pathwise = require('level-pathwise');
