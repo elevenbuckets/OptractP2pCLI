@@ -78,92 +78,88 @@ def encode_message(message_content):
     return {'length': encoded_length, 'content': encoded_content}
 
 
-# Send an encoded message to stdout.
-def send_message(encoded_message):
-    sys.stdout.write(encoded_message['length'])
-    sys.stdout.write(encoded_message['content'])
+def send_message(encode_message):
+    sys.stdout.write(encode_message['length'])
+    sys.stdout.write(encode_message['content'])
     sys.stdout.flush()
-
-
-def _set_pdeathsig(sig=signal.SIGTERM):
-    """help function to ensure once parent process exits, its childrent processes will automatically die
-    """
-    def callable():
-        libc = ctypes.CDLL("libc.so.6")
-        return libc.prctl(1, signal.SIGTERM)
-    return callable
+    return
 
 
 def startServer():
-    send_message(encode_message('in starting server'))
+    logging.info('debug: basedir={0}'.format(basedir)) 
+    # send_message(encode_message('in starting server'))
     if os.path.exists(lockFile):
-        logging.error('Do nothing: lockFile exists in: {}'.format(lockFile))
+        logging.error('Do nothing: lockFile exists in: {0}'.format(lockFile))
         return
 
     ipfsConfigPath = os.path.join(basedir, "ipfs_repo", "config")
     ipfsBinPath = os.path.join(basedir, "dist", "bin", "ipfs")
-    ipfsRepoPath = ipfs_path
-    ipfsAPI = os.path.join(ipfsRepoPath, "api")
-    ipfsLock = os.path.join(ipfsRepoPath, "repo.lock")
+    ipfs_path = os.path.join(basedir, 'ipfs_repo')
+    ipfsAPI = os.path.join(ipfs_path, "api")
+    ipfsLock = os.path.join(ipfs_path, "repo.lock")
 
     if not os.path.exists(ipfsConfigPath):
-        send_message(encode_message('before init ipfs'))
+        # send_message(encode_message('before init ipfs'))
         subprocess.check_call([ipfsBinPath, "init"], env=myenv, stdout=FNULL, stderr=subprocess.STDOUT)
         return startServer()
     else:
-        send_message(encode_message('before starting ipfs'))
+        # send_message(encode_message('before starting ipfs'))
         if os.path.exists(ipfsAPI):
             os.remove(ipfsAPI)
         if os.path.exists(ipfsLock):
             os.remove(ipfsLock)
-        if sys.platform.startswith('linux'):
-            ipfsP = subprocess.Popen([ipfsBinPath, "daemon", "--routing=dhtclient"], env=myenv, stdout=FNULL,
-                                     stderr=subprocess.STDOUT, preexec_fn=_set_pdeathsig(signal.SIGTERM))
-        else:
-            ipfsP = subprocess.Popen([ipfsBinPath, "daemon", "--routing=dhtclient"], env=myenv, stdout=FNULL,
+        ipfsP = subprocess.Popen([ipfsBinPath, "daemon", "--routing=dhtclient"], env=myenv, stdout=FNULL,
                                      stderr=subprocess.STDOUT)
-        send_message(encode_message('after starting ipfs'))
+        # send_message(encode_message('after starting ipfs'))
 
-    send_message(encode_message(' finish ipfs processing'))
+    # send_message(encode_message(' finish ipfs processing'))
     while (not os.path.exists(ipfsAPI) or not os.path.exists(ipfsLock)):
         time.sleep(.01)
     logging.info(' finish ipfs processing')
 
-    send_message(encode_message(' starting node processing'))
+    # send_message(encode_message(' starting node processing'))
     nodeCMD = os.path.join(basedir, 'dist', 'bin', 'node')
     os.chdir(os.path.join(basedir, "dist", "lib"))  # there are relative path in js stdin
     # f = open(os.path.join(basedir, 'nodep.log'), 'w')  # for debug, uncomment this 2 lines and comment the second nodeP
-    # nodeP = subprocess.Popen([node], stdin=subprocess.PIPE, stdout=f, stderr=f)  # leave log to "f"
-    if sys.platform.startswith('linux'):
-        nodeP = subprocess.Popen([nodeCMD], stdin=subprocess.PIPE, stdout=FNULL, stderr=subprocess.STDOUT,
-                                 preexec_fn=_set_pdeathsig(signal.SIGTERM))
-    else:
-        nodeP = subprocess.Popen([nodeCMD], stdin=subprocess.PIPE, stdout=FNULL, stderr=subprocess.STDOUT)
+    # nodeP = subprocess.Popen([nodeCMD], stdin=subprocess.PIPE, stdout=f, stderr=f)  # leave log to "f"
+    nodeP = subprocess.Popen([nodeCMD], stdin=subprocess.PIPE, stdout=FNULL, stderr=subprocess.STDOUT)
     op_daemon = threading.Thread(target=OptractDaemon.OptractDaemon, args=(nodeP, basedir))
     op_daemon.daemon = True
     op_daemon.start()
     os.chdir(basedir)
     logging.info(' daemon started')
-    send_message(encode_message('finish starting server'))
-    send_message(encode_message(str(nodeP)))
+    # send_message(encode_message('finish starting server'))
+    # send_message(encode_message(str(nodeP)))
     return ipfsP, nodeP
 
 
 def stopServer(ipfsP, nodeP):
-    send_message(encode_message('in stoping server'))
+    # send_message(encode_message('in stoping server'))
     if os.path.exists(lockFile):
        os.remove(lockFile)
-       send_message(encode_message('LockFile removed'))
-    nodeP.terminate()
-    send_message(encode_message('nodeP killed'))
+       # send_message(encode_message('LockFile removed'))
+    # nodeP.terminate()
+    os.kill(nodeP.pid, signal.SIGTERM)
+    # send_message(encode_message('nodeP killed'))
     # This will not kill the ipfs by itself, but this is needed for the sys.exit() to kill it 
-    ipfsP.terminate()
-    # os.kill(ipfsP.pid, signal.SIGINT)
-    send_message(encode_message('ipfsP killed signal sent'))
+    os.kill(ipfsP.pid, signal.SIGINT)
+    # send_message(encode_message('ipfsP killed signal sent'))
     return
 
 
 # functions related to installation
+def get_platform():
+    if sys.platform.startswith('linux'):
+        platform = 'linux'
+    elif sys.platform.startswith('darwin'):
+        platform = 'darwin'
+    elif sys.platform.startswith('win32'):
+        platform = 'win32'
+    else:
+        return sys.platform
+    return platform
+
+
 def add_registry_chrome(basedir):
     # TODO: add remove_registry()
     if sys.platform == 'win32':
@@ -448,36 +444,71 @@ def install():
     return
 
 
-def main():
-    started = False
+def mainwin():
 
+    started = False
     logging.info('Start to listen to native message...')
     while True:
         message = get_message()
         if "ping" in message.values() and started == False:
             started = True
-            send_message(encode_message('ping->pong'))
+            # send_message(encode_message('ping->pong'))
             ipfsP, nodeP = startServer()
             logging.info('server started')
-            send_message(encode_message('ping->pong more'))
+            # send_message(encode_message('ping->pong more'))
         #if message:
         #    send_message(encode_message("pong")) 
         if "pong" in message.values() and started == True:
             started = False
             logging.info('closing native app...')
-            send_message(encode_message('pong->ping'))
+            # send_message(encode_message('pong->ping'))
             stopServer(ipfsP, nodeP)
-            send_message(encode_message('pong->ping more'))
-            send_message(encode_message('close native app which will also shutdown the ipfs'))
+            # send_message(encode_message('pong->ping more'))
+            # send_message(encode_message('close native app which will also shutdown the ipfs'))
             logging.info('native app closed')
             sys.exit(0)
     return
 
 
+def launcher():
+    logging.info('in launcher...')
+    started = False
+    while True:
+        if started == False:
+            started = True
+            logging.info('in launcher...before starting server')
+            ipfsP, nodeP = startServer()
+            logging.info('in launcher...starting server')
+        time.sleep(3)
+        pl = subprocess.Popen(['pgrep', '-lf', 'firefox'], stdout=subprocess.PIPE).communicate()[0]
+        pl = pl.split("\n")[0:-1]
+        if (len(pl) == 0):
+            stopServer(ipfsP, nodeP)
+            sys.exit(0);
+    return
+
+
+def starter():
+    logging.info('in starter...')
+    started = False
+    while True:
+        message = get_message()
+        if "ping" in message.values() and started == False:
+            logging.info('[starter]got ping signal')
+            started = True
+            time.sleep(1)
+            nativeApp = os.path.realpath(sys.argv[0])
+            logging.info('[starter]calling: {0} launch'.format(nativeApp))
+            subprocess.Popen([nativeApp, "launch"])
+            sys.exit(0)
+    return
+
+
 if __name__ == '__main__':
-    # startServer()
-    # print(create_manifest_chrome('nativeApp.exe'))
-    # print(create_manifest_firefox('nativeApp.exe'))
+    logging.info('nativeApp path = {0}'.format(os.path.realpath(sys.argv[0])))
+    platform = get_platform()
+    if platform not in ['linux', 'darwin', 'win32']:
+        raise BaseException('your platform {0} is not supported'.format(platform))
     if len(sys.argv) > 1:
         if sys.argv[1] == 'install':
             print('Installing... please see the progress in logfile: ' + logfile)
@@ -490,7 +521,20 @@ if __name__ == '__main__':
             ipfsP, nodeP = startServer()
             raw_input("enter anything to stop...")
             stopServer(ipfsP, nodeP)
+        elif sys.argv[1] == 'launch':
+            if platform == 'win32':
+                raise BaseException("windows version does not support 'launch' argument")
+            launcher()
         else:
-            main()
+            if platform == 'win32':
+                mainwin()
+            else:
+                logging.info('calling starter() 1')
+                starter()
     else:
-        main()
+        if platform == 'win32':
+            mainwin()
+        else:
+            logging.info('calling starter() 2')
+            starter()
+
