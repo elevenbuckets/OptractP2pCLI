@@ -68,3 +68,5 @@ dist/
 resources/build/
 resources/dist/
 resources/__pycache__/
+
+*.pyc

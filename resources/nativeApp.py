@@ -12,11 +12,11 @@ import subprocess
 import os
 import signal
 import logging
-import shutil
-import tarfile
-import OptractDaemon
+# import shutil
 import threading
-import ctypes
+# import ctypes
+import OptractInstall
+import OptractDaemon
 
 # On Windows, the default I/O mode is O_TEXT. Set this to O_BINARY
 # to avoid unwanted modifications of the input/output streams.
@@ -28,473 +28,172 @@ if sys.platform == "win32":
 
 # global variables
 # 'cwd' is for installtion, it may look like ~/Downloads/optract_release
-cwd = os.path.dirname(os.path.realpath(sys.argv[0]))  # os.getcwd() may not correct if click it from File manager(?)
-cwd = os.path.dirname(cwd)  # after pack by pyarmor, it's one folder deeper, and here we need the parent one
-
-# determine path of basedir
-if sys.platform.startswith('linux'):
-    basedir = os.path.expanduser("~/.config/Optract")
-elif sys.platform.startswith('darwin'):
-    basedir = os.path.expanduser("~/.config/Optract")
-elif sys.platform.startswith('win32'):
-    basedir = os.path.expanduser("~\\AppData\\Local\\Optract")
-if not os.path.isdir(basedir):
-    os.mkdir(basedir)
-
-lockFile = os.path.join(basedir, "dist", "Optract.LOCK")
-myenv = os.environ.copy()  # "DLL initialize error..." in Windows while set the env inside subprocess calls
-ipfs_path = os.path.join(basedir, 'ipfs_repo')
-myenv['IPFS_PATH'] = ipfs_path
+# cwd = os.path.dirname(os.path.realpath(sys.argv[0]))  # os.getcwd() may not correct if click it from File manager(?)
+# cwd = os.path.dirname(cwd)  # after pack by pyarmor, it's one folder deeper, and here we need the parent one
 
 FNULL = open(os.devnull, 'w')
-# ipfsP = None  # no need to be global
-# nodeP = None
-
-# logging
-log_format = '[%(asctime)s] %(levelname)-7s : %(message)s'
-log_datefmt = '%Y-%m-%d %H:%M:%S'
-logfile = os.path.join(basedir, 'optract.log')
-# replace the `filename=logfile` to `stream=sys.stdout` to direct log to stdout
-logging.basicConfig(filename=logfile, level=logging.INFO, format=log_format,
-                    datefmt=log_datefmt)
 
 
-# Read a message from stdin and decode it.
-def get_message():
-    raw_length = sys.stdin.read(4)
-    if not raw_length:
-        sys.exit(0)
-    message_length = struct.unpack('=I', raw_length)[0]  # python2
-    # message_length = struct.unpack('=I', bytes(raw_length, encoding="utf-8"))[0]  # python3
-    message = sys.stdin.read(message_length)
-    return json.loads(message)
-
-
-# Encode a message for transmission, given its content.
-def encode_message(message_content):
-    encoded_content = json.dumps(message_content)
-    encoded_length = struct.pack('=I', len(encoded_content))  # python2
-    # encoded_length = struct.pack('=I', len(encoded_content)).decode()  # python3
-    return {'length': encoded_length, 'content': encoded_content}
-
-
-def send_message(encode_message):
-    sys.stdout.write(encode_message['length'])
-    sys.stdout.write(encode_message['content'])
-    sys.stdout.flush()
-    return
-
-
-def startServer():
-    logging.info('debug: basedir={0}'.format(basedir)) 
-    # send_message(encode_message('in starting server'))
-    if not sys.platform.startswith('win32'):
-        if os.path.exists(lockFile):
-            logging.error('Do nothing: lockFile exists in: {0}'.format(lockFile))
-            sys.exit(0)
-            return
-
-    ipfsConfigPath = os.path.join(basedir, "ipfs_repo", "config")
-    ipfsBinPath = os.path.join(basedir, "dist", "bin", "ipfs")
-    ipfs_path = os.path.join(basedir, 'ipfs_repo')
-    ipfsAPI = os.path.join(ipfs_path, "api")
-    ipfsLock = os.path.join(ipfs_path, "repo.lock")
-
-    if not os.path.exists(ipfsConfigPath):
-        # send_message(encode_message('before init ipfs'))
-        subprocess.check_call([ipfsBinPath, "init"], env=myenv, stdout=FNULL, stderr=subprocess.STDOUT)
-        return startServer()
-    else:
-        # send_message(encode_message('before starting ipfs'))
-        if os.path.exists(ipfsAPI):
-            os.remove(ipfsAPI)
-        if os.path.exists(ipfsLock):
-            os.remove(ipfsLock)
-        ipfsP = subprocess.Popen([ipfsBinPath, "daemon", "--routing=dhtclient"], env=myenv, stdout=FNULL,
-                                     stderr=subprocess.STDOUT)
-        # send_message(encode_message('after starting ipfs'))
-
-    # send_message(encode_message(' finish ipfs processing'))
-    while (not os.path.exists(ipfsAPI) or not os.path.exists(ipfsLock)):
-        time.sleep(.01)
-    logging.info(' finish ipfs processing')
-
-    # send_message(encode_message(' starting node processing'))
-    nodeCMD = os.path.join(basedir, 'dist', 'bin', 'node')
-    os.chdir(os.path.join(basedir, "dist", "lib"))  # there are relative path in js stdin
-    # f = open(os.path.join(basedir, 'nodep.log'), 'w')  # for debug, uncomment this 2 lines and comment the second nodeP
-    # nodeP = subprocess.Popen([nodeCMD], stdin=subprocess.PIPE, stdout=f, stderr=f)  # leave log to "f"
-    nodeP = subprocess.Popen([nodeCMD], stdin=subprocess.PIPE, stdout=FNULL, stderr=subprocess.STDOUT)
-    op_daemon = threading.Thread(target=OptractDaemon.OptractDaemon, args=(nodeP, basedir))
-    op_daemon.daemon = True
-    op_daemon.start()
-    os.chdir(basedir)
-    logging.info(' daemon started')
-    # send_message(encode_message('finish starting server'))
-    # send_message(encode_message(str(nodeP)))
-    return ipfsP, nodeP
-
-
-def stopServer(ipfsP, nodeP):
-    # send_message(encode_message('in stoping server'))
-    if os.path.exists(lockFile):
-       os.remove(lockFile)
-       # send_message(encode_message('LockFile removed'))
-    # nodeP.terminate()
-    os.kill(nodeP.pid, signal.SIGTERM)
-    # send_message(encode_message('nodeP killed'))
-    # This will not kill the ipfs by itself, but this is needed for the sys.exit() to kill it 
-    os.kill(ipfsP.pid, signal.SIGINT)
-    # send_message(encode_message('ipfsP killed signal sent'))
-    return
-
-
-# functions related to installation
-def get_platform():
-    if sys.platform.startswith('linux'):
-        platform = 'linux'
-    elif sys.platform.startswith('darwin'):
-        platform = 'darwin'
-    elif sys.platform.startswith('win32'):
-        platform = 'win32'
-    else:
-        return sys.platform
-    return platform
-
-
-def add_registry_chrome(basedir):
-    # TODO: add remove_registry()
-    if sys.platform == 'win32':
-        keyVal = r'Software\Google\Chrome\NativeMessagingHosts\optract'
-        try:
-            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, keyVal, 0, winreg.KEY_ALL_ACCESS)
-        except:
-            key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, keyVal)
-        nativeMessagingMainfest = os.path.join(basedir, 'dist', 'optract-win-chrome.json')
-        winreg.SetValueEx(key, "", 0, winreg.REG_SZ, nativeMessagingMainfest)
-        winreg.CloseKey(key)
-
-        # create optract-win-chrome.json
-        with open(nativeMessagingMainfest, 'w') as f:
-            manifest_content = create_manifest_chrome('nativeApp\\nativeApp.exe')
-            json.dump(manifest_content, f, indent=4)
-    return
-
-
-def add_registry_firefox(basedir):
-    # TODO: add remove_registry()
-    if sys.platform == 'win32':
-        keyVal = r'SOFTWARE\Mozilla\NativeMessagingHosts\optract'
-        try:
-            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, keyVal, 0, winreg.KEY_ALL_ACCESS)
-        except:
-            key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, keyVal)
-        nativeMessagingMainfest = os.path.join(basedir, 'dist', 'optract-win-firefox.json')
-        winreg.SetValueEx(key, "", 0, winreg.REG_SZ, nativeMessagingMainfest)
-        winreg.CloseKey(key)
-
-        # create optract-win-firefox.json
-        with open(nativeMessagingMainfest, 'w') as f:
-            manifest_content = create_manifest_firefox('nativeApp\\nativeApp.exe')
-            json.dump(manifest_content, f, indent=4)
-    return
-
-
-def createConfig(basedir, dest_file):
-    config = {
-        "datadir": basedir,  # while update, replace the "dist/" folder under basedir
-        "rpcAddr": "https://rinkeby.infura.io/v3/f50fa6bf08fb4918acea4aadabb6f537",
-        "defaultGasPrice": "20000000000",
-        "gasOracleAPI": "https://ethgasstation.info/json/ethgasAPI.json",
-        "condition": "sanity",
-        "networkID": 4,
-        "passVault": os.path.join(basedir, "myArchive.bcup"),  # for now, copy into dist/dapps
-        "node": {
-            "dappdir": os.path.join(basedir, "dist", "dapps"),
-            "dns": {
-                "server": [
-                    "discovery1.datprotocol.com",
-                    "discovery2.datprotocol.com"
-                ]
-            },
-            "dht": {
-                "bootstrap": [
-                    "bootstrap1.datprotocol.com:6881",
-                    "bootstrap2.datprotocol.com:6881",
-                    "bootstrap3.datprotocol.com:6881",
-                    "bootstrap4.datprotocol.com:6881"
-                ]
-            }
-        },
-        "dapps": {
-            "OptractMedia": {
-                "appName": "OptractMedia",
-                "artifactDir": os.path.join(basedir, "dist", "dapps", "OptractMedia", "ABI"),
-                "conditionDir": os.path.join(basedir, "dist", "dapps", "OptractMedia", "Conditions"),
-                "contracts": [
-                    { "ctrName": "BlockRegistry", "conditions": ["Sanity"] },
-                    { "ctrName": "MemberShip", "conditions": ["Sanity"] }
-                ],
-                "database": os.path.join(basedir, "dist", "dapps", "OptractMedia", "DB"),
-                "version": "1.0",
-                "streamr": "false"
-            }
-        }
-    }
-
-    # if previous setting exists, migrate a few settings and make a backup
-    if os.path.isfile(dest_file):
-        # load previous config
-        with open(dest_file, 'r') as f:
-            orig = json.load(f)
-
-        try:
-            config['dapps']['OptractMedia']['streamr'] = orig['dapps']['OptractMedia']['streamr']
-        except KeyError:
-            logging.warning('Cannot load "streamr" from previous config file. Use default: "false".')
-
-        logging.warning('{0} already exists, will move it to {1}'.format(dest_file, dest_file + '.orig'))
-        shutil.move(dest_file, dest_file+'.orig')
-
-    # write
-    with open(dest_file, 'w') as f:
-        json.dump(config, f, indent=4)
-        logging.info('config write to file {0}'.format(dest_file))
-    return
-
-
-def extract_node_modules(src, dest):
-    # asarBinPath = os.path.join('bin', 'asar')
-    # subprocess.check_call([asarBinPath, "extract", "node_modules.asar", "node_modules"], stdout=None, stderr=subprocess.STDOUT)
-    dest_node_modules = os.path.join(dest, 'node_modules')
-    if os.path.isdir(dest_node_modules):
-        shutil.rmtree(dest_node_modules)
-    logging.info('extracting latest version of node_modules to ' + dest_node_modules)
-    with tarfile.open(src) as tar:
-        tar.extractall(dest)
-    logging.info('Done extracting latest version of node_modules.')
-    return
-
-
-def prepare_basedir():
-    logging.info('Preparing folder for optract in: ' + basedir)
-
-    # generate new empty "dist" directory in basedir
-    release_dir = os.path.join(basedir, 'dist')
-    release_backup = os.path.join(basedir, 'dist_orig')
-    if os.path.isdir(release_dir):
-        # keep a backup of previous release
-        if os.path.isdir(release_backup):
-            shutil.rmtree(release_backup)
-        shutil.move(release_dir, release_backup)
-    os.mkdir(release_dir)
-
-    # copy files to basedir
-    # if sys.platform == 'win32':
-    #     nativeApp = os.path.join('nativeApp.exe')
-    # else:
-    #     nativeApp = os.path.join('nativeApp')
-    logging.info('copy {0} to {1}'.format(os.path.join(cwd, 'bin'), os.path.join(release_dir, 'bin')))
-    shutil.copytree(os.path.join(cwd, 'bin'), os.path.join(release_dir, 'bin'))
-    logging.info('copy {0} to {1}'.format(os.path.join(cwd, 'dapps'), os.path.join(release_dir, 'dapps')))
-    shutil.copytree(os.path.join(cwd, 'dapps'), os.path.join(release_dir, 'dapps'))
-    logging.info('copy {0} to {1}'.format(os.path.join(cwd, 'lib'), os.path.join(release_dir, 'lib')))
-    shutil.copytree(os.path.join(cwd, 'lib'), os.path.join(release_dir, 'lib'))
-    logging.info('copy {0} to {1}'.format('nativeApp', release_dir))
-    shutil.copytree(os.path.join(cwd, 'nativeApp'), os.path.join(release_dir, 'nativeApp'))
-    extract_node_modules(os.path.join(cwd, 'node_modules.tar'), release_dir)
-
-    logging.info('creating keystore folder if necessary')
-    key_folder = os.path.join(basedir, 'keystore')
-    if not os.path.isdir(key_folder):
-        os.mkdir(key_folder)
-
-    return
-
-
-def init_ipfs(ipfs_repo):
-    ipfs_config = os.path.join(ipfs_repo, 'config')
-
-    if os.path.exists(ipfs_config):
-        logging.warning("ipfs repo exists, will use existing one in " + ipfs_repo)
+class NativeApp():
+    def __init__(self):
+        self.platform = self.get_platform()
+        if not (self.platform == 'linux' or self.platform == 'darwin' or self.platform == 'win32'):
+            raise BaseException('Unsupported platform')
+        self.set_basedir()
+        self.lockFile = os.path.join(self.basedir, "dist", "Optract.LOCK")
         return
 
-    # create ipfs_repo
-    myenv = os.environ.copy()  # "DLL initialize error..." in Windows while set the env inside subprocess calls
-    myenv['IPFS_PATH'] = ipfs_repo
-    ipfs_bin = os.path.join(basedir, "dist", "bin", "ipfs")
-
-    logging.info("initilalizing ipfs in " + ipfs_repo)
-    process = subprocess.Popen([ipfs_bin, "init"], env=myenv, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    output, error = process.communicate()
-    logging.info('ipfs results: \n' + str(output))
-    if len(error) > 0:
-        logging.critical('ipfs error message: \n' + str(error))
-
-    return
-
-
-def check_mainfest(manifest_file):
-    with open(manifest_file, 'r') as f:
-        manifest_data = f.readlines()
-    manifest = ''.join(manifest_data)
-    if '{username}' in manifest or '{extension-id}' in manifest:
-        raise BaseException('Please fill in username and extension-id in {0} (or update ./resources/optract.json and run install again).'.format(manifest_file))
-    return
-
-
-def create_manifest_chrome(nativeAppPath):
-    # extension_id = "jlanclpnebjipbolljoenepmcofibpmk"
-    extension_id = extid['chrome']
-    manifest_json = {
-      "name": "optract",
-      "description": "optract server",
-      "path": nativeAppPath,
-      "type": "stdio",
-      "allowed_origins": [ "chrome-extension://{0}/".format(extension_id) ]
-    }
-    return manifest_json
-
-
-def create_manifest_firefox(nativeAppPath):
-    # extension_id = "{5b2b58c5-1a22-4893-ac58-9ca33f27cdd4}"
-    extension_id = extid['firefox']
-    manifest_json= {
-      "name": "optract",
-      "description": "optract server",
-      "path": nativeAppPath,
-      "type": "stdio",
-      "allowed_extensions": [ extension_id ]
-    }
-    return manifest_json
-
-
-def mkdir(dirname):  # if parent dir exists and dirname does not exist
-    if os.path.isdir(os.path.dirname(dirname)) and not os.path.isdir(dirname):
-        os.mkdir(dirname)
-    return
-
-
-def create_and_write_manifest(browser):
-    if browser not in ['firefox', 'chrome']:
-        raise BaseException('Unsupported browser {0}'.format(browser))
-
-    # create manifest file and write to native message folder
-    if sys.platform.startswith('win32'):
-        if browser == 'chrome':
-            add_registry_chrome(basedir)
-        elif browser == 'firefox':
-            add_registry_firefox(basedir)
-    else:  # unix-like
-        # determine native message directory for different OS and browsers
-        # TODO: make sure user already has at least one browser installed
-        if sys.platform.startswith('linux') and browser == 'chrome':
-            nativeMsgDir = os.path.expanduser('~/.config/google-chrome/NativeMessagingHosts')
-        elif sys.platform.startswith('linux') and browser == 'firefox':
-            nativeMsgDir = os.path.expanduser('~/.mozilla/native-messaging-hosts')
-        elif sys.platform.startswith('darwin') and browser == 'chrome':
-            nativeMsgDir = os.path.expanduser('~/Library/Application Support/Google/Chrome/NativeMessagingHosts')
-        elif sys.platform.startswith('darwin') and browser == 'firefox':
-            nativeMsgDir = os.path.expanduser('~/Library/Application Support/Mozilla/NativeMessagingHosts')
+    def get_platform(self):
+        if sys.platform.startswith('linux'):
+            platform = 'linux'
+        elif sys.platform.startswith('darwin'):
+            platform = 'darwin'
+        elif sys.platform.startswith('win32'):
+            platform = 'win32'
         else:
-            logging.warning('you should not reach here...')
-            raise BaseException('Unsupported platform')
-        mkdir(nativeMsgDir)
-        nativeAppPath = os.path.join(basedir, 'dist', 'nativeApp', 'nativeApp')
+            return sys.platform
+        return platform
 
-        # create content for manifest file of native messaging
-        if browser == 'chrome':
-            manifest_content = create_manifest_chrome(nativeAppPath)
-        elif browser == 'firefox':
-            manifest_content = create_manifest_firefox(nativeAppPath)
+    def set_basedir(self):
+        # determine path of basedir
+        if self.platform.startswith('linux'):
+            self.basedir = os.path.expanduser("~/.config/Optract")
+        elif self.platform.startswith('darwin'):
+            self.basedir = os.path.expanduser("~/.config/Optract")
+        elif self.platform.startswith('win32'):
+            self.basedir = os.path.expanduser("~\\AppData\\Local\\Optract")
+        if not os.path.isdir(self.basedir):
+            os.mkdir(self.basedir)
+        return
 
-        # write manifest file
-        manifest_path = os.path.join(nativeMsgDir, 'optract.json')
-        with open(manifest_path, 'w') as f:
-            json.dump(manifest_content, f, indent=4)
-    return
+    # Read a message from stdin and decode it.
+    def get_message(self):
+        raw_length = sys.stdin.read(4)
+        if not raw_length:
+            sys.exit(0)
+        message_length = struct.unpack('=I', raw_length)[0]  # python2
+        # message_length = struct.unpack('=I', bytes(raw_length, encoding="utf-8"))[0]  # python3
+        message = sys.stdin.read(message_length)
+        return json.loads(message)
+
+    # Encode a message for transmission, given its content.
+    # note: encode_message() and send_message() are not used now, but keep them just in case
+    def encode_message(self, message_content):
+        encoded_content = json.dumps(message_content)
+        encoded_length = struct.pack('=I', len(encoded_content))  # python2
+        # encoded_length = struct.pack('=I', len(encoded_content)).decode()  # python3
+        return {'length': encoded_length, 'content': encoded_content}
+
+    def send_message(self, encode_message):
+        # ex: send_message(encode_message('ping->pong'))
+        sys.stdout.write(self.encode_message['length'])
+        sys.stdout.write(self.encode_message['content'])
+        sys.stdout.flush()
+        return
+
+    def startServer(self):
+        if not self.platform == 'win32':  # in windows, nativeApp cannot close properly so lockFile is always there
+            if os.path.exists(self.lockFile):
+                logging.error('Do nothing: lockFile exists in: {0}'.format(self.lockFile))
+                sys.exit(0)
+                return
+
+        ipfs_path = {
+            'repo': os.path.join(self.basedir, 'ipfs_repo'),
+            'config': os.path.join(self.basedir, 'ipfs_repo', 'config'),
+            'api': os.path.join(self.basedir, 'ipfs_repo', 'api'),
+            'lock': os.path.join(self.basedir, 'ipfs_repo', 'repo.lock'),
+            'bin': os.path.join(self.basedir, 'dist', 'bin', 'ipfs')
+        }
+        # logging.info('debug: basedir={0}'.format(self.basedir))
+        myenv = os.environ.copy()  # "DLL initialize error..." in Windows while set the env inside subprocess calls
+        myenv['IPFS_PATH'] = ipfs_path['repo']
+        if not os.path.exists(ipfs_path['config']):
+            subprocess.check_call([ipfs_path['bin'], "init"], env=myenv, stdout=FNULL, stderr=subprocess.STDOUT)
+            return self.startServer()
+        else:
+            if os.path.exists(ipfs_path['api']):
+                os.remove(ipfs_path['api'])
+            if os.path.exists(ipfs_path['lock']):
+                os.remove(ipfs_path['lock'])
+            self.ipfsP = subprocess.Popen([ipfs_path['bin'], "daemon", "--routing=dhtclient"], env=myenv, stdout=FNULL,
+                                         stderr=subprocess.STDOUT)
+
+        while (not os.path.exists(ipfs_path['api']) or not os.path.exists(ipfs_path['lock'])):
+            time.sleep(.01)
+
+        nodeCMD = os.path.join(self.basedir, 'dist', 'bin', 'node')
+        os.chdir(os.path.join(self.basedir, "dist", "lib"))  # there are relative path in js stdin
+        # f = open(os.path.join(basedir, 'nodep.log'), 'w')  # for debug, uncomment this 2 lines and comment the second nodeP
+        # nodeP = subprocess.Popen([nodeCMD], stdin=subprocess.PIPE, stdout=f, stderr=f)  # leave log to "f"
+        self.nodeP = subprocess.Popen([nodeCMD], stdin=subprocess.PIPE, stdout=FNULL, stderr=subprocess.STDOUT)
+        op_daemon = threading.Thread(target=OptractDaemon.OptractDaemon, args=(self.nodeP, self.basedir))
+        op_daemon.daemon = True
+        op_daemon.start()
+        os.chdir(self.basedir)
+        logging.info(' daemon started')
+        logging.info('  pid of node: {0}'.format(self.nodeP.pid))
+        logging.info('  pid of ipfs: {0}'.format(self.ipfsP.pid))
+        return
+
+    def stopServer(self):
+        if os.path.exists(self.lockFile):
+           os.remove(self.lockFile)
+        # nodeP.terminate()
+        if self.nodeP is not None:
+            logging.info('kill process {0}'.format(self.nodeP.pid))
+            os.kill(self.nodeP.pid, signal.SIGTERM)
+        # This will not kill the ipfs by itself, but this is needed for the sys.exit() to kill it 
+        if self.ipfsP is not None:
+            logging.info('kill process {0}'.format(self.ipfsP.pid))
+            os.kill(self.ipfsP.pid, signal.SIGINT)
+        return
 
 
 # major functions
-def install():
-    logging.info('Initializing Optract...')
-    if not (sys.platform.startswith('linux') or sys.platform.startswith('darwin') or sys.platform.startswith('win32')):
-        raise BaseException('Unsupported platform')
-    if cwd == basedir:
-        raise BaseException('Please do not extract file in the destination directory')
-    prepare_basedir()  # copy files to there
-
-    config_file = os.path.join(basedir, 'config.json')
-    createConfig(basedir, config_file)
-
-    init_ipfs(ipfs_path)
-
-    # install for all supporting browsers (for now assume firefox is the must)
-    create_and_write_manifest("firefox")
-    try:
-        create_and_write_manifest("chrome")
-    except:
-        pass
-
-    # done
-    logging.info('Done! Optract is ready to use.')
-
-    # add a ".installed" to indicate a succesful installation (not used)
-    installed = os.path.join(basedir, 'dist', '.installed')
-    open(installed, 'a').close()
-
-    return
-
-
 def mainwin():
-
+    nativeApp = NativeApp()
     started = False
     logging.info('Start to listen to native message...')
     while True:
-        message = get_message()
+        message = nativeApp.get_message()
         if "ping" in message.values() and started == False:
             started = True
-            # send_message(encode_message('ping->pong'))
-            ipfsP, nodeP = startServer()
+            nativeApp.startServer()
             logging.info('server started')
-            # send_message(encode_message('ping->pong more'))
-        #if message:
-        #    send_message(encode_message("pong")) 
         if "pong" in message.values() and started == True:
             started = False
             logging.info('closing native app...')
-            # send_message(encode_message('pong->ping'))
-            stopServer(ipfsP, nodeP)
-            # send_message(encode_message('pong->ping more'))
-            # send_message(encode_message('close native app which will also shutdown the ipfs'))
+            nativeApp.stopServer()
             logging.info('native app closed')
             sys.exit(0)
     return
 
 
 def launcher():
+    nativeApp = NativeApp()
     logging.info('in launcher...')
     started = False
     while True:
         if started == False:
             started = True
-            logging.info('in launcher...before starting server')
-            ipfsP, nodeP = startServer()
+            nativeApp.startServer()
             logging.info('in launcher...starting server')
         time.sleep(3)
         pl = subprocess.Popen(['pgrep', '-lf', 'firefox'], stdout=subprocess.PIPE).communicate()[0]
         pl = pl.split("\n")[0:-1]
         if (len(pl) == 0):
-            stopServer(ipfsP, nodeP)
+            nativeApp.stopServer()
             sys.exit(0)
     return
 
 
 def starter():
+    nativeApp = NativeApp()
     logging.info('in starter...')
     started = False
     while True:
-        message = get_message()
+        message = nativeApp.get_message()
         if "ping" in message.values() and started == False:
             logging.info('[starter]got ping signal')
             started = True
@@ -507,22 +206,31 @@ def starter():
 
 
 if __name__ == '__main__':
+    _ = NativeApp()  # borrow a couple attributes 
+    basedir = _.basedir
+    platform = _.platform
+
+    # logging
+    log_format = '[%(asctime)s] %(levelname)-7s : %(message)s'
+    log_datefmt = '%Y-%m-%d %H:%M:%S'
+    logfile = os.path.join(basedir, 'optract.log')
+    # replace the `filename=logfile` to `stream=sys.stdout` to direct log to stdout
+    logging.basicConfig(filename=logfile, level=logging.INFO, format=log_format,
+                        datefmt=log_datefmt)
+
     logging.info('nativeApp path = {0}'.format(os.path.realpath(sys.argv[0])))
-    platform = get_platform()
-    if platform not in ['linux', 'darwin', 'win32']:
-        raise BaseException('your platform {0} is not supported'.format(platform))
+    print('nativeApp path = {0}'.format(os.path.realpath(sys.argv[0])))
+
     if len(sys.argv) > 1:
         if sys.argv[1] == 'install':
             print('Installing... please see the progress in logfile: ' + logfile)
             print('Please also download Optract browser extension.')
-            extid_file = os.path.join(cwd, 'extension_id.json')
-            with open(extid_file, 'r') as f:
-                extid = json.load(f)
-            install()
+            OptractInstall.main(basedir)
         elif sys.argv[1] == 'test':
-            ipfsP, nodeP = startServer()
+            nativeApp = NativeApp()
+            nativeApp.startServer()
             raw_input("enter anything to stop...")
-            stopServer(ipfsP, nodeP)
+            nativeApp.stopServer()
         elif sys.argv[1] == 'launch':
             if platform == 'win32':
                 raise BaseException("windows version does not support 'launch' argument")
@@ -539,4 +247,3 @@ if __name__ == '__main__':
         else:
             logging.info('calling starter() 2')
             starter()
-
