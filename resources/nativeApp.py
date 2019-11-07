@@ -139,6 +139,7 @@ class NativeApp():
                     sys.exit(0)
                 else:
                     logging.warning('Do nothing: lockFile exists in: {0}'.format(self.lockFile))
+                    return
 
         self.check_md5()
 
