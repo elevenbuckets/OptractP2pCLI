@@ -230,8 +230,8 @@ def main(nativeApp):
             # note that it's possible to generate two systray running if the first systray is stopped and then
             # start or restart browser
             # add a lockfile for systray?
-            systrapP = subprocess.Popen([systray, ppid])
-            logging.info('server started')
+            systrayP = subprocess.Popen([systray, ppid], stdout=FNULL, stderr=subprocess.STDOUT)
+            logging.info('sysatry (pid:{0}) and server started'.format(systrayP.pid))
     return
 
 
