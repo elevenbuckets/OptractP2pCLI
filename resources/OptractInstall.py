@@ -202,8 +202,12 @@ class OptractInstall():
         shutil.copytree(os.path.join(cwd, 'dapps'), os.path.join(release_dir, 'dapps'))
         logging.info('copy {0} to {1}'.format(os.path.join(cwd, 'lib'), os.path.join(release_dir, 'lib')))
         shutil.copytree(os.path.join(cwd, 'lib'), os.path.join(release_dir, 'lib'))
-        logging.info('copy {0} to {1}'.format('systray.app', release_dir))
-        shutil.copytree(os.path.join(cwd, 'systray.app'), os.path.join(release_dir, 'systray.app'))
+        if sys.platform.startswith('darwin'):
+            systray = 'systray.app'
+        else:
+            systray = 'systray'
+        logging.info('copy {0} to {1}'.format(systray, release_dir))
+        shutil.copytree(os.path.join(cwd, systray), os.path.join(release_dir, systray))
         logging.info('copy {0} to {1}'.format('icon.png', release_dir))
         shutil.copy2(os.path.join(cwd, 'icon.png'), release_dir)
         logging.info('copy {0} to {1}'.format('nativeApp', release_dir))

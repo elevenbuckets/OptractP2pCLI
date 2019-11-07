@@ -28,7 +28,10 @@ if sys.platform == "win32":
 
 # global variables
 FNULL = open(os.devnull, 'w')
-systray = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0]))), 'systray.app', 'Contents', 'MacOS', 'systray')
+if sys.platform.startswith('darwin'):
+    systray = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0]))), 'systray.app', 'Contents', 'MacOS', 'systray')
+else:
+    systray = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0]))), 'systray', 'systray')
 
 
 class NativeApp():
@@ -191,6 +194,12 @@ class NativeApp():
             except Exception as err:
                 logging.error("Can't stop pid {0}: {1}: {2}".format(
                                self.ipfsP.pid, err.__class__.__name__, err))
+                pass
+            # send one more SIGINT to make sure
+            time.sleep(1)
+            try:
+                os.kill(self.ipfsP.pid, signal.SIGINT)
+            except:
                 pass
         return
 
