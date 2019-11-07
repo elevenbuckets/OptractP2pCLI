@@ -12,9 +12,9 @@ import subprocess
 import os
 import signal
 import logging
-# import shutil
 import threading
-# import ctypes
+import hashlib
+# from checksumdir import dirhash
 import OptractInstall
 import OptractDaemon
 
@@ -27,11 +27,8 @@ if sys.platform == "win32":
     msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
 
 # global variables
-# 'cwd' is for installtion, it may look like ~/Downloads/optract_release
-# cwd = os.path.dirname(os.path.realpath(sys.argv[0]))  # os.getcwd() may not correct if click it from File manager(?)
-# cwd = os.path.dirname(cwd)  # after pack by pyarmor, it's one folder deeper, and here we need the parent one
-
 FNULL = open(os.devnull, 'w')
+systray = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0]))), 'systray.app', 'Contents', 'MacOS', 'systray')
 
 
 class NativeApp():
@@ -39,9 +36,11 @@ class NativeApp():
         self.platform = self.get_platform()
         if not (self.platform == 'linux' or self.platform == 'darwin' or self.platform == 'win32'):
             raise BaseException('Unsupported platform')
+        # TODO: use the input argument to control basedir
         self.set_basedir()
         self.lockFile = os.path.join(self.basedir, "dist", "Optract.LOCK")
-        return
+        self.nodeP = None
+        self.ipfsP = None
 
     def get_platform(self):
         if sys.platform.startswith('linux'):
@@ -91,12 +90,48 @@ class NativeApp():
         sys.stdout.flush()
         return
 
+    def _compare_md5(self, target, md5_expected):
+        if os.path.isfile(target):
+            md5_seen = hashlib.md5(open(target, 'rb').read()).hexdigest()
+        # elif os.path.isdir(target):
+        #     md5_seen = dirhash(target, 'md5')
+        else:
+            raise BaseException('The target {0} is neither file nor directory.'.format(target))
+        if md5_seen != md5_expected:
+            raise BaseException('The md5sum of file or directory {0} is inconsistent with expected hash.'.format(target))
+
+    def check_md5(self):
+        # TODO: prepare function to generate these checksum for developer
+        if sys.platform.startswith('win32'):
+            node_md5_expected = 'f293ba8c28494ecd38416aa37443aa0d'
+            ipfs_md5_expected = 'bbed13baf0da782311a97077d8990f27'
+            node_modules_dir_md5_expected = '11f0140775c0939218afa7790a39cbb5'
+        elif sys.platform.startswith('linux'):
+            node_md5_expected = '8a9aa6414470a6c9586689a196ff21e3'
+            ipfs_md5_expected = 'ee571b0fcad98688ecdbf8bdf8d353a5'
+            node_modules_dir_md5_expected = ''
+        elif sys.platform.startswith('darwin'):
+            node_md5_expected = 'b4ba1b40b227378a159212911fc16024'
+            ipfs_md5_expected = '5e8321327691d6db14f97392e749223c'
+            node_modules_dir_md5_expected = '8a2aae4ca15614c9eef5949bdf78b495'
+
+        nodeCMD = os.path.join(self.basedir, 'dist', 'bin', 'node')
+        self._compare_md5(nodeCMD, node_md5_expected)
+
+        ipfsCMD = os.path.join(self.basedir, 'dist', 'bin', 'ipfs')
+        self._compare_md5(ipfsCMD, ipfs_md5_expected)
+
+        # note: problem in pyinstaller while use the 'checksumdir' module. Comment here, _compare_md5 before figure it out
+        # node_modules_dir = os.path.join(basedir, 'dist', 'node_modules')
+        # self._compare_md5(node_modules_dir, node_modules_md5_expected)
+
     def startServer(self):
         if not self.platform == 'win32':  # in windows, nativeApp cannot close properly so lockFile is always there
             if os.path.exists(self.lockFile):
                 logging.error('Do nothing: lockFile exists in: {0}'.format(self.lockFile))
                 sys.exit(0)
                 return
+        self.check_md5()
 
         ipfs_path = {
             'repo': os.path.join(self.basedir, 'ipfs_repo'),
@@ -142,73 +177,99 @@ class NativeApp():
         # nodeP.terminate()
         if self.nodeP is not None:
             logging.info('kill process {0}'.format(self.nodeP.pid))
-            os.kill(self.nodeP.pid, signal.SIGTERM)
+            try:
+                os.kill(self.nodeP.pid, signal.SIGTERM)
+            except Exception as err:
+                logging.error("Can't stop pid {0}: {1}: {2}".format(
+                               self.nodeP.pid, err.__class__.__name__, err))
+                pass
         # This will not kill the ipfs by itself, but this is needed for the sys.exit() to kill it 
         if self.ipfsP is not None:
             logging.info('kill process {0}'.format(self.ipfsP.pid))
-            os.kill(self.ipfsP.pid, signal.SIGINT)
+            try:
+                os.kill(self.ipfsP.pid, signal.SIGINT)
+            except Exception as err:
+                logging.error("Can't stop pid {0}: {1}: {2}".format(
+                               self.ipfsP.pid, err.__class__.__name__, err))
+                pass
         return
 
 
 # major functions
-def mainwin():
-    nativeApp = NativeApp()
+def main(nativeApp):
     started = False
     logging.info('Start to listen to native message...')
     while True:
         message = nativeApp.get_message()
         if "ping" in message.values() and started == False:
             started = True
-            nativeApp.startServer()
+            # the "Popen" below will fail if there's a systray running so that there's a lock file for daemon.js
+            # note that it's possible to generate two systray running if the first systray is stopped and then
+            # start or restart browser
+            # add a lockfile for systray?
+            systrapP = subprocess.Popen([systray, ppid])
             logging.info('server started')
-        if "pong" in message.values() and started == True:
-            started = False
-            logging.info('closing native app...')
-            nativeApp.stopServer()
-            logging.info('native app closed')
-            sys.exit(0)
     return
 
 
-def launcher():
-    nativeApp = NativeApp()
-    logging.info('in launcher...')
-    started = False
-    while True:
-        if started == False:
-            started = True
-            nativeApp.startServer()
-            logging.info('in launcher...starting server')
-        time.sleep(3)
-        pl = subprocess.Popen(['pgrep', '-lf', 'firefox'], stdout=subprocess.PIPE).communicate()[0]
-        pl = pl.split("\n")[0:-1]
-        if (len(pl) == 0):
-            nativeApp.stopServer()
-            sys.exit(0)
-    return
+# def mainwin():
+#     nativeApp = NativeApp()
+#     started = False
+#     logging.info('Start to listen to native message...')
+#     while True:
+#         message = nativeApp.get_message()
+#         if "ping" in message.values() and started == False:
+#             started = True
+#             nativeApp.startServer()
+#             logging.info('server started')
+#         if "pong" in message.values() and started == True:
+#             started = False
+#             logging.info('closing native app...')
+#             nativeApp.stopServer()
+#             logging.info('native app closed')
+#             sys.exit(0)
+#     return
 
 
-def starter():
-    nativeApp = NativeApp()
-    logging.info('in starter...')
-    started = False
-    while True:
-        message = nativeApp.get_message()
-        if "ping" in message.values() and started == False:
-            logging.info('[starter]got ping signal')
-            started = True
-            time.sleep(1)
-            nativeApp = os.path.realpath(sys.argv[0])
-            logging.info('[starter]calling: {0} launch'.format(nativeApp))
-            subprocess.Popen([nativeApp, "launch"])
-            sys.exit(0)
-    return
+# def launcher():
+#     nativeApp = NativeApp()
+#     logging.info('in launcher...')
+#     started = False
+#     while True:
+#         if started == False:
+#             started = True
+#             nativeApp.startServer()
+#             logging.info('in launcher...starting server')
+#         time.sleep(3)
+#         pl = subprocess.Popen(['pgrep', '-lf', 'firefox'], stdout=subprocess.PIPE).communicate()[0]
+#         pl = pl.split("\n")[0:-1]
+#         if (len(pl) == 0):
+#             nativeApp.stopServer()
+#             sys.exit(0)
+#     return
+
+
+# def starter():
+#     nativeApp = NativeApp()
+#     logging.info('in starter...')
+#     started = False
+#     while True:
+#         message = nativeApp.get_message()
+#         if "ping" in message.values() and started == False:
+#             logging.info('[starter]got ping signal')
+#             started = True
+#             time.sleep(1)
+#             nativeApp = os.path.realpath(sys.argv[0])
+#             logging.info('[starter]calling: {0} launch'.format(nativeApp))
+#             subprocess.Popen([nativeApp, "launch"])
+
+#             sys.exit(0)
+#     return
 
 
 if __name__ == '__main__':
-    _ = NativeApp()  # borrow a couple attributes 
-    basedir = _.basedir
-    platform = _.platform
+    nativeApp = NativeApp()  # borrow a couple attributes 
+    basedir = nativeApp.basedir
 
     # logging
     log_format = '[%(asctime)s] %(levelname)-7s : %(message)s'
@@ -221,29 +282,36 @@ if __name__ == '__main__':
     logging.info('nativeApp path = {0}'.format(os.path.realpath(sys.argv[0])))
     print('nativeApp path = {0}'.format(os.path.realpath(sys.argv[0])))
 
+    ppid = '{0}'.format(os.getppid())  # pid of browser
     if len(sys.argv) > 1:
         if sys.argv[1] == 'install':
             print('Installing... please see the progress in logfile: ' + logfile)
             print('Please also download Optract browser extension.')
             OptractInstall.main(basedir)
         elif sys.argv[1] == 'test':
-            nativeApp = NativeApp()
             nativeApp.startServer()
-            raw_input("enter anything to stop...")
+            raw_input("press <enter> to stop...")
             nativeApp.stopServer()
-        elif sys.argv[1] == 'launch':
-            if platform == 'win32':
-                raise BaseException("windows version does not support 'launch' argument")
-            launcher()
+        elif sys.argv[1] == 'testtray':
+            systrapP = subprocess.Popen([systray, ppid])
         else:
-            if platform == 'win32':
-                mainwin()
-            else:
-                logging.info('calling starter() 1')
-                starter()
+            main(nativeApp)
     else:
-        if platform == 'win32':
-            mainwin()
-        else:
-            logging.info('calling starter() 2')
-            starter()
+        main(nativeApp)
+
+        # elif sys.argv[1] == 'launch':
+        #     if platform == 'win32':
+        #         raise BaseException("windows version does not support 'launch' argument")
+        #     launcher()
+        # else:
+        #     if platform == 'win32':
+        #         mainwin()
+        #     else:
+        #         logging.info('calling starter() 1')
+        #         starter()
+    # else:
+        # if platform == 'win32':
+        #     mainwin()
+        # else:
+        #     logging.info('calling starter() 2')
+        #     starter()

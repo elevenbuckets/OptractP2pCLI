@@ -54,6 +54,9 @@ shutil.copytree(os.path.join(basedir, 'resources', 'dist', 'nativeApp'),
 #              os.path.join(basedir, 'dist'))
 os.chdir(os.path.join(basedir))
 
+# TODO: pack and copy systray
+# TODO: copy the icon of systray to basedir/dist
+
 # pack
 package = 'OptractClient_win64'
 if os.path.isfile(package):

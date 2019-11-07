@@ -6,6 +6,7 @@ import shutil
 import tarfile
 import json
 import subprocess
+import hashlib
 import logging
 log = logging.getLogger(__name__)
 
@@ -147,6 +148,33 @@ class OptractInstall():
                 json.dump(manifest_content, f, indent=4)
         return
 
+    def _compare_md5(self, filename, md5_expected):
+        md5_seen = hashlib.md5(open(filename, 'rb').read()).hexdigest()
+        if md5_seen != md5_expected:
+            raise BaseException('The md5sum of file {0} is inconsistent with expected hash.'.format(filename))
+
+    def check_md5(self):
+        if sys.platform.startswith('win32'):
+            node_md5_expected = 'f293ba8c28494ecd38416aa37443aa0d'
+            ipfs_md5_expected = 'bbed13baf0da782311a97077d8990f27'
+            node_modules_tar_md5_expected = 'f177837cd1f3b419279b52a07ead78ce'
+        elif sys.platform.startswith('linux'):
+            node_md5_expected = '8a9aa6414470a6c9586689a196ff21e3'
+            ipfs_md5_expected = 'ee571b0fcad98688ecdbf8bdf8d353a5'
+            node_modules_tar_md5_expected = '745372d74f1be243764268ac84b4ab8d'
+        elif sys.platform.startswith('darwin'):
+            node_md5_expected = 'b4ba1b40b227378a159212911fc16024'
+            ipfs_md5_expected = '5e8321327691d6db14f97392e749223c'
+            node_modules_tar_md5_expected = '6f997ad2bac5f0fa3db05937554c9223'
+
+        nodeCMD = os.path.join(cwd, 'bin', 'node')
+        ipfsCMD = os.path.join(cwd, 'bin', 'ipfs')
+        node_modules_tar = os.path.join(cwd, 'node_modules.tar')
+        self._compare_md5(nodeCMD, node_md5_expected)
+        self._compare_md5(ipfsCMD, ipfs_md5_expected)
+        self._compare_md5(node_modules_tar, node_modules_tar_md5_expected)
+        return
+
     def prepare_basedir(self):
         logging.info('Preparing folder for optract in: ' + self.basedir)
 
@@ -160,6 +188,9 @@ class OptractInstall():
             shutil.move(release_dir, release_backup)
         os.mkdir(release_dir)
 
+        # check md5sum
+        self.check_md5()
+
         # copy files to basedir
         # if sys.platform == 'win32':
         #     nativeApp = os.path.join('nativeApp.exe')
@@ -171,6 +202,10 @@ class OptractInstall():
         shutil.copytree(os.path.join(cwd, 'dapps'), os.path.join(release_dir, 'dapps'))
         logging.info('copy {0} to {1}'.format(os.path.join(cwd, 'lib'), os.path.join(release_dir, 'lib')))
         shutil.copytree(os.path.join(cwd, 'lib'), os.path.join(release_dir, 'lib'))
+        logging.info('copy {0} to {1}'.format('systray.app', release_dir))
+        shutil.copytree(os.path.join(cwd, 'systray.app'), os.path.join(release_dir, 'systray.app'))
+        logging.info('copy {0} to {1}'.format('icon.png', release_dir))
+        shutil.copy2(os.path.join(cwd, 'icon.png'), release_dir)
         logging.info('copy {0} to {1}'.format('nativeApp', release_dir))
         shutil.copytree(os.path.join(cwd, 'nativeApp'), os.path.join(release_dir, 'nativeApp'))
         self.extract_node_modules(os.path.join(cwd, 'node_modules.tar'), release_dir)
