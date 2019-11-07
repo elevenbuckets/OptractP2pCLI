@@ -11,10 +11,7 @@ from nativeApp import NativeApp
 
 nativeApp = NativeApp()
 
-if os.path.exists(nativeApp.lockFile):
-    TRAY_TOOLTIP = 'Optract is running'
-else:
-    TRAY_TOOLTIP = 'Optract...'
+TRAY_TOOLTIP = 'Optract...'
 TRAY_ICON = os.path.join(nativeApp.basedir, 'dist', 'icon.png')
 
 # logging
@@ -75,6 +72,10 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
 
     def set_icon(self, path):
         icon = wx.Icon(wx.Bitmap(path))
+        if os.path.exists(nativeApp.lockFile):
+            TRAY_TOOLTIP = 'Optract is running'
+        else:
+            TRAY_TOOLTIP = 'Optract...'
         self.SetIcon(icon, TRAY_TOOLTIP)
 
     def get_status(self):

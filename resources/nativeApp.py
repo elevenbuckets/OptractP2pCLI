@@ -38,6 +38,7 @@ class NativeApp():
     def __init__(self):
         self.platform = self.get_platform()
         if not (self.platform == 'linux' or self.platform == 'darwin' or self.platform == 'win32'):
+            logging.error('Unsupported platform')
             raise BaseException('Unsupported platform')
         # TODO: use the input argument to control basedir
         self.set_basedir()
@@ -99,8 +100,10 @@ class NativeApp():
         # elif os.path.isdir(target):
         #     md5_seen = dirhash(target, 'md5')
         else:
+            logging.error('The target {0} is neither file nor directory.'.format(target))
             raise BaseException('The target {0} is neither file nor directory.'.format(target))
         if md5_seen != md5_expected:
+            loggint.error('The md5sum of file or directory {0} is inconsistent with expected hash.'.format(target))
             raise BaseException('The md5sum of file or directory {0} is inconsistent with expected hash.'.format(target))
 
     def check_md5(self):
@@ -112,7 +115,7 @@ class NativeApp():
         elif sys.platform.startswith('linux'):
             node_md5_expected = '8a9aa6414470a6c9586689a196ff21e3'
             ipfs_md5_expected = 'ee571b0fcad98688ecdbf8bdf8d353a5'
-            node_modules_dir_md5_expected = ''
+            node_modules_dir_md5_expected = '11f0140775c0939218afa7790a39cbb5'
         elif sys.platform.startswith('darwin'):
             node_md5_expected = 'b4ba1b40b227378a159212911fc16024'
             ipfs_md5_expected = '5e8321327691d6db14f97392e749223c'
@@ -131,9 +134,12 @@ class NativeApp():
     def startServer(self, can_exit=False):
         if not self.platform == 'win32':  # in windows, nativeApp cannot close properly so lockFile is always there
             if os.path.exists(self.lockFile):
-                logging.error('Do nothing: lockFile exists in: {0}'.format(self.lockFile))
                 if can_exit:
+                    logging.error('Do nothing: lockFile exists in: {0}'.format(self.lockFile))
                     sys.exit(0)
+                else:
+                    logging.warning('Do nothing: lockFile exists in: {0}'.format(self.lockFile))
+
         self.check_md5()
 
         ipfs_path = {
