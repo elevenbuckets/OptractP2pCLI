@@ -11,7 +11,10 @@ from nativeApp import NativeApp
 
 nativeApp = NativeApp()
 
-TRAY_TOOLTIP = 'Optract'
+if os.path.exists(nativeApp.lockFile):
+    TRAY_TOOLTIP = 'Optract is running'
+else:
+    TRAY_TOOLTIP = 'Optract...'
 TRAY_ICON = os.path.join(nativeApp.basedir, 'dist', 'icon.png')
 
 # logging
@@ -107,7 +110,7 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
             print(self.nativeApp.ipfsP.pid)
 
     def on_start_server(self, event):
-        self.nativeApp.startServer()
+        self.nativeApp.startServer()  # can_exit=False
         pass
 
     def on_stop_server(self, event):
@@ -131,7 +134,7 @@ class App(wx.App):
 
 def main():
     app = App(False)
-    nativeApp.startServer()
+    nativeApp.startServer(can_exit=True)  # to prevent multiple instances
     app.MainLoop()
 
 

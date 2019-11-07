@@ -128,12 +128,12 @@ class NativeApp():
         # node_modules_dir = os.path.join(basedir, 'dist', 'node_modules')
         # self._compare_md5(node_modules_dir, node_modules_md5_expected)
 
-    def startServer(self):
+    def startServer(self, can_exit=False):
         if not self.platform == 'win32':  # in windows, nativeApp cannot close properly so lockFile is always there
             if os.path.exists(self.lockFile):
                 logging.error('Do nothing: lockFile exists in: {0}'.format(self.lockFile))
-                sys.exit(0)
-                return
+                if can_exit:
+                    sys.exit(0)
         self.check_md5()
 
         ipfs_path = {
