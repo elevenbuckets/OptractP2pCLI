@@ -10,6 +10,9 @@ import hashlib
 import logging
 log = logging.getLogger(__name__)
 
+if sys.platform == "win32":
+    import winreg
+
 # global variables
 # 'cwd' is for installtion, it may look like ~/Downloads/optract_release
 cwd = os.path.dirname(os.path.realpath(sys.argv[0]))  # os.getcwd() may not correct if click it from File manager(?)
@@ -25,6 +28,9 @@ def mkdir(dirname):  # if parent dir exists and dirname does not exist
 class OptractInstall():
     def __init__(self, basedir):
         self.basedir = basedir
+        extid_file = os.path.join(cwd, 'extension_id.json')  # or write fix values here?
+        with open(extid_file, 'r') as f:
+            self.extid = json.load(f)
         return
 
     def add_registry_chrome(self):
@@ -41,7 +47,7 @@ class OptractInstall():
 
             # create optract-win-chrome.json
             with open(nativeMessagingMainfest, 'w') as f:
-                manifest_content = self.create_manifest_chrome('nativeApp\\nativeApp.exe')
+                manifest_content = self.create_manifest_chrome('nativeApp\\nativeApp.exe', self.extid['chrome'])
                 json.dump(manifest_content, f, indent=4)
         return
 
@@ -59,7 +65,7 @@ class OptractInstall():
 
             # create optract-win-firefox.json
             with open(nativeMessagingMainfest, 'w') as f:
-                manifest_content = self.create_manifest_firefox('nativeApp\\nativeApp.exe')
+                manifest_content = self.create_manifest_firefox('nativeApp\\nativeApp.exe', self.extid['firefox'])
                 json.dump(manifest_content, f, indent=4)
         return
 
@@ -113,9 +119,9 @@ class OptractInstall():
         # create manifest file and write to native message folder
         if sys.platform.startswith('win32'):
             if browser == 'chrome':
-                self.add_registry_chrome(self.basedir)
+                self.add_registry_chrome()
             elif browser == 'firefox':
-                self.add_registry_firefox(self.basedir)
+                self.add_registry_firefox()
         else:  # unix-like
             # determine native message directory for different OS and browsers
             # TODO: make sure user already has at least one browser installed
@@ -134,13 +140,10 @@ class OptractInstall():
             nativeAppPath = os.path.join(self.basedir, 'dist', 'nativeApp', 'nativeApp')
 
             # create content for manifest file of native messaging
-            extid_file = os.path.join(cwd, 'extension_id.json')  # or write fix values here?
-            with open(extid_file, 'r') as f:
-                extid = json.load(f)
             if browser == 'chrome':
-                manifest_content = self.create_manifest_chrome(nativeAppPath, extid['chrome'])
+                manifest_content = self.create_manifest_chrome(nativeAppPath, self.extid['chrome'])
             elif browser == 'firefox':
-                manifest_content = self.create_manifest_firefox(nativeAppPath, extid['firefox'])
+                manifest_content = self.create_manifest_firefox(nativeAppPath, self.extid['firefox'])
 
             # write manifest file
             manifest_path = os.path.join(nativeMsgDir, 'optract.json')
@@ -167,8 +170,12 @@ class OptractInstall():
             ipfs_md5_expected = '5e8321327691d6db14f97392e749223c'
             node_modules_tar_md5_expected = '6f997ad2bac5f0fa3db05937554c9223'
 
-        nodeCMD = os.path.join(cwd, 'bin', 'node')
-        ipfsCMD = os.path.join(cwd, 'bin', 'ipfs')
+        if sys.platform.startswith('win32'):
+            nodeCMD = os.path.join(cwd, 'bin', 'node.exe')
+            ipfsCMD = os.path.join(cwd, 'bin', 'ipfs.exe')
+        else:
+            nodeCMD = os.path.join(cwd, 'bin', 'node')
+            ipfsCMD = os.path.join(cwd, 'bin', 'ipfs')
         node_modules_tar = os.path.join(cwd, 'node_modules.tar')
         self._compare_md5(nodeCMD, node_md5_expected)
         self._compare_md5(ipfsCMD, ipfs_md5_expected)
@@ -208,8 +215,8 @@ class OptractInstall():
             systray = 'systray'
         logging.info('copy {0} to {1}'.format(systray, release_dir))
         shutil.copytree(os.path.join(cwd, systray), os.path.join(release_dir, systray))
-        logging.info('copy {0} to {1}'.format('icon.ico', release_dir))
-        shutil.copy2(os.path.join(cwd, 'icon.ico'), release_dir)
+        logging.info('copy {0} to {1}'.format('icon', release_dir))
+        shutil.copy2(os.path.join(cwd, 'icon.xpm'), release_dir)
         logging.info('copy {0} to {1}'.format('nativeApp', release_dir))
         shutil.copytree(os.path.join(cwd, 'nativeApp'), os.path.join(release_dir, 'nativeApp'))
         self.extract_node_modules(os.path.join(cwd, 'node_modules.tar'), release_dir)

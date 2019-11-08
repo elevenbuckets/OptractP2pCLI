@@ -21,17 +21,21 @@ import OptractDaemon
 # On Windows, the default I/O mode is O_TEXT. Set this to O_BINARY
 # to avoid unwanted modifications of the input/output streams.
 if sys.platform == "win32":
-    import winreg
+    # import winreg
     import msvcrt
     msvcrt.setmode(sys.stdin.fileno(), os.O_BINARY)
     msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
 
 # global variables
 FNULL = open(os.devnull, 'w')
-if sys.platform.startswith('darwin'):
-    systray = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0]))), 'systray.app', 'Contents', 'MacOS', 'systray')
-else:
+if sys.platform.startswith('linux'):
     systray = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0]))), 'systray', 'systray')
+elif sys.platform.startswith('darwin'):
+    systray = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0]))), 'systray.app', 'Contents', 'MacOS', 'systray')
+elif sys.platform.startswith('win32'):
+    systray = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0]))), 'systray', 'systray.exe')
+else:
+    raise BaseException('Unsupported platform')
 
 
 class NativeApp():
@@ -89,8 +93,8 @@ class NativeApp():
 
     def send_message(self, encode_message):
         # ex: send_message(encode_message('ping->pong'))
-        sys.stdout.write(self.encode_message['length'])
-        sys.stdout.write(self.encode_message['content'])
+        sys.stdout.write(self.encode_message('length'))
+        sys.stdout.write(self.encode_message('content'))
         sys.stdout.flush()
         return
 
@@ -103,7 +107,7 @@ class NativeApp():
             logging.error('The target {0} is neither file nor directory.'.format(target))
             raise BaseException('The target {0} is neither file nor directory.'.format(target))
         if md5_seen != md5_expected:
-            loggint.error('The md5sum of file or directory {0} is inconsistent with expected hash.'.format(target))
+            logging.error('The md5sum of file or directory {0} is inconsistent with expected hash.'.format(target))
             raise BaseException('The md5sum of file or directory {0} is inconsistent with expected hash.'.format(target))
 
     def check_md5(self):
@@ -121,14 +125,17 @@ class NativeApp():
             ipfs_md5_expected = '5e8321327691d6db14f97392e749223c'
             node_modules_dir_md5_expected = '8a2aae4ca15614c9eef5949bdf78b495'
 
-        nodeCMD = os.path.join(self.basedir, 'dist', 'bin', 'node')
+        if sys.platform.startswith('win32'):
+            nodeCMD = os.path.join(self.basedir, 'dist', 'bin', 'node.exe')
+            ipfsCMD = os.path.join(self.basedir, 'dist', 'bin', 'ipfs.exe')
+        else:
+            nodeCMD = os.path.join(self.basedir, 'dist', 'bin', 'node')
+            ipfsCMD = os.path.join(self.basedir, 'dist', 'bin', 'ipfs')
         self._compare_md5(nodeCMD, node_md5_expected)
-
-        ipfsCMD = os.path.join(self.basedir, 'dist', 'bin', 'ipfs')
         self._compare_md5(ipfsCMD, ipfs_md5_expected)
 
         # note: problem in pyinstaller while use the 'checksumdir' module. Comment here, _compare_md5 before figure it out
-        # node_modules_dir = os.path.join(basedir, 'dist', 'node_modules')
+        # node_modules_dir = os.path.join(self.basedir, 'dist', 'node_modules')
         # self._compare_md5(node_modules_dir, node_modules_md5_expected)
 
     def startServer(self, can_exit=False):
@@ -298,7 +305,10 @@ if __name__ == '__main__':
     logging.info('nativeApp path = {0}'.format(os.path.realpath(sys.argv[0])))
     print('nativeApp path = {0}'.format(os.path.realpath(sys.argv[0])))
 
-    ppid = '{0}'.format(os.getppid())  # pid of browser
+    try:
+        ppid = '{0}'.format(os.getppid())  # pid of browser; getppid() only work on unix
+    except:
+        ppid = '-'
     if len(sys.argv) > 1:
         if sys.argv[1] == 'install':
             print('Installing... please see the progress in logfile: ' + logfile)

@@ -42,6 +42,8 @@ shutil.copy2(os.path.join(basedir, 'resources', 'extension_id.json'),
              os.path.join(basedir, 'dist'))
 shutil.copy2(os.path.join(basedir, 'resources', 'install.bat'),
              os.path.join(basedir, 'dist'))
+shutil.copy2(os.path.join(basedir, 'resources', 'icon.xpm'),
+             os.path.join(basedir, 'dist'))
 
 # pack and copy nativeApp
 print('# pack nativeApp')
@@ -52,6 +54,9 @@ shutil.copytree(os.path.join(basedir, 'resources', 'dist', 'nativeApp'),
                 os.path.join(basedir, 'dist', 'nativeApp'))
 # shutil.copy2(os.path.join(basedir, 'resources', 'dist', 'nativeApp.exe'),
 #              os.path.join(basedir, 'dist'))
+subprocess.check_call(["pyarmor", "pack", "systray.py"])  # Why error if pass args to pyinstaller via '-e'?
+shutil.copytree(os.path.join(basedir, 'resources', 'dist', 'systray'),
+                os.path.join(basedir, 'dist', 'systray'))
 os.chdir(os.path.join(basedir))
 
 # TODO: pack and copy systray

@@ -2,6 +2,7 @@
 from __future__ import print_function
 import wx.adv
 import wx
+import sys
 import os
 import time
 import psutil
@@ -12,7 +13,7 @@ from nativeApp import NativeApp
 nativeApp = NativeApp()
 
 TRAY_TOOLTIP = 'Optract...'
-TRAY_ICON = os.path.join(nativeApp.basedir, 'dist', 'icon.ico')
+TRAY_ICON = os.path.join(nativeApp.basedir, 'dist', 'icon.xpm')
 
 # logging
 # even though logging is not used in systray, nativeApp still use logging and have to be defined here
@@ -72,6 +73,7 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
 
     def set_icon(self, path):
         icon = wx.Icon(wx.Bitmap(path))
+        # TODO: call set_icon while hover on icon
         if os.path.exists(nativeApp.lockFile):
             TRAY_TOOLTIP = 'Optract is running'
         else:
