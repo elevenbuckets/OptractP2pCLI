@@ -27,7 +27,8 @@ if sys.platform == "win32":
     msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
 
 # global variables
-FNULL = open(os.devnull, 'w')
+FNULL = open(os.devnull, 'w')  # python2
+# FNULL = subprocess.DEVNULL  # python3
 if sys.platform.startswith('linux'):
     systray = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0]))), 'systray', 'systray')
 elif sys.platform.startswith('darwin'):
@@ -168,8 +169,8 @@ class NativeApp():
                 os.remove(ipfs_path['api'])
             if os.path.exists(ipfs_path['lock']):
                 os.remove(ipfs_path['lock'])
-            self.ipfsP = subprocess.Popen([ipfs_path['bin'], "daemon", "--routing=dhtclient"], env=myenv, stdout=FNULL,
-                                         stderr=subprocess.STDOUT)
+            self.ipfsP = subprocess.Popen([ipfs_path['bin'], "daemon", "--routing=dhtclient"], env=myenv, stdin=FNULL,
+                                          stdout=FNULL, stderr=subprocess.STDOUT)
 
         while (not os.path.exists(ipfs_path['api']) or not os.path.exists(ipfs_path['lock'])):
             time.sleep(.01)
@@ -222,6 +223,8 @@ class NativeApp():
 def main(nativeApp):
     started = False
     logging.info('Start to listen to native message...')
+    # debug_file = os.path.join(nativeApp.basedir, 'f_systray.log')
+    # f_debug = open(debug_file, 'w')
     while True:
         message = nativeApp.get_message()
         if "ping" in message.values() and started == False:
@@ -230,8 +233,15 @@ def main(nativeApp):
             # note that it's possible to generate two systray running if the first systray is stopped and then
             # start or restart browser
             # add a lockfile for systray?
-            systrayP = subprocess.Popen([systray, ppid], stdout=FNULL, stderr=subprocess.STDOUT)
-            logging.info('sysatry (pid:{0}) and server started'.format(systrayP.pid))
+            systrayP = subprocess.Popen([systray, ppid], stdin=FNULL, stdout=FNULL, stderr=FNULL)
+            # if sys.platform.startswith('win32'):
+            #     startupinfo = subprocess.STARTUPINFO()
+            #     startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            #     logging.info('popen systray...')
+            #     systrayP = subprocess.Popen([systray, ppid], startupinfo=startupinfo, shell=True, stdin=FNULL, stdout=f_debug, stderr=f_debug)
+            # else:
+            #     systrayP = subprocess.Popen([systray, ppid], stdin=FNULL, stdout=f_debug, stderr=f_debug)
+            logging.info('sysatry (pid:{0}) and server starting...'.format(systrayP.pid))
     return
 
 
