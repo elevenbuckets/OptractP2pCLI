@@ -99,7 +99,8 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         return (status, nodeP_pid, ipfsP_pid)
 
     def on_left_down(self, event):
-        print('Tray icon was left-clicked.')
+        # print('Tray icon was left-clicked.')
+        self.PopupMenu(self.CreatePopupMenu())
 
     def on_null(self, event):
         pass
