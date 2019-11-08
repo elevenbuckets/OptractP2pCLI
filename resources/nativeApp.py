@@ -21,7 +21,6 @@ import OptractDaemon
 # On Windows, the default I/O mode is O_TEXT. Set this to O_BINARY
 # to avoid unwanted modifications of the input/output streams.
 if sys.platform == "win32":
-    # import winreg
     import msvcrt
     msvcrt.setmode(sys.stdin.fileno(), os.O_BINARY)
     msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
@@ -210,8 +209,8 @@ class NativeApp():
                 logging.error("Can't stop pid {0}: {1}: {2}".format(
                                self.ipfsP.pid, err.__class__.__name__, err))
                 pass
-            # send one more SIGINT to make sure
-            time.sleep(1)
+            # send one more SIGINT to make sure (redundant?)
+            time.sleep(0.5)
             try:
                 os.kill(self.ipfsP.pid, signal.SIGINT)
             except:
@@ -223,24 +222,14 @@ class NativeApp():
 def main(nativeApp):
     started = False
     logging.info('Start to listen to native message...')
-    # debug_file = os.path.join(nativeApp.basedir, 'f_systray.log')
-    # f_debug = open(debug_file, 'w')
     while True:
         message = nativeApp.get_message()
         if "ping" in message.values() and started == False:
             started = True
-            # the "Popen" below will fail if there's a systray running so that there's a lock file for daemon.js
-            # note that it's possible to generate two systray running if the first systray is stopped and then
-            # start or restart browser
+            # the "Popen" below will fail if there's a systray running due to the lock file of daemon.js
+            # TODO: (bug) can generate two systray if the first systray call "stop" and then start or restart browser
             # add a lockfile for systray?
-            systrayP = subprocess.Popen([systray, ppid], stdin=FNULL, stdout=FNULL, stderr=FNULL)
-            # if sys.platform.startswith('win32'):
-            #     startupinfo = subprocess.STARTUPINFO()
-            #     startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-            #     logging.info('popen systray...')
-            #     systrayP = subprocess.Popen([systray, ppid], startupinfo=startupinfo, shell=True, stdin=FNULL, stdout=f_debug, stderr=f_debug)
-            # else:
-            #     systrayP = subprocess.Popen([systray, ppid], stdin=FNULL, stdout=f_debug, stderr=f_debug)
+            systrayP = subprocess.Popen([systray, ppid], shell=True, stdin=FNULL, stdout=FNULL, stderr=FNULL)  # the "shell=True" is essential for windows
             logging.info('sysatry (pid:{0}) and server starting...'.format(systrayP.pid))
     return
 
