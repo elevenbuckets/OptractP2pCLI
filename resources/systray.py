@@ -12,7 +12,7 @@ from nativeApp import NativeApp
 nativeApp = NativeApp()
 
 TRAY_TOOLTIP = 'Optract...'
-TRAY_ICON = os.path.join(nativeApp.basedir, 'dist', 'icon.png')
+TRAY_ICON = os.path.join(nativeApp.basedir, 'dist', 'icon.ico')
 
 # logging
 # even though logging is not used in systray, nativeApp still use logging and have to be defined here
