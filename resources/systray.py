@@ -13,7 +13,13 @@ from nativeApp import NativeApp
 nativeApp = NativeApp()
 
 TRAY_TOOLTIP = 'Optract'
-TRAY_ICON = os.path.join(nativeApp.basedir, 'dist', 'icon.xpm')
+
+icons = {
+    'inactive': os.path.join(nativeApp.basedir, 'dist', 'assets', 'icon.xpm'),
+    'active': os.path.join(nativeApp.basedir, 'dist', 'assets', 'icon-active.xpm')
+}
+
+TRAY_ICON = icons['inactive']
 
 # logging
 # even though logging is not used in systray, nativeApp still use logging and have to be defined here
@@ -58,6 +64,10 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         # else:
         #     ppid = 1
         # wx.CallAfter(simple_daemon)
+        # time event
+        self.timer = wx.Timer(self)
+        self.Bind(wx.EVT_TIMER, self.on_timer)
+        self.timer.Start(6000)  # every 6 seconds
 
     def CreatePopupMenu(self):
         menu = wx.Menu()
@@ -69,7 +79,7 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         create_menu_item(menu, 'Start', self.on_start_server)
         create_menu_item(menu, 'Stop', self.on_stop_server)
         menu.AppendSeparator()
-        if not self.ipfsP_is_running:
+        if not self.ipfsP_is_running and self.nodeP_is_running:
             create_menu_item(menu, 'restart ipfs (experimental)', self.on_restart_ipfs)
 
         menu.AppendSeparator()
@@ -78,7 +88,6 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
 
     def set_icon(self, path):
         icon = wx.Icon(wx.Bitmap(path))
-        # TODO: call set_icon while hover on icon or periodically
         if os.path.exists(nativeApp.lockFile):
             TRAY_TOOLTIP = 'Optract is running'
         else:
@@ -109,10 +118,12 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
 
         nodeP_symbol = '❌'
         nodeP_status_report = '-'
+        self.nodeP_is_running = False
         if hasattr(self.nativeApp.nodeP, 'pid'):
             nodeP_is_running, nodeP_status, nodeP_status_report = self._get_pid_status(self.nativeApp.nodeP.pid)
             if nodeP_is_running and node_locked:
                 nodeP_symbol = '✔️'
+                self.nodeP_is_running = True
 
         ipfsP_symbol = '❌'
         ipfsP_status_report = '-'
@@ -142,13 +153,20 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         if self.nativeApp.ipfsP is not None:
             print(self.nativeApp.ipfsP.pid)
 
+    def on_timer(self, event):
+        is_running, _, _, _, _ = self.get_status()
+        if is_running:
+            self.set_icon(icons['active'])
+            self.timer.Stop()
+            self.timer.Start(15000)  # use lower frequency than the one in __init__()
+        else:
+            self.set_icon(icons['inactive'])
+
     def on_start_server(self, event):
         self.nativeApp.startServer()  # can_exit=False
-        pass
 
     def on_stop_server(self, event):
         self.nativeApp.stopServer()
-        pass
 
     def on_restart_ipfs(self, event):
         self.nativeApp.start_ipfs()

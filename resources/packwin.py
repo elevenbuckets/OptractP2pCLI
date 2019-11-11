@@ -42,8 +42,8 @@ shutil.copy2(os.path.join(basedir, 'resources', 'extension_id.json'),
              os.path.join(basedir, 'dist'))
 shutil.copy2(os.path.join(basedir, 'resources', 'install.bat'),
              os.path.join(basedir, 'dist'))
-shutil.copy2(os.path.join(basedir, 'resources', 'icon.xpm'),
-             os.path.join(basedir, 'dist'))
+shutil.copytree(os.path.join(basedir, 'resources', 'assets'),
+                os.path.join(basedir, 'dist', 'dapps'))
 
 # pack and copy nativeApp
 print('# pack nativeApp')
@@ -58,9 +58,6 @@ subprocess.check_call(["pyarmor", "pack", "systray.py"])  # Why error if pass ar
 shutil.copytree(os.path.join(basedir, 'resources', 'dist', 'systray'),
                 os.path.join(basedir, 'dist', 'systray'))
 os.chdir(os.path.join(basedir))
-
-# TODO: pack and copy systray
-# TODO: copy the icon of systray to basedir/dist
 
 # pack
 package = 'OptractClient_win64'
