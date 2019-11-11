@@ -12,7 +12,7 @@ from nativeApp import NativeApp
 
 nativeApp = NativeApp()
 
-TRAY_TOOLTIP = 'Optract...'
+TRAY_TOOLTIP = 'Optract'
 TRAY_ICON = os.path.join(nativeApp.basedir, 'dist', 'icon.xpm')
 
 # logging
@@ -61,8 +61,8 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
 
     def CreatePopupMenu(self):
         menu = wx.Menu()
-        (node_lock, nodeP_pid, ipfs_lock, ipfsP_pid) = self.get_status()
-        create_menu_item(menu, 'Status:', self.on_null, enable=False)
+        (is_running, node_lock, nodeP_pid, ipfs_lock, ipfsP_pid) = self.get_status()
+        create_menu_item(menu, 'Status:'.format('running' if is_running else '---'), self.on_null, enable=False)
         create_menu_item(menu, ' node: pid {0} {1}'.format(nodeP_pid, node_lock), self.on_null, enable=False)  # TODO: hide these details
         create_menu_item(menu, ' ipfs: pid {0} {1}'.format(ipfsP_pid, ipfs_lock), self.on_null, enable=False)
         menu.AppendSeparator()
@@ -74,31 +74,53 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
 
     def set_icon(self, path):
         icon = wx.Icon(wx.Bitmap(path))
-        # TODO: call set_icon while hover on icon
+        # TODO: call set_icon while hover on icon or periodically
         if os.path.exists(nativeApp.lockFile):
             TRAY_TOOLTIP = 'Optract is running'
         else:
             TRAY_TOOLTIP = 'Optract'
         self.SetIcon(icon, TRAY_TOOLTIP)
 
+    def _get_pid_status(self, pid):
+        if psutil.pid_exists(pid):
+            is_running = psutil.Process(pid).is_running()
+            status = psutil.Process(pid).status()
+            status_report = '{0} ({1})'.format(pid, status)
+        else:
+            is_running = False
+            status = None
+            status_report = '{0}'.format(pid)
+        return is_running, status, status_report
+
     def get_status(self):
+        is_running = False
+
         node_lock = ipfs_lock = '-'
         if os.path.exists(nativeApp.lockFile):
             node_lock = '🔒'
         if os.path.exists(nativeApp.ipfs_lockFile):
             ipfs_lock = '🔒'
 
-        nodeP_pid = ipfsP_pid = None
+        if node_lock != '-' and ipfs_lock != '-':
+            is_running = True
 
-        if self.nativeApp.nodeP.pid is not None:
-            if psutil.pid_exists(self.nativeApp.nodeP.pid):
-                nodeP_pid = '{0} ({1})'.format(self.nativeApp.nodeP.pid, psutil.Process(nodeP_pid).status())
+        if hasattr(self.nativeApp.nodeP, 'pid'):
+            nodeP_is_running, nodeP_status, nodeP_status_report = self._get_pid_status(self.nativeApp.nodeP.pid)
+            if nodeP_is_running == False or nodeP_status == 'zombie':
+                is_running = False
+        else:
+            nodeP_status_report = '-'
+            is_running = False
 
-        if self.nativeApp.ipfsP.pid is not None:
-            if psutil.pid_exists(self.nativeApp.ipfsP.pid):
-                ipfsP_pid = '{0} ({1})'.format(self.nativeApp.ipfsP.pid, psutil.Process(ipfsP_pid).status())
+        if hasattr(self.nativeApp.ipfsP, 'pid'):
+            ipfsP_is_running, ipfsP_status, ipfsP_status_report = self._get_pid_status(self.nativeApp.ipfsP.pid)
+            if ipfsP_is_running == False or ipfsP_status == 'zombie':
+                is_running = False
+        else:
+            ipfsP_status_report = '-'
+            is_running = False
 
-        return (node_lock, nodeP_pid, ipfs_lock, ipfsP_pid)
+        return (is_running, node_lock, nodeP_status_report, ipfs_lock, ipfsP_status_report)
 
     def on_left_down(self, event):
         self.PopupMenu(self.CreatePopupMenu())
