@@ -14,6 +14,7 @@ import signal
 import logging
 import threading
 import hashlib
+import psutil
 # from checksumdir import dirhash
 import OptractInstall
 import OptractDaemon
@@ -157,12 +158,20 @@ class NativeApp():
             subprocess.check_call([ipfs_path['bin'], "init"], env=myenv, stdout=FNULL, stderr=subprocess.STDOUT)
             return self.startServer(check_md5=False)  # is it safe to check_md5=False? if true then need to check frequently while starting
         else:
-            if os.path.exists(ipfs_path['api']):
-                os.remove(ipfs_path['api'])
-            if os.path.exists(ipfs_path['lock']):
-                os.remove(ipfs_path['lock'])
-            self.ipfsP = subprocess.Popen([ipfs_path['bin'], "daemon", "--routing=dhtclient"], env=myenv, stdout=FNULL,
-                                         stderr=subprocess.STDOUT)
+            try:
+                status = psutil.Process(self.ipfsP.pid).status()
+                is_running = psutil.Process(self.ipfsP.pid).is_running()  # careful: return true if status == "zombie"
+            except (AttributeError, psutil.NoSuchProcess):  # "self.ipfsP" does not have "pid"
+                status = None
+                is_running = None
+            if status is None or is_running is None or status == psutil.STATUS_ZOMBIE:  # prevent kill a ipfs daemon which is still running
+                if os.path.exists(ipfs_path['api']):
+                    os.remove(ipfs_path['api'])
+                if os.path.exists(ipfs_path['lock']):
+                    os.remove(ipfs_path['lock'])
+                # self.ipfsP_old = self.ipfsP
+                self.ipfsP = subprocess.Popen([ipfs_path['bin'], "daemon", "--routing=dhtclient"], env=myenv, stdout=FNULL,
+                                             stderr=subprocess.STDOUT)
         return ipfs_path
 
     def start_node(self):

@@ -61,13 +61,17 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
 
     def CreatePopupMenu(self):
         menu = wx.Menu()
-        (is_running, node_lock, nodeP_pid, ipfs_lock, ipfsP_pid) = self.get_status()
-        create_menu_item(menu, 'Status:'.format('running' if is_running else '---'), self.on_null, enable=False)
-        create_menu_item(menu, ' node: pid {0} {1}'.format(nodeP_pid, node_lock), self.on_null, enable=False)  # TODO: hide these details
-        create_menu_item(menu, ' ipfs: pid {0} {1}'.format(ipfsP_pid, ipfs_lock), self.on_null, enable=False)
+        (is_running, node_symbol, nodeP_report, ipfs_symbol, ipfsP_report) = self.get_status()
+        create_menu_item(menu, 'Status: {0}'.format('✔️'  if is_running else '---'), self.on_null, enable=False)
+        create_menu_item(menu, ' node: pid {0} {1}'.format(nodeP_report, node_symbol), self.on_null, enable=False)  # TODO: hide these details
+        create_menu_item(menu, ' ipfs: pid {0} {1}'.format(ipfsP_report, ipfs_symbol), self.on_null, enable=False)
         menu.AppendSeparator()
         create_menu_item(menu, 'Start', self.on_start_server)
         create_menu_item(menu, 'Stop', self.on_stop_server)
+        menu.AppendSeparator()
+        if not self.ipfsP_is_running:
+            create_menu_item(menu, 'restart ipfs (experimental)', self.on_restart_ipfs)
+
         menu.AppendSeparator()
         create_menu_item(menu, 'Exit', self.on_exit)
         return menu
@@ -85,42 +89,46 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         if psutil.pid_exists(pid):
             is_running = psutil.Process(pid).is_running()
             status = psutil.Process(pid).status()
+            if status == psutil.STATUS_ZOMBIE:
+                is_running = False
             status_report = '{0} ({1})'.format(pid, status)
         else:
             is_running = False
             status = None
-            status_report = '{0}'.format(pid)
+            status_report = '-'  # no such process (could be pending or already dead)
         return is_running, status, status_report
 
     def get_status(self):
         is_running = False
 
-        node_lock = ipfs_lock = '-'
+        node_locked = ipfs_locked = False
         if os.path.exists(nativeApp.lockFile):
-            node_lock = '🔒'
+            node_locked = True
         if os.path.exists(nativeApp.ipfs_lockFile):
-            ipfs_lock = '🔒'
+            ipfs_locked = True
 
-        if node_lock != '-' and ipfs_lock != '-':
-            is_running = True
-
+        nodeP_symbol = '❌'
+        nodeP_status_report = '-'
         if hasattr(self.nativeApp.nodeP, 'pid'):
             nodeP_is_running, nodeP_status, nodeP_status_report = self._get_pid_status(self.nativeApp.nodeP.pid)
-            if nodeP_is_running == False or nodeP_status == 'zombie':
-                is_running = False
-        else:
-            nodeP_status_report = '-'
-            is_running = False
+            if nodeP_is_running and node_locked:
+                nodeP_symbol = '✔️'
 
+        ipfsP_symbol = '❌'
+        ipfsP_status_report = '-'
+        self.ipfsP_is_running = False  # for menu item "restart ipfs"
         if hasattr(self.nativeApp.ipfsP, 'pid'):
             ipfsP_is_running, ipfsP_status, ipfsP_status_report = self._get_pid_status(self.nativeApp.ipfsP.pid)
-            if ipfsP_is_running == False or ipfsP_status == 'zombie':
-                is_running = False
-        else:
-            ipfsP_status_report = '-'
-            is_running = False
+            if ipfsP_is_running and ipfs_locked:
+                ipfsP_symbol = '✔️'
+                self.ipfsP_is_running = True
 
-        return (is_running, node_lock, nodeP_status_report, ipfs_lock, ipfsP_status_report)
+        if (hasattr(self.nativeApp.nodeP, 'pid') and hasattr(self.nativeApp.ipfsP, 'pid') and
+                node_locked and nodeP_is_running and
+                ipfs_locked and ipfsP_is_running):
+            is_running = True
+
+        return (is_running, nodeP_symbol, nodeP_status_report, ipfsP_symbol, ipfsP_status_report)
 
     def on_left_down(self, event):
         self.PopupMenu(self.CreatePopupMenu())
@@ -141,6 +149,9 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
     def on_stop_server(self, event):
         self.nativeApp.stopServer()
         pass
+
+    def on_restart_ipfs(self, event):
+        self.nativeApp.start_ipfs()
 
     def on_exit(self, event):
         self.nativeApp.stopServer()
