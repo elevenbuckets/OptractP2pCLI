@@ -37,10 +37,12 @@ logging.basicConfig(filename=logfile, level=logging.INFO, format=log_format,
 #             sys.exit(0)
 
 
-def create_menu_item(menu, label, func):
+def create_menu_item(menu, label, func, enable=True):
     item = wx.MenuItem(menu, -1, label)
     menu.Bind(wx.EVT_MENU, func, id=item.GetId())
     menu.Append(item)
+    if not enable:
+        item.Enable(False)
     return item
 
 
@@ -51,20 +53,19 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         super(TaskBarIcon, self).__init__()
         self.set_icon(TRAY_ICON)
         self.Bind(wx.adv.EVT_TASKBAR_LEFT_DOWN, self.on_left_down)
+        # if len(sys.argv) > 1:
+        #     ppid = sys.argv[1]  # the browser pid which call nativeApp which Popen systray
+        # else:
+        #     ppid = 1
         # wx.CallAfter(simple_daemon)
 
     def CreatePopupMenu(self):
         menu = wx.Menu()
-        create_menu_item(menu, 'Status', self.on_hello)
-        try:
-            (status, nodeP_pid, ipfsP_pid) = self.get_status()
-        except:
-            status = nodeP_pid = ipfsP_pid = 'null'
-        if len(sys.argv) > 1:
-            ppid = sys.argv[1]  # the browser pid which call nativeApp which Popen systray
-        else:
-            ppid = 1
-        create_menu_item(menu, '{0} / {1} / {2} / {3}'.format(status, nodeP_pid, ipfsP_pid, ppid), self.on_null)
+        (node_lock, nodeP_pid, ipfs_lock, ipfsP_pid) = self.get_status()
+        create_menu_item(menu, 'Status:', self.on_null, enable=False)
+        create_menu_item(menu, ' node: pid {0} {1}'.format(nodeP_pid, node_lock), self.on_null, enable=False)  # TODO: hide these details
+        create_menu_item(menu, ' ipfs: pid {0} {1}'.format(ipfsP_pid, ipfs_lock), self.on_null, enable=False)
+        menu.AppendSeparator()
         create_menu_item(menu, 'Start', self.on_start_server)
         create_menu_item(menu, 'Stop', self.on_stop_server)
         menu.AppendSeparator()
@@ -77,31 +78,29 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         if os.path.exists(nativeApp.lockFile):
             TRAY_TOOLTIP = 'Optract is running'
         else:
-            TRAY_TOOLTIP = 'Optract...'
+            TRAY_TOOLTIP = 'Optract'
         self.SetIcon(icon, TRAY_TOOLTIP)
 
     def get_status(self):
+        node_lock = ipfs_lock = '-'
         if os.path.exists(nativeApp.lockFile):
-            status = 'locked'
-        else:
-            status = '---'
-        nodeP_pid = None
-        ipfsP_pid = None
-        # nativeApp.nodeP.pid may remember a pid which is not running
+            node_lock = '🔒'
+        if os.path.exists(nativeApp.ipfs_lockFile):
+            ipfs_lock = '🔒'
+
+        nodeP_pid = ipfsP_pid = None
+
         if self.nativeApp.nodeP.pid is not None:
             if psutil.pid_exists(self.nativeApp.nodeP.pid):
-                nodeP_pid = self.nativeApp.nodeP.pid
-            # if psutil.Process(nodeP_pid) == 'zombie':
-            #     nodeP_pid = '{0} (zombie)'.format(nodeP_pid)
+                nodeP_pid = '{0} ({1})'.format(self.nativeApp.nodeP.pid, psutil.Process(nodeP_pid).status())
+
         if self.nativeApp.ipfsP.pid is not None:
             if psutil.pid_exists(self.nativeApp.ipfsP.pid):
-                ipfsP_pid = self.nativeApp.ipfsP.pid
-            # if psutil.Process(ipfsP_pid) == 'zombie':
-            #     ipfsP_pid = '{0} (zombie)'.format(ipfsP_pid)
-        return (status, nodeP_pid, ipfsP_pid)
+                ipfsP_pid = '{0} ({1})'.format(self.nativeApp.ipfsP.pid, psutil.Process(ipfsP_pid).status())
+
+        return (node_lock, nodeP_pid, ipfs_lock, ipfsP_pid)
 
     def on_left_down(self, event):
-        # print('Tray icon was left-clicked.')
         self.PopupMenu(self.CreatePopupMenu())
 
     def on_null(self, event):
