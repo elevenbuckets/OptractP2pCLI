@@ -2,7 +2,7 @@
 from __future__ import print_function
 import wx.adv
 import wx
-import sys
+# import sys
 import os
 import time
 import psutil
@@ -71,8 +71,9 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
 
     def CreatePopupMenu(self):
         menu = wx.Menu()
+        create_menu_item(menu, 'show window', self.on_show_frame)
         (is_running, node_symbol, nodeP_report, ipfs_symbol, ipfsP_report) = self.get_status()
-        create_menu_item(menu, 'Status: {0}'.format('✔️'  if is_running else '---'), self.on_null, enable=False)
+        create_menu_item(menu, 'Status: {0}'.format('✔️' if is_running else '---'), self.on_null, enable=False)
         create_menu_item(menu, ' node: pid {0} {1}'.format(nodeP_report, node_symbol), self.on_null, enable=False)  # TODO: hide these details
         create_menu_item(menu, ' ipfs: pid {0} {1}'.format(ipfsP_report, ipfs_symbol), self.on_null, enable=False)
         menu.AppendSeparator()
@@ -141,6 +142,9 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
 
         return (is_running, nodeP_symbol, nodeP_status_report, ipfsP_symbol, ipfsP_status_report)
 
+    def on_show_frame(self, event):
+        self.frame.Show()
+
     def on_left_down(self, event):
         self.PopupMenu(self.CreatePopupMenu())
 
@@ -158,7 +162,7 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         if is_running:
             self.set_icon(icons['active'])
             self.timer.Stop()
-            self.timer.Start(15000)  # use lower frequency than the one in __init__()
+            self.timer.Start(15000)  # use lower frequency
         else:
             self.set_icon(icons['inactive'])
 
@@ -173,22 +177,121 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
 
     def on_exit(self, event):
         self.nativeApp.stopServer()
-        time.sleep(3)
-        wx.CallAfter(self.Destroy)
-        self.frame.Close()
+        time.sleep(2)
+        self.frame.Destroy()
+        self.Destroy()
+
+
+class MainFrame(wx.Frame):
+    def __init__(self, *args, **kw):
+        # ensure the parent's __init__ is called
+        super(MainFrame, self).__init__(*args, **kw)
+        self.tbIcon = TaskBarIcon(self)
+
+        # create a panel in the frame
+        pnl = wx.Panel(self)
+
+        # put some text with a larger bold font on it
+        st = wx.StaticText(pnl, label="Welcom to Optract!")
+        font = st.GetFont()
+        font.PointSize += 10
+        font = font.Bold()
+        st.SetFont(font)
+
+        # and create a sizer to manage the layout of child widgets
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer.Add(st, wx.SizerFlags().Border(wx.TOP | wx.LEFT, 25))
+        pnl.SetSizer(sizer)
+
+        # create a menu bar
+        self.makeMenuBar()
+
+        # and a status bar
+        self.CreateStatusBar()
+        self.SetStatusText("Welcome to Optract!")
+
+    def makeMenuBar(self):
+        """
+        A menu bar is composed of menus, which are composed of menu items.
+        This method builds a set of menus and binds handlers to be called
+        when the menu item is selected.
+        """
+
+        # Make a file menu with Hello and Exit items
+        fileMenu = wx.Menu()
+        # The "\t..." syntax defines an accelerator key that also triggers
+        # the same event
+        helloItem = fileMenu.Append(
+            -1, "&Hello...\tCtrl-H",
+            "Help string shown in status bar for this menu item")
+        fileMenu.AppendSeparator()
+        # When using a stock ID we don't need to specify the menu item's
+        # label
+        exitItem = fileMenu.Append(wx.ID_EXIT)
+
+        # Now a help menu for the about item
+        helpMenu = wx.Menu()
+        aboutItem = helpMenu.Append(wx.ID_ABOUT)
+
+        # Make the menu bar and add the two menus to it. The '&' defines
+        # that the next letter is the "mnemonic" for the menu item. On the
+        # platforms that support it those letters are underlined and can be
+        # triggered from the keyboard.
+        menuBar = wx.MenuBar()
+        menuBar.Append(fileMenu, "&File")
+        menuBar.Append(helpMenu, "&Help")
+
+        # Give the menu bar to the frame
+        self.SetMenuBar(menuBar)
+
+        # Finally, associate a handler function with the EVT_MENU event for
+        # each of the menu items. That means that when that menu item is
+        # activated then the associated handler function will be called.
+        self.Bind(wx.EVT_MENU, self.on_hello, helloItem)
+        self.Bind(wx.EVT_MENU, self.on_exit, exitItem)
+        self.Bind(wx.EVT_MENU, self.on_about, aboutItem)
+
+        self.Bind(wx.EVT_CLOSE, self.on_exit)  # minimize to tray
+        self.Bind(wx.EVT_ICONIZE, self.on_iconize)
+
+    def on_exit(self, event):
+        """Close the frame, terminating the application."""
+        nativeApp.stopServer()
+        # self.tbIcon.RemoveIcon()
+        self.tbIcon.Destroy()
+        self.Destroy()
+
+    def on_iconize(self, event):
+        if self.IsIconized():
+            self.Hide()
+
+    def on_hello(self, event):
+        """Say hello to the user."""
+        wx.MessageBox("Hello again from wxPython")
+
+    def on_about(self, event):
+        """Display an About Dialog"""
+        wx.MessageBox("This is a wxPython Hello World sample",
+                      "About Hello World 2",
+                      wx.OK | wx.ICON_INFORMATION)
+
 
 class App(wx.App):
     def OnInit(self):
-        frame=wx.Frame(None)
+        frame = MainFrame(None, title='Optract GUI')
         self.SetTopWindow(frame)
-        # icon = wx.Icon(wx.Bitmap(TRAY_ICON))
-        # frame.SetIcon(icon)
-        TaskBarIcon(frame)
+        frame.Show()
+
+        icon = wx.Icon(wx.Bitmap(TRAY_ICON))
+        frame.SetIcon(icon)
         return True
+
 
 def main():
     app = App(False)
     nativeApp.startServer(can_exit=True)  # to prevent multiple instances
+    # frame = MainFrame(None, title='Optract GUI')
+    # frame.show()
     app.MainLoop()
 
 
