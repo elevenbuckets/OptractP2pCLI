@@ -1,4 +1,5 @@
 #!/usr/bin/env pythonw
+# encoding: utf-8
 from __future__ import print_function
 import wx.adv
 import wx
@@ -55,7 +56,7 @@ def create_menu_item(menu, label, func, enable=True):
 class TaskBarIcon(wx.adv.TaskBarIcon):
     def __init__(self, frame):
         self.frame = frame
-        self.nativeApp = nativeApp
+        # self.nativeApp = nativeApp
         super(TaskBarIcon, self).__init__()
         self.set_icon(TRAY_ICON)
         self.Bind(wx.adv.EVT_TASKBAR_LEFT_DOWN, self.on_left_down)
@@ -120,8 +121,8 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         nodeP_symbol = '❌'
         nodeP_status_report = '-'
         self.nodeP_is_running = False
-        if hasattr(self.nativeApp.nodeP, 'pid'):
-            nodeP_is_running, nodeP_status, nodeP_status_report = self._get_pid_status(self.nativeApp.nodeP.pid)
+        if hasattr(nativeApp.nodeP, 'pid'):
+            nodeP_is_running, nodeP_status, nodeP_status_report = self._get_pid_status(nativeApp.nodeP.pid)
             if nodeP_is_running and node_locked:
                 nodeP_symbol = '✔️'
                 self.nodeP_is_running = True
@@ -129,13 +130,13 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         ipfsP_symbol = '❌'
         ipfsP_status_report = '-'
         self.ipfsP_is_running = False  # for menu item "restart ipfs"
-        if hasattr(self.nativeApp.ipfsP, 'pid'):
-            ipfsP_is_running, ipfsP_status, ipfsP_status_report = self._get_pid_status(self.nativeApp.ipfsP.pid)
+        if hasattr(nativeApp.ipfsP, 'pid'):
+            ipfsP_is_running, ipfsP_status, ipfsP_status_report = self._get_pid_status(nativeApp.ipfsP.pid)
             if ipfsP_is_running and ipfs_locked:
                 ipfsP_symbol = '✔️'
                 self.ipfsP_is_running = True
 
-        if (hasattr(self.nativeApp.nodeP, 'pid') and hasattr(self.nativeApp.ipfsP, 'pid') and
+        if (hasattr(nativeApp.nodeP, 'pid') and hasattr(nativeApp.ipfsP, 'pid') and
                 node_locked and nodeP_is_running and
                 ipfs_locked and ipfsP_is_running):
             is_running = True
@@ -152,10 +153,10 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         pass
 
     def on_hello(self, event):
-        if self.nativeApp.nodeP is not None:
-            print(self.nativeApp.nodeP.pid)
-        if self.nativeApp.ipfsP is not None:
-            print(self.nativeApp.ipfsP.pid)
+        if nativeApp.nodeP is not None:
+            print(nativeApp.nodeP.pid)
+        if nativeApp.ipfsP is not None:
+            print(nativeApp.ipfsP.pid)
 
     def on_timer(self, event):
         is_running, _, _, _, _ = self.get_status()
@@ -167,17 +168,17 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
             self.set_icon(icons['inactive'])
 
     def on_start_server(self, event):
-        self.nativeApp.startServer()  # can_exit=False
+        nativeApp.startServer()  # can_exit=False
 
     def on_stop_server(self, event):
-        self.nativeApp.stopServer()
+        nativeApp.stopServer()
 
     def on_restart_ipfs(self, event):
-        self.nativeApp.start_ipfs()
+        nativeApp.start_ipfs()
 
     def on_exit(self, event):
-        self.nativeApp.stopServer()
-        time.sleep(2)
+        nativeApp.stopServer()
+        time.sleep(1)  # is it necessary to wait a bit for ipfs?
         self.frame.Destroy()
         self.Destroy()
 
@@ -189,19 +190,10 @@ class MainFrame(wx.Frame):
         self.tbIcon = TaskBarIcon(self)
 
         # create a panel in the frame
-        pnl = wx.Panel(self)
+        self.panel = wx.Panel(self)
 
-        # put some text with a larger bold font on it
-        st = wx.StaticText(pnl, label="Welcom to Optract!")
-        font = st.GetFont()
-        font.PointSize += 10
-        font = font.Bold()
-        st.SetFont(font)
-
-        # and create a sizer to manage the layout of child widgets
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(st, wx.SizerFlags().Border(wx.TOP | wx.LEFT, 25))
-        pnl.SetSizer(sizer)
+        # create a self.sizer to manage the layout of child widgets
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
 
         # create a menu bar
         self.makeMenuBar()
@@ -210,13 +202,41 @@ class MainFrame(wx.Frame):
         self.CreateStatusBar()
         self.SetStatusText("Welcome to Optract!")
 
-    def makeMenuBar(self):
-        """
-        A menu bar is composed of menus, which are composed of menu items.
-        This method builds a set of menus and binds handlers to be called
-        when the menu item is selected.
-        """
+        self.st = wx.StaticText(self.panel, label=self.get_status_text())
 
+        # make buttons
+        self.button_status = wx.Button(self.panel, label="update status")
+        self.button_status.Bind(wx.EVT_BUTTON, self.on_button_status)
+        self.sizer.Add(self.button_status, wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, 5)
+
+        self.button_start_server = wx.Button(self.panel, label="start server")
+        self.button_start_server.Bind(wx.EVT_BUTTON, self.on_button_start_server)
+        self.sizer.Add(self.button_start_server, wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, 5)
+
+        self.button_stop_server = wx.Button(self.panel, label="stop server")
+        self.button_stop_server.Bind(wx.EVT_BUTTON, self.on_button_stop_server)
+        self.sizer.Add(self.button_stop_server, wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, 5)
+
+        self.button_exit = wx.Button(self.panel, label="Exit")
+        self.button_exit.Bind(wx.EVT_BUTTON, self.on_exit)
+        self.sizer.Add(self.button_exit, wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, 5)
+
+        # put some text with a larger bold font on it
+        font = self.st.GetFont()
+        font.PointSize += 3
+        # font = font.Bold()
+        self.st.SetFont(font)
+        self.sizer.Add(self.st, wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, 5)
+        # self.sizer.Add(self.st, wx.SizerFlags().Border(wx.TOP | wx.LEFT, 25))
+
+        # setSizer to panel
+        self.panel.SetSizer(self.sizer)
+
+        # events
+        self.Bind(wx.EVT_CLOSE, self.on_iconize)  # minimize to tray instead of close
+        self.Bind(wx.EVT_ICONIZE, self.on_iconize)
+
+    def makeMenuBar(self):
         # Make a file menu with Hello and Exit items
         fileMenu = wx.Menu()
         # The "\t..." syntax defines an accelerator key that also triggers
@@ -251,19 +271,36 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_exit, exitItem)
         self.Bind(wx.EVT_MENU, self.on_about, aboutItem)
 
-        self.Bind(wx.EVT_CLOSE, self.on_exit)  # minimize to tray
-        self.Bind(wx.EVT_ICONIZE, self.on_iconize)
+    def get_status_text(self):
+        (is_running, node_symbol, nodeP_report, ipfs_symbol, ipfsP_report) = self.tbIcon.get_status()
+        is_running_symbol = '✔️' if is_running else '---'
+        status_text = '''Optract status: {0}
+  node status: {1}
+  ipfs status: {2}'''.format(is_running_symbol, node_symbol, ipfs_symbol)
+        return status_text
+
+    def on_button_status(self, event):
+        self.st.SetLabel(self.get_status_text())
+        self.sizer.Layout()  # or panel.layout()
+
+    def on_button_start_server(self, event):
+        nativeApp.startServer()  # can_exit=False
+
+    def on_button_stop_server(self, event):
+        nativeApp.stopServer()  # can_exit=False
 
     def on_exit(self, event):
         """Close the frame, terminating the application."""
         nativeApp.stopServer()
         # self.tbIcon.RemoveIcon()
+        time.sleep(1)
         self.tbIcon.Destroy()
         self.Destroy()
 
     def on_iconize(self, event):
-        if self.IsIconized():
-            self.Hide()
+        pass
+        # if self.IsIconized():
+        #     self.Hide()
 
     def on_hello(self, event):
         """Say hello to the user."""
@@ -278,7 +315,7 @@ class MainFrame(wx.Frame):
 
 class App(wx.App):
     def OnInit(self):
-        frame = MainFrame(None, title='Optract GUI')
+        frame = MainFrame(None, title='Optract GUI', size=(250, 340))
         self.SetTopWindow(frame)
         frame.Show()
 
@@ -291,7 +328,7 @@ def main():
     app = App(False)
     nativeApp.startServer(can_exit=True)  # to prevent multiple instances
     # frame = MainFrame(None, title='Optract GUI')
-    # frame.show()
+    # frame.Show()
     app.MainLoop()
 
 
