@@ -215,8 +215,8 @@ class OptractInstall():
             systray = 'systray'
         logging.info('copy {0} to {1}'.format(systray, release_dir))
         shutil.copytree(os.path.join(cwd, systray), os.path.join(release_dir, systray))
-        logging.info('copy {0} to {1}'.format('icon', release_dir))
-        shutil.copy2(os.path.join(cwd, 'icon.xpm'), release_dir)
+        logging.info('copy {0} to {1}'.format('assets', release_dir))
+        shutil.copytree(os.path.join(cwd, 'assets'), os.path.join(release_dir, 'assets'))
         logging.info('copy {0} to {1}'.format('nativeApp', release_dir))
         shutil.copytree(os.path.join(cwd, 'nativeApp'), os.path.join(release_dir, 'nativeApp'))
         self.extract_node_modules(os.path.join(cwd, 'node_modules.tar'), release_dir)

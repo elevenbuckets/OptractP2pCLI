@@ -14,6 +14,7 @@ import signal
 import logging
 import threading
 import hashlib
+import psutil
 # from checksumdir import dirhash
 import OptractInstall
 import OptractDaemon
@@ -28,12 +29,14 @@ if sys.platform == "win32":
 # global variables
 FNULL = open(os.devnull, 'w')  # python2
 # FNULL = subprocess.DEVNULL  # python3
+
+distdir = os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))  # (unix) should be ~/.config/Optract/dist (except during install)
 if sys.platform.startswith('linux'):
-    systray = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0]))), 'systray', 'systray')
+    systray = os.path.join(distdir, 'systray', 'systray')
 elif sys.platform.startswith('darwin'):
-    systray = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0]))), 'systray.app', 'Contents', 'MacOS', 'systray')
+    systray = os.path.join(distdir, 'systray.app', 'Contents', 'MacOS', 'systray')
 elif sys.platform.startswith('win32'):
-    systray = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0]))), 'systray', 'systray.exe')
+    systray = os.path.join(distdir, 'systray', 'systray.exe')
 else:
     raise BaseException('Unsupported platform')
 
@@ -46,9 +49,11 @@ class NativeApp():
             raise BaseException('Unsupported platform')
         # TODO: use the input argument to control basedir
         self.set_basedir()
-        self.lockFile = os.path.join(self.basedir, "dist", "Optract.LOCK")
+        self.lockFile = os.path.join(self.basedir, 'dist', 'Optract.LOCK')
+        self.ipfs_lockFile = os.path.join(self.basedir, 'ipfs_repo', 'repo.lock')
         self.nodeP = None
         self.ipfsP = None
+        # self.is_running = False
 
     def get_platform(self):
         if sys.platform.startswith('linux'):
@@ -138,18 +143,7 @@ class NativeApp():
         # node_modules_dir = os.path.join(self.basedir, 'dist', 'node_modules')
         # self._compare_md5(node_modules_dir, node_modules_md5_expected)
 
-    def startServer(self, can_exit=False):
-        if not self.platform == 'win32':  # in windows, nativeApp cannot close properly so lockFile is always there
-            if os.path.exists(self.lockFile):
-                if can_exit:
-                    logging.error('Do nothing: lockFile exists in: {0}'.format(self.lockFile))
-                    sys.exit(0)
-                else:
-                    logging.warning('Do nothing: lockFile exists in: {0}'.format(self.lockFile))
-                    return
-
-        self.check_md5()
-
+    def start_ipfs(self):
         ipfs_path = {
             'repo': os.path.join(self.basedir, 'ipfs_repo'),
             'config': os.path.join(self.basedir, 'ipfs_repo', 'config'),
@@ -162,20 +156,27 @@ class NativeApp():
         myenv['IPFS_PATH'] = ipfs_path['repo']
         if not os.path.exists(ipfs_path['config']):
             subprocess.check_call([ipfs_path['bin'], "init"], env=myenv, stdout=FNULL, stderr=subprocess.STDOUT)
-            return self.startServer()
+            return self.startServer(check_md5=False)  # is it safe to check_md5=False? if true then need to check frequently while starting
         else:
-            if os.path.exists(ipfs_path['api']):
-                os.remove(ipfs_path['api'])
-            if os.path.exists(ipfs_path['lock']):
-                os.remove(ipfs_path['lock'])
-            self.ipfsP = subprocess.Popen([ipfs_path['bin'], "daemon", "--routing=dhtclient"], env=myenv, stdin=FNULL,
-                                          stdout=FNULL, stderr=subprocess.STDOUT)
+            try:
+                status = psutil.Process(self.ipfsP.pid).status()
+                is_running = psutil.Process(self.ipfsP.pid).is_running()  # careful: return true if status == "zombie"
+            except (AttributeError, psutil.NoSuchProcess):  # "self.ipfsP" does not have "pid"
+                status = None
+                is_running = None
+            if status is None or is_running is None or status == psutil.STATUS_ZOMBIE:  # prevent kill a ipfs daemon which is still running
+                if os.path.exists(ipfs_path['api']):
+                    os.remove(ipfs_path['api'])
+                if os.path.exists(ipfs_path['lock']):
+                    os.remove(ipfs_path['lock'])
+                # self.ipfsP_old = self.ipfsP
+                self.ipfsP = subprocess.Popen([ipfs_path['bin'], "daemon", "--routing=dhtclient"], env=myenv, stdout=FNULL,
+                                              stderr=subprocess.STDOUT)
+        return ipfs_path
 
-        while (not os.path.exists(ipfs_path['api']) or not os.path.exists(ipfs_path['lock'])):
-            time.sleep(.01)
-
+    def start_node(self):
         nodeCMD = os.path.join(self.basedir, 'dist', 'bin', 'node')
-        os.chdir(os.path.join(self.basedir, "dist", "lib"))  # there are relative path in js stdin
+        os.chdir(os.path.join(self.basedir, 'dist', 'lib'))  # there are relative path in js stdin
         # f = open(os.path.join(basedir, 'nodep.log'), 'w')  # for debug, uncomment this 2 lines and comment the second nodeP
         # nodeP = subprocess.Popen([nodeCMD], stdin=subprocess.PIPE, stdout=f, stderr=f)  # leave log to "f"
         self.nodeP = subprocess.Popen([nodeCMD], stdin=subprocess.PIPE, stdout=FNULL, stderr=subprocess.STDOUT)
@@ -183,6 +184,25 @@ class NativeApp():
         op_daemon.daemon = True
         op_daemon.start()
         os.chdir(self.basedir)
+
+    def startServer(self, can_exit=False, check_md5=True):
+        if not self.platform == 'win32':  # in windows, nativeApp cannot close properly so lockFile is always there
+            if os.path.exists(self.lockFile):
+                if can_exit:
+                    logging.warning('Do nothing: lockFile exists in: {0}'.format(self.lockFile))
+                    sys.exit(0)
+                else:
+                    logging.warning('Do nothing: lockFile exists in: {0}'.format(self.lockFile))
+                    return
+
+        if check_md5:  # chach_md5=False inside start_ipfs()
+            self.check_md5()
+
+        ipfs_path = self.start_ipfs()
+        while (not os.path.exists(ipfs_path['api']) or not os.path.exists(ipfs_path['lock'])):
+            time.sleep(.2)
+
+        self.start_node()
         logging.info(' daemon started')
         logging.info('  pid of node: {0}'.format(self.nodeP.pid))
         logging.info('  pid of ipfs: {0}'.format(self.ipfsP.pid))
@@ -190,7 +210,7 @@ class NativeApp():
 
     def stopServer(self):
         if os.path.exists(self.lockFile):
-           os.remove(self.lockFile)
+            os.remove(self.lockFile)
         # nodeP.terminate()
         if self.nodeP is not None:
             logging.info('kill process {0}'.format(self.nodeP.pid))
@@ -199,8 +219,7 @@ class NativeApp():
             except Exception as err:
                 logging.error("Can't stop pid {0}: {1}: {2}".format(
                                self.nodeP.pid, err.__class__.__name__, err))
-                pass
-        # This will not kill the ipfs by itself, but this is needed for the sys.exit() to kill it 
+
         if self.ipfsP is not None:
             logging.info('kill process {0}'.format(self.ipfsP.pid))
             try:
@@ -208,12 +227,11 @@ class NativeApp():
             except Exception as err:
                 logging.error("Can't stop pid {0}: {1}: {2}".format(
                                self.ipfsP.pid, err.__class__.__name__, err))
-                pass
-            # send one more SIGINT to make sure (redundant?)
-            time.sleep(0.5)
+            # send one more signal
+            time.sleep(1)
             try:
                 os.kill(self.ipfsP.pid, signal.SIGINT)
-            except:
+            except OSError:
                 pass
         return
 
@@ -224,7 +242,7 @@ def main(nativeApp):
     logging.info('Start to listen to native message...')
     while True:
         message = nativeApp.get_message()
-        if "ping" in message.values() and started == False:
+        if "ping" in message.values() and started is False:
             started = True
             # the "Popen" below will fail if there's a systray running due to the lock file of daemon.js
             # TODO: (bug) can generate two systray if the first systray call "stop" and then start or restart browser
@@ -290,7 +308,7 @@ def main(nativeApp):
 
 
 if __name__ == '__main__':
-    nativeApp = NativeApp()  # borrow a couple attributes 
+    nativeApp = NativeApp()
     basedir = nativeApp.basedir
 
     # logging
@@ -306,7 +324,7 @@ if __name__ == '__main__':
 
     try:
         ppid = '{0}'.format(os.getppid())  # pid of browser; getppid() only work on unix
-    except:
+    except AttributeError:
         ppid = '-'
     if len(sys.argv) > 1:
         if sys.argv[1] == 'install':
@@ -315,7 +333,8 @@ if __name__ == '__main__':
             OptractInstall.main(basedir)
         elif sys.argv[1] == 'test':
             nativeApp.startServer()
-            raw_input("press <enter> to stop...")
+            raw_input("press <enter> to stop...")  # python2
+            # input("press <enter> to stop...")  # python3
             nativeApp.stopServer()
         elif sys.argv[1] == 'testtray':
             systrapP = subprocess.Popen([systray, ppid])
