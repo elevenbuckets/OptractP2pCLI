@@ -166,6 +166,7 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
             self.timer.Start(15000)  # use lower frequency
         else:
             self.set_icon(icons['inactive'])
+            # if ipfs is down and node is still active --> call "self.on_restart_ipfs()"
 
     def on_start_server(self, event):
         nativeApp.startServer()  # can_exit=False
@@ -195,15 +196,6 @@ class MainFrame(wx.Frame):
         # create a self.sizer to manage the layout of child widgets
         self.sizer = wx.BoxSizer(wx.VERTICAL)
 
-        # create a menu bar
-        self.makeMenuBar()
-
-        # and a status bar
-        self.CreateStatusBar()
-        self.SetStatusText("Welcome to Optract!")
-
-        self.st = wx.StaticText(self.panel, label=self.get_status_text())
-
         # make buttons
         self.button_status = wx.Button(self.panel, label="update status")
         self.button_status.Bind(wx.EVT_BUTTON, self.on_button_status)
@@ -222,6 +214,7 @@ class MainFrame(wx.Frame):
         self.sizer.Add(self.button_exit, wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, 5)
 
         # put some text with a larger bold font on it
+        self.st = wx.StaticText(self.panel, label=self.get_status_text())
         font = self.st.GetFont()
         font.PointSize += 3
         # font = font.Bold()
@@ -231,6 +224,14 @@ class MainFrame(wx.Frame):
 
         # setSizer to panel
         self.panel.SetSizer(self.sizer)
+        self.panel.Refresh()
+
+        # create a menu bar
+        self.makeMenuBar()
+
+        # and a status bar
+        self.CreateStatusBar()
+        self.SetStatusText("Welcome to Optract!")
 
         # events
         self.Bind(wx.EVT_CLOSE, self.on_iconize)  # minimize to tray instead of close
@@ -315,7 +316,7 @@ class MainFrame(wx.Frame):
 
 class App(wx.App):
     def OnInit(self):
-        frame = MainFrame(None, title='Optract GUI', size=(250, 340))
+        frame = MainFrame(None, title='Optract GUI', size=(220, 300))
         self.SetTopWindow(frame)
         frame.Show()
 
