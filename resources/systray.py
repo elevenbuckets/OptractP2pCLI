@@ -224,7 +224,7 @@ class MainFrame(wx.Frame):
 
         # setSizer to panel
         self.panel.SetSizer(self.sizer)
-        self.panel.Refresh()
+        # self.panel.Refresh()
 
         # create a menu bar
         self.makeMenuBar()
