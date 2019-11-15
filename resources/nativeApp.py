@@ -22,13 +22,13 @@ import OptractDaemon
 # On Windows, the default I/O mode is O_TEXT. Set this to O_BINARY
 # to avoid unwanted modifications of the input/output streams.
 if sys.platform == "win32":
-    # import winreg
     import msvcrt
     msvcrt.setmode(sys.stdin.fileno(), os.O_BINARY)
     msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
 
 # global variables
-FNULL = open(os.devnull, 'w')
+FNULL = open(os.devnull, 'w')  # python2
+# FNULL = subprocess.DEVNULL  # python3
 
 distdir = os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))  # (unix) should be ~/.config/Optract/dist (except during install)
 if sys.platform.startswith('linux'):
@@ -171,7 +171,7 @@ class NativeApp():
                     os.remove(ipfs_path['lock'])
                 # self.ipfsP_old = self.ipfsP
                 self.ipfsP = subprocess.Popen([ipfs_path['bin'], "daemon", "--routing=dhtclient"], env=myenv, stdout=FNULL,
-                                             stderr=subprocess.STDOUT)
+                                              stderr=subprocess.STDOUT)
         return ipfs_path
 
     def start_node(self):
@@ -210,7 +210,7 @@ class NativeApp():
 
     def stopServer(self):
         if os.path.exists(self.lockFile):
-           os.remove(self.lockFile)
+            os.remove(self.lockFile)
         # nodeP.terminate()
         if self.nodeP is not None:
             logging.info('kill process {0}'.format(self.nodeP.pid))
@@ -227,12 +227,11 @@ class NativeApp():
             except Exception as err:
                 logging.error("Can't stop pid {0}: {1}: {2}".format(
                                self.ipfsP.pid, err.__class__.__name__, err))
-
             # send one more signal
-            time.sleep(2)
+            time.sleep(1)
             try:
                 os.kill(self.ipfsP.pid, signal.SIGINT)
-            except:
+            except OSError:
                 pass
         return
 
@@ -243,14 +242,13 @@ def main(nativeApp):
     logging.info('Start to listen to native message...')
     while True:
         message = nativeApp.get_message()
-        if "ping" in message.values() and started == False:
+        if "ping" in message.values() and started is False:
             started = True
-            # the "Popen" below will fail if there's a systray running so that there's a lock file for daemon.js
-            # note that it's possible to generate two systray running if the first systray is stopped and then
-            # start or restart browser
+            # the "Popen" below will fail if there's a systray running due to the lock file of daemon.js
+            # TODO: (bug) can generate two systray if the first systray call "stop" and then start or restart browser
             # add a lockfile for systray?
-            systrayP = subprocess.Popen([systray, ppid], stdout=FNULL, stderr=subprocess.STDOUT)
-            logging.info('sysatry (pid:{0}) and server started'.format(systrayP.pid))
+            systrayP = subprocess.Popen([systray, ppid], shell=True, stdin=FNULL, stdout=FNULL, stderr=FNULL)  # the "shell=True" is essential for windows
+            logging.info('sysatry (pid:{0}) and server starting...'.format(systrayP.pid))
     return
 
 
@@ -310,7 +308,7 @@ def main(nativeApp):
 
 
 if __name__ == '__main__':
-    nativeApp = NativeApp()  # borrow a couple attributes 
+    nativeApp = NativeApp()
     basedir = nativeApp.basedir
 
     # logging
@@ -326,7 +324,7 @@ if __name__ == '__main__':
 
     try:
         ppid = '{0}'.format(os.getppid())  # pid of browser; getppid() only work on unix
-    except:
+    except AttributeError:
         ppid = '-'
     if len(sys.argv) > 1:
         if sys.argv[1] == 'install':
@@ -335,7 +333,8 @@ if __name__ == '__main__':
             OptractInstall.main(basedir)
         elif sys.argv[1] == 'test':
             nativeApp.startServer()
-            raw_input("press <enter> to stop...")
+            raw_input("press <enter> to stop...")  # python2
+            # input("press <enter> to stop...")  # python3
             nativeApp.stopServer()
         elif sys.argv[1] == 'testtray':
             systrapP = subprocess.Popen([systray, ppid])

@@ -43,7 +43,7 @@ shutil.copy2(os.path.join(basedir, 'resources', 'extension_id.json'),
 shutil.copy2(os.path.join(basedir, 'resources', 'install.bat'),
              os.path.join(basedir, 'dist'))
 shutil.copytree(os.path.join(basedir, 'resources', 'assets'),
-                os.path.join(basedir, 'dist', 'dapps'))
+                os.path.join(basedir, 'dist', 'assets'))
 
 # pack and copy nativeApp
 print('# pack nativeApp')
