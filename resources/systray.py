@@ -193,25 +193,25 @@ class MainFrame(wx.Frame):
         self.panel = wx.Panel(self)
 
         # create a self.sizer to manage the layout of child widgets
-        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer = wx.GridBagSizer()
 
         # make buttons
-        self.button_ipfs_restart= wx.Button(self.panel, label="restart ipfs")
-        self.button_ipfs_restart.Bind(wx.EVT_BUTTON, self.on_button_ipfs_restart)
-        self.button_ipfs_restart.Disable()
-        self.sizer.Add(self.button_ipfs_restart, wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, 5)
-
         self.button_start_server = wx.Button(self.panel, label="start server")
         self.button_start_server.Bind(wx.EVT_BUTTON, self.on_button_start_server)
-        self.sizer.Add(self.button_start_server, wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, 5)
+        self.sizer.Add(self.button_start_server, pos=(0, 0), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
 
         self.button_stop_server = wx.Button(self.panel, label="stop server")
         self.button_stop_server.Bind(wx.EVT_BUTTON, self.on_button_stop_server)
-        self.sizer.Add(self.button_stop_server, wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, 5)
+        self.sizer.Add(self.button_stop_server, pos=(0, 1), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
+
+        self.button_ipfs_restart= wx.Button(self.panel, label="restart ipfs")
+        self.button_ipfs_restart.Bind(wx.EVT_BUTTON, self.on_button_ipfs_restart)
+        self.button_ipfs_restart.Disable()
+        self.sizer.Add(self.button_ipfs_restart, pos=(1, 0), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
 
         self.button_exit = wx.Button(self.panel, label="Exit")
         self.button_exit.Bind(wx.EVT_BUTTON, self.on_exit)
-        self.sizer.Add(self.button_exit, wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, 5)
+        self.sizer.Add(self.button_exit, pos=(1, 1), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
 
         # put some text with a larger bold font on it
         self.st = wx.StaticText(self.panel, label=self.get_status_text())
@@ -219,8 +219,7 @@ class MainFrame(wx.Frame):
         font.PointSize += 3
         # font = font.Bold()
         self.st.SetFont(font)
-        self.sizer.Add(self.st, wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, 5)
-        # self.sizer.Add(self.st, wx.SizerFlags().Border(wx.TOP | wx.LEFT, 25))
+        self.sizer.Add(self.st, pos=(2, 0), span=(1, 2), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
 
         # setSizer to panel
         self.panel.SetSizer(self.sizer)
