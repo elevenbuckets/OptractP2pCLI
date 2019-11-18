@@ -3,7 +3,7 @@
 from __future__ import print_function
 import wx.adv
 import wx
-# import sys
+import sys
 import os
 import time
 import psutil
@@ -196,9 +196,10 @@ class MainFrame(wx.Frame):
         self.sizer = wx.BoxSizer(wx.VERTICAL)
 
         # make buttons
-        self.button_status = wx.Button(self.panel, label="update status")
-        self.button_status.Bind(wx.EVT_BUTTON, self.on_button_status)
-        self.sizer.Add(self.button_status, wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, 5)
+        self.button_ipfs_restart= wx.Button(self.panel, label="restart ipfs")
+        self.button_ipfs_restart.Bind(wx.EVT_BUTTON, self.on_button_ipfs_restart)
+        self.button_ipfs_restart.Disable()
+        self.sizer.Add(self.button_ipfs_restart, wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, 5)
 
         self.button_start_server = wx.Button(self.panel, label="start server")
         self.button_start_server.Bind(wx.EVT_BUTTON, self.on_button_start_server)
@@ -287,10 +288,12 @@ class MainFrame(wx.Frame):
 
     def on_timer(self, event):
         self.update_status_text()
+        if not self.tbIcon.ipfsP_is_running and self.tbIcon.nodeP_is_running:
+            self.button_ipfs_restart.Enable()
 
-    def on_button_status(self, event):
-        self.st.SetLabel(self.get_status_text())
-        self.sizer.Layout()  # or panel.layout()
+    def on_button_ipfs_restart(self, event):
+        self.tbIcon.on_restart_ipfs()
+        # self.sizer.Layout()  # or panel.layout()
 
     def on_button_start_server(self, event):
         nativeApp.startServer()  # can_exit=False
