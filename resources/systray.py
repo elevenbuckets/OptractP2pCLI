@@ -83,8 +83,7 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         menu.AppendSeparator()
         if not self.ipfsP_is_running and self.nodeP_is_running:
             create_menu_item(menu, 'restart ipfs (experimental)', self.on_restart_ipfs)
-
-        menu.AppendSeparator()
+            menu.AppendSeparator()
         create_menu_item(menu, 'Exit', self.on_exit)
         return menu
 
@@ -224,7 +223,6 @@ class MainFrame(wx.Frame):
 
         # setSizer to panel
         self.panel.SetSizer(self.sizer)
-        # self.panel.Refresh()
 
         # create a menu bar
         self.makeMenuBar()
@@ -236,6 +234,10 @@ class MainFrame(wx.Frame):
         # events
         self.Bind(wx.EVT_CLOSE, self.on_iconize)  # minimize to tray instead of close
         self.Bind(wx.EVT_ICONIZE, self.on_iconize)
+
+        self.timer = wx.Timer(self)
+        self.Bind(wx.EVT_TIMER, self.on_timer)
+        self.timer.Start(4000)  # every 4 seconds
 
     def makeMenuBar(self):
         # Make a file menu with Hello and Exit items
@@ -272,6 +274,9 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_exit, exitItem)
         self.Bind(wx.EVT_MENU, self.on_about, aboutItem)
 
+    def update_status_text(self):
+        self.st.SetLabel(self.get_status_text())
+
     def get_status_text(self):
         (is_running, node_symbol, nodeP_report, ipfs_symbol, ipfsP_report) = self.tbIcon.get_status()
         is_running_symbol = '✔️' if is_running else '---'
@@ -279,6 +284,9 @@ class MainFrame(wx.Frame):
   node status: {1}
   ipfs status: {2}'''.format(is_running_symbol, node_symbol, ipfs_symbol)
         return status_text
+
+    def on_timer(self, event):
+        self.update_status_text()
 
     def on_button_status(self, event):
         self.st.SetLabel(self.get_status_text())
@@ -318,7 +326,13 @@ class App(wx.App):
     def OnInit(self):
         frame = MainFrame(None, title='Optract GUI', size=(220, 300))
         self.SetTopWindow(frame)
-        frame.Show()
+
+        if not frame.tbIcon.IsAvailable():
+            logging.warning("TaskBarIcon not available")  # such as Ubuntu (Gnome3 + unity DE)
+            frame.Show()
+        if not frame.tbIcon.IsOk():
+            logging.error("Failed to init TaskBarIcon")
+            sys.exit(1)
 
         icon = wx.Icon(wx.Bitmap(TRAY_ICON))
         frame.SetIcon(icon)
