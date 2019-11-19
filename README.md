@@ -67,6 +67,19 @@ Under `$basedir` there contain files and directories after installation:
     - win: `npm run releaseWin64`
 - Now there's a `dist` folder and the corresponding archive `Optract*.tar.gz` or zip file (for
   windows release). 
+- What's next (for developer under linux)
+    - install: close browser and then `cd dist; ./install.sh`. More detail see **To install**
+      section
+    - log file in `~/.config/Optract/optract.log`
+    - test server and GUI (to see `stdout` and `stderr`), `cd ~/.config/Optract/dist`, then:
+        - start server: `./nativeApp/nativeApp test`
+        - systray: `./nativeApp/nativeApp testtray`
+            - note that wxpython's `TaskBarIcon` is not compatible with ubuntu, so pop up a window
+              instead
+    - access console
+        - in OptractP2PCli folder, `cd lib; cp pubsubNode.js libSampleTickets.js console.js ~/.config/Optract/dist`
+        - TODO: fix the config path in `console.js`
+        - `cd ~/.config/Optract/dist; ./bin/node ./lib/console.js` 
 
 To build without pyarmor (for debug purpose):
 - In `package.json`, rename the npm script `buildNativeAppNoArmor` to `buildNativeApp`, and the

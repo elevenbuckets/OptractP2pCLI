@@ -58,6 +58,13 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         self.frame = frame
         # self.nativeApp = nativeApp
         super(TaskBarIcon, self).__init__()
+
+        # init value
+        self.time_ipfs_boot = time.time()
+        self.ipfs_boot_required_time = 40
+        self.ipfs_restart_max_retry = 10
+        self.ipfs_restart_tried = 0
+
         self.set_icon(TRAY_ICON)
         self.Bind(wx.adv.EVT_TASKBAR_LEFT_DOWN, self.on_left_down)
         # if len(sys.argv) > 1:
@@ -68,7 +75,7 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         # time event
         self.timer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.on_timer)
-        self.timer.Start(6000)  # every 6 seconds
+        self.timer.Start(5000)  # every 5 seconds
 
     def CreatePopupMenu(self):
         menu = wx.Menu()
@@ -162,10 +169,21 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         if is_running:
             self.set_icon(icons['active'])
             self.timer.Stop()
-            self.timer.Start(15000)  # use lower frequency
+            self.timer.Start(9000)  # use lower frequency
+            self.ipfs_restart_tried = 0
         else:
             self.set_icon(icons['inactive'])
-            # if ipfs is down and node is still active --> call "self.on_restart_ipfs()"
+            if not self.ipfsP_is_running and self.nodeP_is_running:
+                if self.ipfs_restart_tried > 10:
+                    logging.error('Already retry restarting ipfs for {0} times. Bye!'.format(self.ipfs_restart_max_retry))
+                    sys.exit(1)
+                if time.time() - self.time_ipfs_boot > self.ipfs_boot_required_time:  # prevent (re)start ipfs too soon
+                    self.time_ipfs_boot = time.time()
+                    self.ipfs_restart_tried += 1
+                    logging.info("Restarting ipfs")
+                    nativeApp.start_ipfs()
+                # else:
+                #     logging.info("Waiting for another try of restarting ipfs")
 
     def on_start_server(self, event):
         nativeApp.startServer()  # can_exit=False
@@ -287,11 +305,14 @@ class MainFrame(wx.Frame):
 
     def on_timer(self, event):
         self.update_status_text()
-        if not self.tbIcon.ipfsP_is_running and self.tbIcon.nodeP_is_running:
+        if (not self.tbIcon.ipfsP_is_running and self.tbIcon.nodeP_is_running and
+                (time.time() - self.tbIcon.time_ipfs_boot > self.tbIcon.ipfs_boot_required_time)):
             self.button_ipfs_restart.Enable()
+        else:
+            self.button_ipfs_restart.Disable()
 
     def on_button_ipfs_restart(self, event):
-        self.tbIcon.on_restart_ipfs()
+        nativeApp.start_ipfs()
         # self.sizer.Layout()  # or panel.layout()
 
     def on_button_start_server(self, event):
