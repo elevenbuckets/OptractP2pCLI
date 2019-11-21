@@ -35,11 +35,17 @@ def get_daemon_pids():
     daemon_pid = None
     ipfsP_pid = None
     for p in psutil.process_iter(attrs=['pid', 'name', 'cmdline']):
+        # assume only one instance of `ipfs_spawner.py daemon` and one `ipfs ...` in processes
         if p.info['name'].startswith('python') and len(p.info['cmdline']) == 3:
             if p.info['cmdline'][1] == './ipfs_spawner.py' and p.info['cmdline'][2] == 'daemon':
                 daemon_pid = p.info['pid']
+                if ipfsP_pid is not None:
+                    break
         elif p.info['name'] == 'ipfs':
             ipfsP_pid = p.info['pid']
+            if daemon_pid is not None:
+                break
+
     return daemon_pid, ipfsP_pid
 
 
