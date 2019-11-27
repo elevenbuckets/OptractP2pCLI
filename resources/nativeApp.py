@@ -42,15 +42,19 @@ else:
 
 
 class NativeApp():
-    def __init__(self):
+    def __init__(self, distdir):
+        # if extract file in ~/Downloads, then basedir and datadir in: ~/Downloads/Optract,
+        # and distdir in : ~/Downloads/Optract/dist
+        # and nativeApp (this one) in : ~/Downloads/Optract/dist/nativeApp/nativeApp
         self.platform = self.get_platform()
+        self.distdir = distdir
+        self.basedir = os.path.dirname(distdir)
+        self.datadir = os.path.dirname(distdir)  # for now, put data in basedir
         if not (self.platform == 'linux' or self.platform == 'darwin' or self.platform == 'win32'):
             logging.error('Unsupported platform')
             raise BaseException('Unsupported platform')
-        # TODO: use the input argument to control basedir
-        self.set_basedir()
-        self.lockFile = os.path.join(self.basedir, 'dist', 'Optract.LOCK')
-        self.ipfs_lockFile = os.path.join(self.basedir, 'ipfs_repo', 'repo.lock')
+        self.lockFile = os.path.join(self.distdir, 'Optract.LOCK')
+        self.ipfs_lockFile = os.path.join(self.datadir, 'ipfs_repo', 'repo.lock')
         self.nodeP = None
         self.ipfsP = None
         # self.is_running = False
@@ -65,18 +69,6 @@ class NativeApp():
         else:
             return sys.platform
         return platform
-
-    def set_basedir(self):
-        # determine path of basedir
-        if self.platform.startswith('linux'):
-            self.basedir = os.path.expanduser("~/.config/Optract")
-        elif self.platform.startswith('darwin'):
-            self.basedir = os.path.expanduser("~/.config/Optract")
-        elif self.platform.startswith('win32'):
-            self.basedir = os.path.expanduser("~\\AppData\\Local\\Optract")
-        if not os.path.isdir(self.basedir):
-            os.mkdir(self.basedir)
-        return
 
     # Read a message from stdin and decode it.
     def get_message(self):
@@ -131,11 +123,11 @@ class NativeApp():
             node_modules_dir_md5_expected = '8a2aae4ca15614c9eef5949bdf78b495'
 
         if sys.platform.startswith('win32'):
-            nodeCMD = os.path.join(self.basedir, 'dist', 'bin', 'node.exe')
-            ipfsCMD = os.path.join(self.basedir, 'dist', 'bin', 'ipfs.exe')
+            nodeCMD = os.path.join(self.distdir, 'bin', 'node.exe')
+            ipfsCMD = os.path.join(self.distdir, 'bin', 'ipfs.exe')
         else:
-            nodeCMD = os.path.join(self.basedir, 'dist', 'bin', 'node')
-            ipfsCMD = os.path.join(self.basedir, 'dist', 'bin', 'ipfs')
+            nodeCMD = os.path.join(self.distdir, 'bin', 'node')
+            ipfsCMD = os.path.join(self.distdir, 'bin', 'ipfs')
         self._compare_md5(nodeCMD, node_md5_expected)
         self._compare_md5(ipfsCMD, ipfs_md5_expected)
 
@@ -145,11 +137,11 @@ class NativeApp():
 
     def start_ipfs(self):
         ipfs_path = {
-            'repo': os.path.join(self.basedir, 'ipfs_repo'),
-            'config': os.path.join(self.basedir, 'ipfs_repo', 'config'),
-            'api': os.path.join(self.basedir, 'ipfs_repo', 'api'),
-            'lock': os.path.join(self.basedir, 'ipfs_repo', 'repo.lock'),
-            'bin': os.path.join(self.basedir, 'dist', 'bin', 'ipfs')
+            'repo': os.path.join(self.datadir, 'ipfs_repo'),
+            'config': os.path.join(self.datadir, 'ipfs_repo', 'config'),
+            'api': os.path.join(self.datadir, 'ipfs_repo', 'api'),
+            'lock': os.path.join(self.datadir, 'ipfs_repo', 'repo.lock'),
+            'bin': os.path.join(self.distdir, 'bin', 'ipfs')
         }
         # logging.info('debug: basedir={0}'.format(self.basedir))
         myenv = os.environ.copy()  # "DLL initialize error..." in Windows while set the env inside subprocess calls
@@ -175,8 +167,8 @@ class NativeApp():
         return ipfs_path
 
     def start_node(self):
-        nodeCMD = os.path.join(self.basedir, 'dist', 'bin', 'node')
-        os.chdir(os.path.join(self.basedir, 'dist', 'lib'))  # there are relative path in js stdin
+        nodeCMD = os.path.join(self.distdir, 'bin', 'node')
+        os.chdir(os.path.join(self.distdir, 'lib'))  # there are relative path in js stdin
         # f = open(os.path.join(basedir, 'nodep.log'), 'w')  # for debug, uncomment this 2 lines and comment the second nodeP
         # nodeP = subprocess.Popen([nodeCMD], stdin=subprocess.PIPE, stdout=f, stderr=f)  # leave log to "f"
         self.nodeP = subprocess.Popen([nodeCMD], stdin=subprocess.PIPE, stdout=FNULL, stderr=subprocess.STDOUT)
@@ -206,7 +198,6 @@ class NativeApp():
         logging.info(' daemon started')
         logging.info('  pid of node: {0}'.format(self.nodeP.pid))
         logging.info('  pid of ipfs: {0}'.format(self.ipfsP.pid))
-        return
 
     def stopServer(self):
         if os.path.exists(self.lockFile):
@@ -308,7 +299,10 @@ def main(nativeApp):
 
 
 if __name__ == '__main__':
-    nativeApp = NativeApp()
+    # if distdir in : ~/Downloads/Optract/dist
+    # then nativeApp (this one) in : ~/Downloads/Optract/dist/nativeApp/nativeApp
+    distdir = os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))
+    nativeApp = NativeApp(distdir)
     basedir = nativeApp.basedir
 
     # logging
@@ -321,6 +315,7 @@ if __name__ == '__main__':
 
     logging.info('nativeApp path = {0}'.format(os.path.realpath(sys.argv[0])))
     print('nativeApp path = {0}'.format(os.path.realpath(sys.argv[0])))
+    print('basedir path = {0}'.format(basedir))
 
     try:
         ppid = '{0}'.format(os.getppid())  # pid of browser; getppid() only work on unix
@@ -330,7 +325,7 @@ if __name__ == '__main__':
         if sys.argv[1] == 'install':
             print('Installing... please see the progress in logfile: ' + logfile)
             print('Please also download Optract browser extension.')
-            OptractInstall.main(basedir)
+            OptractInstall.main(basedir, nativeApp.distdir, nativeApp.datadir)
         elif sys.argv[1] == 'test':
             nativeApp.startServer()
             raw_input("press <enter> to stop...")  # python2

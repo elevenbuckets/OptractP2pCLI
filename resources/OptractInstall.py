@@ -26,8 +26,10 @@ def mkdir(dirname):  # if parent dir exists and dirname does not exist
 
 
 class OptractInstall():
-    def __init__(self, basedir):
+    def __init__(self, basedir, distdir, datadir):
         self.basedir = basedir
+        self.distdir = distdir
+        self.datadir = datadir
         extid_file = os.path.join(cwd, 'extension_id.json')  # or write fix values here?
         with open(extid_file, 'r') as f:
             self.extid = json.load(f)
@@ -41,7 +43,7 @@ class OptractInstall():
                 key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, keyVal, 0, winreg.KEY_ALL_ACCESS)
             except:
                 key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, keyVal)
-            nativeMessagingMainfest = os.path.join(self.basedir, 'dist', 'optract-win-chrome.json')
+            nativeMessagingMainfest = os.path.join(self.distdir, 'optract-win-chrome.json')
             winreg.SetValueEx(key, "", 0, winreg.REG_SZ, nativeMessagingMainfest)
             winreg.CloseKey(key)
 
@@ -59,7 +61,7 @@ class OptractInstall():
                 key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, keyVal, 0, winreg.KEY_ALL_ACCESS)
             except:
                 key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, keyVal)
-            nativeMessagingMainfest = os.path.join(self.basedir, 'dist', 'optract-win-firefox.json')
+            nativeMessagingMainfest = os.path.join(self.distdir, 'optract-win-firefox.json')
             winreg.SetValueEx(key, "", 0, winreg.REG_SZ, nativeMessagingMainfest)
             winreg.CloseKey(key)
 
@@ -70,7 +72,7 @@ class OptractInstall():
         return
 
     def init_ipfs(self):
-        ipfs_path = os.path.join(self.basedir, 'ipfs_repo')
+        ipfs_path = os.path.join(self.datadir, 'ipfs_repo')
         ipfs_config = os.path.join(ipfs_path, 'config')
 
         if os.path.exists(ipfs_config):
@@ -80,7 +82,7 @@ class OptractInstall():
         # create ipfs_repo
         myenv = os.environ.copy()  # "DLL initialize error..." in Windows while set the env inside subprocess calls
         myenv['IPFS_PATH'] = ipfs_path
-        ipfs_bin = os.path.join(self.basedir, "dist", "bin", "ipfs")
+        ipfs_bin = os.path.join(self.distdir, "bin", "ipfs")
 
         logging.info("initilalizing ipfs in " + ipfs_path)
         process = subprocess.Popen([ipfs_bin, "init"], env=myenv, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -137,7 +139,7 @@ class OptractInstall():
                 logging.warning('you should not reach here...')
                 raise BaseException('Unsupported platform')
             mkdir(nativeMsgDir)
-            nativeAppPath = os.path.join(self.basedir, 'dist', 'nativeApp', 'nativeApp')
+            nativeAppPath = os.path.join(self.distdir, 'nativeApp', 'nativeApp')
 
             # create content for manifest file of native messaging
             if browser == 'chrome':
@@ -186,14 +188,14 @@ class OptractInstall():
         logging.info('Preparing folder for optract in: ' + self.basedir)
 
         # generate new empty "dist" directory in basedir
-        release_dir = os.path.join(self.basedir, 'dist')
-        release_backup = os.path.join(self.basedir, 'dist_orig')
-        if os.path.isdir(release_dir):
-            # keep a backup of previous release
-            if os.path.isdir(release_backup):
-                shutil.rmtree(release_backup)
-            shutil.move(release_dir, release_backup)
-        os.mkdir(release_dir)
+        # release_dir = os.path.join(self.distdir)
+        # release_backup = os.path.join(self.basedir, 'dist_orig')
+        # if os.path.isdir(release_dir):
+        #     # keep a backup of previous release
+        #     if os.path.isdir(release_backup):
+        #         shutil.rmtree(release_backup)
+        #     shutil.move(release_dir, release_backup)
+        # # os.mkdir(release_dir)
 
         # check md5sum
         self.check_md5()
@@ -203,40 +205,40 @@ class OptractInstall():
         #     nativeApp = os.path.join('nativeApp.exe')
         # else:
         #     nativeApp = os.path.join('nativeApp')
-        logging.info('copy {0} to {1}'.format(os.path.join(cwd, 'bin'), os.path.join(release_dir, 'bin')))
-        shutil.copytree(os.path.join(cwd, 'bin'), os.path.join(release_dir, 'bin'))
-        logging.info('copy {0} to {1}'.format(os.path.join(cwd, 'dapps'), os.path.join(release_dir, 'dapps')))
-        shutil.copytree(os.path.join(cwd, 'dapps'), os.path.join(release_dir, 'dapps'))
-        logging.info('copy {0} to {1}'.format(os.path.join(cwd, 'lib'), os.path.join(release_dir, 'lib')))
-        shutil.copytree(os.path.join(cwd, 'lib'), os.path.join(release_dir, 'lib'))
-        if sys.platform.startswith('darwin'):
-            systray = 'systray.app'
-        else:
-            systray = 'systray'
-        logging.info('copy {0} to {1}'.format(systray, release_dir))
-        shutil.copytree(os.path.join(cwd, systray), os.path.join(release_dir, systray))
-        logging.info('copy {0} to {1}'.format('assets', release_dir))
-        shutil.copytree(os.path.join(cwd, 'assets'), os.path.join(release_dir, 'assets'))
-        logging.info('copy {0} to {1}'.format('nativeApp', release_dir))
-        shutil.copytree(os.path.join(cwd, 'nativeApp'), os.path.join(release_dir, 'nativeApp'))
-        self.extract_node_modules(os.path.join(cwd, 'node_modules.tar'), release_dir)
+        # logging.info('copy {0} to {1}'.format(os.path.join(cwd, 'bin'), os.path.join(release_dir, 'bin')))
+        # shutil.copytree(os.path.join(cwd, 'bin'), os.path.join(release_dir, 'bin'))
+        # logging.info('copy {0} to {1}'.format(os.path.join(cwd, 'dapps'), os.path.join(release_dir, 'dapps')))
+        # shutil.copytree(os.path.join(cwd, 'dapps'), os.path.join(release_dir, 'dapps'))
+        # logging.info('copy {0} to {1}'.format(os.path.join(cwd, 'lib'), os.path.join(release_dir, 'lib')))
+        # shutil.copytree(os.path.join(cwd, 'lib'), os.path.join(release_dir, 'lib'))
+        # if sys.platform.startswith('darwin'):
+        #     systray = 'systray.app'
+        # else:
+        #     systray = 'systray'
+        # logging.info('copy {0} to {1}'.format(systray, release_dir))
+        # shutil.copytree(os.path.join(cwd, systray), os.path.join(release_dir, systray))
+        # logging.info('copy {0} to {1}'.format('assets', release_dir))
+        # shutil.copytree(os.path.join(cwd, 'assets'), os.path.join(release_dir, 'assets'))
+        # logging.info('copy {0} to {1}'.format('nativeApp', release_dir))
+        # shutil.copytree(os.path.join(cwd, 'nativeApp'), os.path.join(self.distdir, 'nativeApp'))
+        self.extract_node_modules(os.path.join(cwd, 'node_modules.tar'), self.distdir)
 
         logging.info('creating keystore folder if necessary')
-        key_folder = os.path.join(self.basedir, 'keystore')
+        key_folder = os.path.join(self.datadir, 'keystore')
         mkdir(key_folder)
         return
 
     def create_config(self):
         config = {
-            "datadir": self.basedir,  # while update, replace the "dist/" folder under basedir
+            "datadir": self.datadir,  # while update, replace the "dist/" folder under basedir
             "rpcAddr": "https://rinkeby.infura.io/v3/f50fa6bf08fb4918acea4aadabb6f537",
             "defaultGasPrice": "20000000000",
             "gasOracleAPI": "https://ethgasstation.info/json/ethgasAPI.json",
             "condition": "sanity",
             "networkID": 4,
-            "passVault": os.path.join(self.basedir, "myArchive.bcup"),
+            "passVault": os.path.join(self.datadir, "myArchive.bcup"),
             "node": {
-                "dappdir": os.path.join(self.basedir, "dist", "dapps"),
+                "dappdir": os.path.join(self.distdir, "dapps"),
                 "dns": {
                     "server": [
                         "discovery1.datprotocol.com",
@@ -255,13 +257,13 @@ class OptractInstall():
             "dapps": {
                 "OptractMedia": {
                     "appName": "OptractMedia",
-                    "artifactDir": os.path.join(self.basedir, "dist", "dapps", "OptractMedia", "ABI"),
-                    "conditionDir": os.path.join(self.basedir, "dist", "dapps", "OptractMedia", "Conditions"),
+                    "artifactDir": os.path.join(self.distdir, "dapps", "OptractMedia", "ABI"),
+                    "conditionDir": os.path.join(self.distdir, "dapps", "OptractMedia", "Conditions"),
                     "contracts": [
                         { "ctrName": "BlockRegistry", "conditions": ["Sanity"] },
                         { "ctrName": "MemberShip", "conditions": ["Sanity"] }
                     ],
-                    "database": os.path.join(self.basedir, "dist", "dapps", "OptractMedia", "DB"),
+                    "database": os.path.join(self.distdir, "dapps", "OptractMedia", "DB"),
                     "version": "1.0",
                     "streamr": "false"
                 }
@@ -269,7 +271,7 @@ class OptractInstall():
         }
 
         # if previous setting exists, migrate a few settings and make a backup
-        config_file = os.path.join(self.basedir, 'config.json')
+        config_file = os.path.join(self.datadir, 'config.json')
         if os.path.isfile(config_file):
             # load previous config
             with open(config_file, 'r') as f:
@@ -302,14 +304,14 @@ class OptractInstall():
         return
 
 
-def main(basedir):
+def main(basedir, distdir, datadir):
     logging.info('Initializing Optract...')
     if not (sys.platform.startswith('linux') or sys.platform.startswith('darwin') or sys.platform.startswith('win32')):
         raise BaseException('Unsupported platform')
-    if cwd == basedir:
-        raise BaseException('Please do not extract file in the destination directory')
+    # if cwd == basedir:
+    #     raise BaseException('Please do not extract file in the destination directory')
 
-    install = OptractInstall(basedir)
+    install = OptractInstall(basedir, distdir, datadir)
     install.prepare_basedir()  # copy files to basedir
     install.create_config()
     install.init_ipfs()

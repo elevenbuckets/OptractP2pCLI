@@ -10,14 +10,18 @@ import psutil
 import logging
 from nativeApp import NativeApp
 
-
-nativeApp = NativeApp()
+distdir = os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))
+if sys.platform.startswith('darwin'):
+    # in windows/linux: systray = os.path.join(distdir, 'systray', 'systray.exe')
+    # in mac: systray = os.path.join(distdir, 'systray.app', 'Contents', 'MacOS', 'systray')
+    distdir = os.path.dirname(os.path.dirname(distdir))
+nativeApp = NativeApp(distdir)
 
 TRAY_TOOLTIP = 'Optract'
 
 icons = {
-    'inactive': os.path.join(nativeApp.basedir, 'dist', 'assets', 'icon.xpm'),
-    'active': os.path.join(nativeApp.basedir, 'dist', 'assets', 'icon-active.xpm')
+    'inactive': os.path.join(nativeApp.distdir, 'assets', 'icon.xpm'),
+    'active': os.path.join(nativeApp.distdir, 'assets', 'icon-active.xpm')
 }
 
 TRAY_ICON = icons['inactive']
@@ -189,6 +193,7 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         nativeApp.startServer()  # can_exit=False
 
     def on_stop_server(self, event):
+        # TODO?: kill the process "nativeApp" if exists
         nativeApp.stopServer()
 
     def on_restart_ipfs(self, event):
