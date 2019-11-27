@@ -30,7 +30,10 @@ if sys.platform == "win32":
 FNULL = open(os.devnull, 'w')  # python2
 # FNULL = subprocess.DEVNULL  # python3
 
-distdir = os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))  # (unix) should be ~/.config/Optract/dist (except during install)
+# basedir: root directory of Optract, for example: ~/Downloads/Optract
+# distdir: release directory, contain binaries and modules; replace this one while update, for example: ~/Downloads/Optract/dist
+# datadir: ipfs, config, and keys are here (for now same as `basedir`) (change it to `~/.config/Optract`?)
+distdir = os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))
 if sys.platform.startswith('linux'):
     systray = os.path.join(distdir, 'systray', 'systray')
 elif sys.platform.startswith('darwin'):
@@ -317,23 +320,32 @@ if __name__ == '__main__':
     print('nativeApp path = {0}'.format(os.path.realpath(sys.argv[0])))
     print('basedir path = {0}'.format(basedir))
 
+    def install():
+        print('Installing... please see the progress in logfile: ' + logfile)
+        print('Please also download Optract browser extension.')
+        OptractInstall.main(basedir, nativeApp.distdir, nativeApp.datadir)
+
+    # install
+    if not os.path.exists(os.path.join(distdir, '.installed')):
+        install()
+
+    # run nativeApp or tests
     try:
         ppid = '{0}'.format(os.getppid())  # pid of browser; getppid() only work on unix
     except AttributeError:
         ppid = '-'
+
     if len(sys.argv) > 1:
-        if sys.argv[1] == 'install':
-            print('Installing... please see the progress in logfile: ' + logfile)
-            print('Please also download Optract browser extension.')
-            OptractInstall.main(basedir, nativeApp.distdir, nativeApp.datadir)
+        if sys.argv[1] == 'install':  # redundant?
+            install()
         elif sys.argv[1] == 'test':
             nativeApp.startServer()
             raw_input("press <enter> to stop...")  # python2
             # input("press <enter> to stop...")  # python3
             nativeApp.stopServer()
         elif sys.argv[1] == 'testtray':
-            systrapP = subprocess.Popen([systray, ppid])
-        else:
+            systrapP = subprocess.Popen([systray, ppid])  # TODO: remove ppid
+        else:  # chrome and firefox add extension id as argument
             main(nativeApp)
     else:
         main(nativeApp)

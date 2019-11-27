@@ -9,6 +9,7 @@ import time
 import psutil
 import logging
 from nativeApp import NativeApp
+import OptractInstall
 
 distdir = os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))
 if sys.platform.startswith('darwin'):
@@ -35,6 +36,12 @@ logfile = os.path.join(nativeApp.basedir, 'optract.log')
 logging.basicConfig(filename=logfile, level=logging.INFO, format=log_format,
                     datefmt=log_datefmt)
 
+# install if necessary
+basedir = nativeApp.basedir
+if not os.path.exists(os.path.join(distdir, '.installed')):
+    print('Installing... please see the progress in logfile: ' + logfile)
+    print('Please also download Optract browser extension.')
+    OptractInstall.main(basedir, nativeApp.distdir, nativeApp.datadir)
 
 # def simple_daemon(self):
 #     while True:

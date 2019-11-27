@@ -13,11 +13,6 @@ log = logging.getLogger(__name__)
 if sys.platform == "win32":
     import winreg
 
-# global variables
-# 'cwd' is for installtion, it may look like ~/Downloads/optract_release
-cwd = os.path.dirname(os.path.realpath(sys.argv[0]))  # os.getcwd() may not correct if click it from File manager(?)
-cwd = os.path.dirname(cwd)  # after pack by pyarmor/pyinstaller, it's one folder deeper, and here we need the parent one
-
 
 def mkdir(dirname):  # if parent dir exists and dirname does not exist
     if os.path.isdir(os.path.dirname(dirname)) and not os.path.isdir(dirname):
@@ -30,7 +25,7 @@ class OptractInstall():
         self.basedir = basedir
         self.distdir = distdir
         self.datadir = datadir
-        extid_file = os.path.join(cwd, 'extension_id.json')  # or write fix values here?
+        extid_file = os.path.join(self.distdir, 'extension_id.json')  # or write fix values here?
         with open(extid_file, 'r') as f:
             self.extid = json.load(f)
         return
@@ -173,55 +168,24 @@ class OptractInstall():
             node_modules_tar_md5_expected = '6f997ad2bac5f0fa3db05937554c9223'
 
         if sys.platform.startswith('win32'):
-            nodeCMD = os.path.join(cwd, 'bin', 'node.exe')
-            ipfsCMD = os.path.join(cwd, 'bin', 'ipfs.exe')
+            nodeCMD = os.path.join(self.distdir, 'bin', 'node.exe')
+            ipfsCMD = os.path.join(self.distdir, 'bin', 'ipfs.exe')
         else:
-            nodeCMD = os.path.join(cwd, 'bin', 'node')
-            ipfsCMD = os.path.join(cwd, 'bin', 'ipfs')
-        node_modules_tar = os.path.join(cwd, 'node_modules.tar')
+            nodeCMD = os.path.join(self.distdir, 'bin', 'node')
+            ipfsCMD = os.path.join(self.distdir, 'bin', 'ipfs')
+        node_modules_tar = os.path.join(self.distdir, 'node_modules.tar')
         self._compare_md5(nodeCMD, node_md5_expected)
         self._compare_md5(ipfsCMD, ipfs_md5_expected)
         self._compare_md5(node_modules_tar, node_modules_tar_md5_expected)
         return
 
-    def prepare_basedir(self):
+    def prepare_files(self):
         logging.info('Preparing folder for optract in: ' + self.basedir)
-
-        # generate new empty "dist" directory in basedir
-        # release_dir = os.path.join(self.distdir)
-        # release_backup = os.path.join(self.basedir, 'dist_orig')
-        # if os.path.isdir(release_dir):
-        #     # keep a backup of previous release
-        #     if os.path.isdir(release_backup):
-        #         shutil.rmtree(release_backup)
-        #     shutil.move(release_dir, release_backup)
-        # # os.mkdir(release_dir)
 
         # check md5sum
         self.check_md5()
 
-        # copy files to basedir
-        # if sys.platform == 'win32':
-        #     nativeApp = os.path.join('nativeApp.exe')
-        # else:
-        #     nativeApp = os.path.join('nativeApp')
-        # logging.info('copy {0} to {1}'.format(os.path.join(cwd, 'bin'), os.path.join(release_dir, 'bin')))
-        # shutil.copytree(os.path.join(cwd, 'bin'), os.path.join(release_dir, 'bin'))
-        # logging.info('copy {0} to {1}'.format(os.path.join(cwd, 'dapps'), os.path.join(release_dir, 'dapps')))
-        # shutil.copytree(os.path.join(cwd, 'dapps'), os.path.join(release_dir, 'dapps'))
-        # logging.info('copy {0} to {1}'.format(os.path.join(cwd, 'lib'), os.path.join(release_dir, 'lib')))
-        # shutil.copytree(os.path.join(cwd, 'lib'), os.path.join(release_dir, 'lib'))
-        # if sys.platform.startswith('darwin'):
-        #     systray = 'systray.app'
-        # else:
-        #     systray = 'systray'
-        # logging.info('copy {0} to {1}'.format(systray, release_dir))
-        # shutil.copytree(os.path.join(cwd, systray), os.path.join(release_dir, systray))
-        # logging.info('copy {0} to {1}'.format('assets', release_dir))
-        # shutil.copytree(os.path.join(cwd, 'assets'), os.path.join(release_dir, 'assets'))
-        # logging.info('copy {0} to {1}'.format('nativeApp', release_dir))
-        # shutil.copytree(os.path.join(cwd, 'nativeApp'), os.path.join(self.distdir, 'nativeApp'))
-        self.extract_node_modules(os.path.join(cwd, 'node_modules.tar'), self.distdir)
+        self.extract_node_modules(os.path.join(self.distdir, 'node_modules.tar'), self.distdir)
 
         logging.info('creating keystore folder if necessary')
         key_folder = os.path.join(self.datadir, 'keystore')
@@ -308,11 +272,9 @@ def main(basedir, distdir, datadir):
     logging.info('Initializing Optract...')
     if not (sys.platform.startswith('linux') or sys.platform.startswith('darwin') or sys.platform.startswith('win32')):
         raise BaseException('Unsupported platform')
-    # if cwd == basedir:
-    #     raise BaseException('Please do not extract file in the destination directory')
 
     install = OptractInstall(basedir, distdir, datadir)
-    install.prepare_basedir()  # copy files to basedir
+    install.prepare_files()
     install.create_config()
     install.init_ipfs()
     # install for all supporting browsers (for now assume firefox is must)
@@ -326,7 +288,7 @@ def main(basedir, distdir, datadir):
     logging.info('Done! Optract is ready to use.')
 
     # add a ".installed" to indicate a succesful installation (not used)
-    installed = os.path.join(basedir, 'dist', '.installed')
+    installed = os.path.join(distdir, '.installed')
     open(installed, 'a').close()
 
     return
