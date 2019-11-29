@@ -14,12 +14,6 @@ if sys.platform == "win32":
     import winreg
 
 
-def mkdir(dirname):  # if parent dir exists and dirname does not exist
-    if os.path.isdir(os.path.dirname(dirname)) and not os.path.isdir(dirname):
-        os.mkdir(dirname)
-    return
-
-
 class OptractInstall():
     def __init__(self, basedir, distdir, datadir):
         self.basedir = basedir
@@ -29,6 +23,20 @@ class OptractInstall():
         with open(extid_file, 'r') as f:
             self.extid = json.load(f)
         return
+
+    def install(self):
+        logging.info('Initializing Optract...')
+        self.prepare_files()
+        self.create_config()
+        self.init_ipfs()
+        # install for all supporting browsers (for now assume firefox is must)
+        if not self.create_and_write_manifest('firefox'):  # it returns bool
+            logging.warning('Failed to create manifest for firefox')
+        if not self.create_and_write_manifest('chrome'):
+            logging.warning('Failed to create manifest for chrome')
+        installed = os.path.join(self.distdir, '.installed')
+        logging.info('Done! Optract is ready to use.')
+        open(installed, 'a').close()
 
     def add_registry_chrome(self):
         # TODO: add remove_registry()
@@ -94,7 +102,7 @@ class OptractInstall():
           "description": "optract server",
           "path": nativeAppPath,
           "type": "stdio",
-          "allowed_origins": [ "chrome-extension://{0}/".format(extension_id) ]
+          "allowed_origins": ["chrome-extension://{0}/".format(extension_id)]
         }
         return manifest_json
 
@@ -105,9 +113,40 @@ class OptractInstall():
           "description": "optract server",
           "path": nativeAppPath,
           "type": "stdio",
-          "allowed_extensions": [ extension_id ]
+          "allowed_extensions": [extension_id]
         }
         return manifest_json
+
+    def get_manifest_path(self, browser):
+        if sys.platform.startswith('win32'):
+            extension_manifest = os.path.join(self.distdir, 'optract-win-{0}.json'.format(browser))
+        elif sys.platform.startswith('linux') and browser == 'chrome':
+            extension_manifest = os.path.expanduser('~/.config/google-chrome/NativeMessagingHosts/optract.json')
+        elif sys.platform.startswith('linux') and browser == 'firefox':
+            extension_manifest = os.path.expanduser('~/.mozilla/native-messaging-hosts/optract.json')
+        elif sys.platform.startswith('darwin') and browser == 'chrome':
+            extension_manifest = os.path.expanduser('~/Library/Application Support/Google/Chrome/NativeMessagingHosts/optract.json')
+        elif sys.platform.startswith('darwin') and browser == 'firefox':
+            extension_manifest= os.path.expanduser('~/Library/Application Support/Mozilla/NativeMessagingHosts/optract.json')
+        else:
+            # raise BaseException('Unsupported platform and/or browser.')
+            logging.error('Unsupported platform and/or browser.')
+            extension_manifest = None
+        return extension_manifest
+
+    def check_mainfest_path(self, browser):
+        if sys.platform.startswith('win32'):
+            # TODO: check registry
+            content = None  # add something later
+        else:
+            manifest_path = self.get_manifest_path(browser)
+            if os.path.isfile(manifest_path):
+                # try...except open?
+                with open(manifest_path, 'r') as f:
+                    content = f.load(f)
+            else:
+                content = None
+        return content
 
     def create_and_write_manifest(self, browser):
         if browser not in ['firefox', 'chrome']:
@@ -120,33 +159,28 @@ class OptractInstall():
             elif browser == 'firefox':
                 self.add_registry_firefox()
         else:  # unix-like
-            # determine native message directory for different OS and browsers
-            # TODO: make sure user already has at least one browser installed
-            if sys.platform.startswith('linux') and browser == 'chrome':
-                nativeMsgDir = os.path.expanduser('~/.config/google-chrome/NativeMessagingHosts')
-            elif sys.platform.startswith('linux') and browser == 'firefox':
-                nativeMsgDir = os.path.expanduser('~/.mozilla/native-messaging-hosts')
-            elif sys.platform.startswith('darwin') and browser == 'chrome':
-                nativeMsgDir = os.path.expanduser('~/Library/Application Support/Google/Chrome/NativeMessagingHosts')
-            elif sys.platform.startswith('darwin') and browser == 'firefox':
-                nativeMsgDir = os.path.expanduser('~/Library/Application Support/Mozilla/NativeMessagingHosts')
-            else:
-                logging.warning('you should not reach here...')
-                raise BaseException('Unsupported platform')
-            mkdir(nativeMsgDir)
-            nativeAppPath = os.path.join(self.distdir, 'nativeApp', 'nativeApp')
+            manifest_path = self.get_manifest_path(browser)
+
+            # mkdir for browser nativeMessageingHost (is it necessary?)
+            browser_nativeMsg_dir = os.path.dirname(manifest_path)
+            if not os.path.isdir(browser_nativeMsg_dir):
+                try:
+                    os.mkdir(browser_nativeMsg_dir)
+                except OSError:  # most likely due to parent dir of browser_nativeMsg_dir not exist
+                    logging.error('Failed to create folder {0} for {1} browser.'.format(browser_nativeMsg_dir, browser))
+                    return False
 
             # create content for manifest file of native messaging
+            nativeAppPath = os.path.join(self.distdir, 'nativeApp', 'nativeApp')
             if browser == 'chrome':
-                manifest_content = self.create_manifest_chrome(nativeAppPath, self.extid['chrome'])
+                manifest_content = self.create_manifest_chrome(nativeAppPath, self.extid[browser])
             elif browser == 'firefox':
-                manifest_content = self.create_manifest_firefox(nativeAppPath, self.extid['firefox'])
+                manifest_content = self.create_manifest_firefox(nativeAppPath, self.extid[browser])
 
-            # write manifest file
-            manifest_path = os.path.join(nativeMsgDir, 'optract.json')
+            # write manifest file (overwrite existing one)
             with open(manifest_path, 'w') as f:
                 json.dump(manifest_content, f, indent=4)
-        return
+        return True
 
     def _compare_md5(self, filename, md5_expected):
         md5_seen = hashlib.md5(open(filename, 'rb').read()).hexdigest()
@@ -189,7 +223,8 @@ class OptractInstall():
 
         logging.info('creating keystore folder if necessary')
         key_folder = os.path.join(self.datadir, 'keystore')
-        mkdir(key_folder)
+        if not os.path.isdir(key_folder):
+            os.mkdir(key_folder)
         return
 
     def create_config(self):
@@ -224,8 +259,8 @@ class OptractInstall():
                     "artifactDir": os.path.join(self.distdir, "dapps", "OptractMedia", "ABI"),
                     "conditionDir": os.path.join(self.distdir, "dapps", "OptractMedia", "Conditions"),
                     "contracts": [
-                        { "ctrName": "BlockRegistry", "conditions": ["Sanity"] },
-                        { "ctrName": "MemberShip", "conditions": ["Sanity"] }
+                        {"ctrName": "BlockRegistry", "conditions": ["Sanity"]},
+                        {"ctrName": "MemberShip", "conditions": ["Sanity"]}
                     ],
                     "database": os.path.join(self.distdir, "dapps", "OptractMedia", "DB"),
                     "version": "1.0",
@@ -269,27 +304,11 @@ class OptractInstall():
 
 
 def main(basedir, distdir, datadir):
-    logging.info('Initializing Optract...')
     if not (sys.platform.startswith('linux') or sys.platform.startswith('darwin') or sys.platform.startswith('win32')):
         raise BaseException('Unsupported platform')
 
-    install = OptractInstall(basedir, distdir, datadir)
-    install.prepare_files()
-    install.create_config()
-    install.init_ipfs()
-    # install for all supporting browsers (for now assume firefox is must)
-    install.create_and_write_manifest("firefox")
-    try:
-        install.create_and_write_manifest("chrome")
-    except:
-        pass
-
-    # done
-    logging.info('Done! Optract is ready to use.')
-
-    # add a ".installed" to indicate a succesful installation (not used)
-    installed = os.path.join(distdir, '.installed')
-    open(installed, 'a').close()
+    installer = OptractInstall(basedir, distdir, datadir)
+    installer.install()
 
     return
 

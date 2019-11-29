@@ -36,12 +36,6 @@ logfile = os.path.join(nativeApp.basedir, 'optract.log')
 logging.basicConfig(filename=logfile, level=logging.INFO, format=log_format,
                     datefmt=log_datefmt)
 
-# install if necessary
-basedir = nativeApp.basedir
-if not os.path.exists(os.path.join(distdir, '.installed')):
-    print('Installing... please see the progress in logfile: ' + logfile)
-    print('Please also download Optract browser extension.')
-    OptractInstall.main(basedir, nativeApp.distdir, nativeApp.datadir)
 
 # def simple_daemon(self):
 #     while True:
@@ -376,6 +370,7 @@ class App(wx.App):
 
 def main():
     app = App(False)
+    nativeApp.install()  # only install if necessary
     nativeApp.startServer(can_exit=True)  # to prevent multiple instances
     # frame = MainFrame(None, title='Optract GUI')
     # frame.Show()

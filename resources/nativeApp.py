@@ -46,21 +46,22 @@ else:
 
 class NativeApp():
     def __init__(self, distdir):
-        # if extract file in ~/Downloads, then basedir and datadir in: ~/Downloads/Optract,
-        # and distdir in : ~/Downloads/Optract/dist
-        # and nativeApp (this one) in : ~/Downloads/Optract/dist/nativeApp/nativeApp
         self.platform = self.get_platform()
-        self.distdir = distdir
-        self.basedir = os.path.dirname(distdir)
-        self.datadir = os.path.dirname(distdir)  # for now, put data in basedir
         if not (self.platform == 'linux' or self.platform == 'darwin' or self.platform == 'win32'):
             logging.error('Unsupported platform')
             raise BaseException('Unsupported platform')
+
+        # if extract file in ~/Downloads, then basedir and datadir are both: ~/Downloads/Optract,
+        # and distdir is: ~/Downloads/Optract/dist
+        # and nativeApp (this one) in: ~/Downloads/Optract/dist/nativeApp/nativeApp
+        self.distdir = distdir
+        self.basedir = os.path.dirname(distdir)
+        self.datadir = os.path.dirname(distdir)  # for now, put data in basedir
         self.lockFile = os.path.join(self.distdir, 'Optract.LOCK')
         self.ipfs_lockFile = os.path.join(self.datadir, 'ipfs_repo', 'repo.lock')
         self.nodeP = None
         self.ipfsP = None
-        # self.is_running = False
+        self.installer = OptractInstall
 
     def get_platform(self):
         if sys.platform.startswith('linux'):
@@ -72,6 +73,15 @@ class NativeApp():
         else:
             return sys.platform
         return platform
+
+    def install(self, forced=False):
+        # print('Installing... please see the progress in logfile: ' + logfile)
+        # print('Please also download Optract browser extension.')
+        if forced:
+            self.installer.main(self.basedir, self.distdir, self.datadir)
+        else:
+            if not os.path.exists(os.path.join(distdir, '.installed')):
+                self.installer.main(self.basedir, self.distdir, self.datadir)
 
     # Read a message from stdin and decode it.
     def get_message(self):
@@ -320,14 +330,8 @@ if __name__ == '__main__':
     print('nativeApp path = {0}'.format(os.path.realpath(sys.argv[0])))
     print('basedir path = {0}'.format(basedir))
 
-    def install():
-        print('Installing... please see the progress in logfile: ' + logfile)
-        print('Please also download Optract browser extension.')
-        OptractInstall.main(basedir, nativeApp.distdir, nativeApp.datadir)
-
     # install
-    if not os.path.exists(os.path.join(distdir, '.installed')):
-        install()
+    nativeApp.install()  # check the existence of .installed in distdir
 
     # run nativeApp or tests
     try:
@@ -337,7 +341,7 @@ if __name__ == '__main__':
 
     if len(sys.argv) > 1:
         if sys.argv[1] == 'install':  # redundant?
-            install()
+            nativeApp.install()
         elif sys.argv[1] == 'test':
             nativeApp.startServer()
             raw_input("press <enter> to stop...")  # python2
