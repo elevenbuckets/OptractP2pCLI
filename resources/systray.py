@@ -9,7 +9,6 @@ import time
 import psutil
 import logging
 from nativeApp import NativeApp
-import OptractInstall
 
 distdir = os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))
 if sys.platform.startswith('darwin'):

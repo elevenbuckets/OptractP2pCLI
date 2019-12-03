@@ -19,24 +19,27 @@ class OptractInstall():
         self.basedir = basedir
         self.distdir = distdir
         self.datadir = datadir
+        self.installed = os.path.join(self.distdir, '.installed')
         extid_file = os.path.join(self.distdir, 'extension_id.json')  # or write fix values here?
         with open(extid_file, 'r') as f:
             self.extid = json.load(f)
         return
 
-    def install(self):
-        logging.info('Initializing Optract...')
-        self.prepare_files()
-        self.create_config()
-        self.init_ipfs()
-        # install for all supporting browsers (for now assume firefox is must)
-        if not self.create_and_write_manifest('firefox'):  # it returns bool
-            logging.warning('Failed to create manifest for firefox')
-        if not self.create_and_write_manifest('chrome'):
-            logging.warning('Failed to create manifest for chrome')
-        installed = os.path.join(self.distdir, '.installed')
-        logging.info('Done! Optract is ready to use.')
-        open(installed, 'a').close()
+    def install(self, force=False):
+        if not os.path.isfile(self.installed) or force:
+            logging.info('Initializing Optract in {0}'.format(self.distdir))
+            self.prepare_files()
+            self.create_config()
+            self.init_ipfs()
+            # install for all supporting browsers (for now assume firefox is must)
+            if not self.create_and_write_manifest('firefox'):
+                logging.warning('Failed to create manifest for firefox')
+            if not self.create_and_write_manifest('chrome'):
+                logging.warning('Failed to create manifest for chrome')
+            logging.info('Done! Optract is ready to use.')
+            open(self.installed, 'a').close()
+        else:
+            logging.warning('Already installed in {0}'.format(self.distdir))
 
     def add_registry_chrome(self):
         # TODO: add remove_registry()
