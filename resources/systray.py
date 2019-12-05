@@ -100,7 +100,7 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         create_menu_item(config_menu, 'reset config file', self.on_create_config)
         # create_menu_item(config_menu, 'reset ipfs', self.on_null)
         # create_menu_item(config_menu, 'reset', self.on_null)  # remove existing and re-install
-        menu.AppendMenu(wx.ID_ANY, '&config browsers', config_menu)
+        menu.Append(wx.ID_ANY, '&config browsers', config_menu)
 
         if not self.ipfsP_is_running and self.nodeP_is_running:
             create_menu_item(menu, 'restart ipfs (experimental)', self.on_restart_ipfs)
@@ -262,13 +262,29 @@ class MainFrame(wx.Frame):
         self.button_exit.Bind(wx.EVT_BUTTON, self.on_exit)
         self.sizer.Add(self.button_exit, pos=(1, 1), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
 
+        row = 2
+        if self.tbIcon.IsAvailable():
+            self.button_minimize = wx.Button(self.panel, label="Minimize")
+            self.button_minimize.Bind(wx.EVT_BUTTON, self.on_iconize)
+            self.sizer.Add(self.button_minimize, pos=(row, 0), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
+            row += 1
+
         # put some text with a larger bold font on it
         self.st = wx.StaticText(self.panel, label=self.get_status_text())
         font = self.st.GetFont()
         font.PointSize += 3
         # font = font.Bold()
         self.st.SetFont(font)
-        self.sizer.Add(self.st, pos=(2, 0), span=(1, 2), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
+        self.sizer.Add(self.st, pos=(row, 0), span=(1, 2), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
+        row += 1
+
+        if os.path.exists(os.path.join(nativeApp.distdir, '.installed')):
+            # TODO: also check browser manifest are properly configured
+            self.st_install = wx.StaticText(self.panel, label='Welcome to Optract!')
+        else:
+            self.st_install = wx.StaticText(self.panel, label='Installing Optract...')
+        self.st_install.SetFont(font)
+        self.sizer.Add(self.st_install, pos=(row, 0), span=(1, 2), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
 
         # setSizer to panel
         self.panel.SetSizer(self.sizer)
@@ -281,12 +297,12 @@ class MainFrame(wx.Frame):
         self.SetStatusText("Welcome to Optract!")
 
         # events
-        self.Bind(wx.EVT_CLOSE, self.on_iconize)  # minimize to tray instead of close
-        self.Bind(wx.EVT_ICONIZE, self.on_iconize)
+        self.Bind(wx.EVT_CLOSE, self.on_iconize)  # iconize instead of close
+        # self.Bind(wx.EVT_ICONIZE, self.on_iconize)
 
         self.timer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.on_timer)
-        self.timer.Start(4000)  # every 4 seconds
+        self.timer.Start(2000)  # every 2 seconds
 
     def makeMenuBar(self):
         # Make a file menu with Hello and Exit items
@@ -342,6 +358,11 @@ class MainFrame(wx.Frame):
         else:
             self.button_ipfs_restart.Disable()
 
+        if os.path.exists(os.path.join(nativeApp.distdir, '.installed')):
+            self.st_install.SetLabel('Welcome to Optract!')
+        else:
+            self.st_install.SetLabel('Installing Optract...')
+
     def on_button_ipfs_restart(self, event):
         nativeApp.start_ipfs()
         # self.sizer.Layout()  # or panel.layout()
@@ -361,7 +382,7 @@ class MainFrame(wx.Frame):
         self.Destroy()
 
     def on_iconize(self, event):
-        pass
+        self.Iconize(True)
         # if self.IsIconized():
         #     self.Hide()
 
@@ -381,8 +402,13 @@ class App(wx.App):
         frame = MainFrame(None, title='Optract GUI', size=(220, 300))
         self.SetTopWindow(frame)
 
+        # install if necessary; show gui only when systray is not available or during install
+        if not os.path.exists(os.path.join(nativeApp.distdir, '.installed')):
+            logging.info('Installing Optract')
+            frame.Show()
+            nativeApp.install()
         if not frame.tbIcon.IsAvailable():
-            logging.warning("TaskBarIcon not available")  # such as Ubuntu (Gnome3 + unity DE)
+            logging.warning("TaskBarIcon not available")  # such as Ubuntu 18.04 (Gnome3 + unity DE)
             frame.Show()
         if not frame.tbIcon.IsOk():
             logging.error("Failed to init TaskBarIcon")
@@ -395,10 +421,9 @@ class App(wx.App):
 
 def main():
     app = App(False)
-    nativeApp.install()  # only install if necessary
-    nativeApp.startServer(can_exit=True)  # to prevent multiple instances
     # frame = MainFrame(None, title='Optract GUI')
     # frame.Show()
+    nativeApp.startServer(can_exit=True)  # to prevent multiple instances
     app.MainLoop()
 
 
