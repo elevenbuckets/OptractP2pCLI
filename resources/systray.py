@@ -92,6 +92,16 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         create_menu_item(menu, 'Start', self.on_start_server)
         create_menu_item(menu, 'Stop', self.on_stop_server)
         menu.AppendSeparator()
+
+        config_menu = wx.Menu()
+        # should detect the existence of 'optract.json' (and check if they point to the running instance of optract)
+        create_menu_item(config_menu, 'connect to firefox', self.on_config_firefox)
+        create_menu_item(config_menu, 'connect to chrome', self.on_config_chrome)
+        create_menu_item(config_menu, 'reset config file', self.on_create_config)
+        # create_menu_item(config_menu, 'reset ipfs', self.on_null)
+        # create_menu_item(config_menu, 'reset', self.on_null)  # remove existing and re-install
+        menu.AppendMenu(wx.ID_ANY, '&config browsers', config_menu)
+
         if not self.ipfsP_is_running and self.nodeP_is_running:
             create_menu_item(menu, 'restart ipfs (experimental)', self.on_restart_ipfs)
             menu.AppendSeparator()
@@ -198,6 +208,22 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
 
     def on_restart_ipfs(self, event):
         nativeApp.start_ipfs()
+
+    def on_config_firefox(self, event):
+        logging.info('createing manifest for firefox')
+        nativeApp.installer.create_and_write_manifest('firefox')
+        wx.MessageBox('create nativeApp for firefox. Please install browser extension from https://11be.org/browser_extensions')
+
+    def on_config_chrome(self, event):
+        nativeApp.installer.create_and_write_manifest('chrome')
+        wx.MessageBox('create nativeApp for chrome. Please install browser extension from https://11be.org/browser_extensions')
+
+    def on_create_config(self, event):
+        # TODO: popup a confirm window
+        # TODO: it only create a config and does not migrate
+        nativeApp.installer.create_config()
+        config_file = os.path.join(nativeApp.datadir, 'config.json')
+        wx.MessageBox('regenerate config file in: {0}'.format(config_file))
 
     def on_exit(self, event):
         nativeApp.stopServer()

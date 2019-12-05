@@ -61,7 +61,7 @@ class NativeApp():
         self.ipfs_lockFile = os.path.join(self.datadir, 'ipfs_repo', 'repo.lock')
         self.nodeP = None
         self.ipfsP = None
-        self.installer = OptractInstall
+        self.installer = OptractInstall.OptractInstall(self.basedir, self.distdir, self.datadir)
 
     def get_platform(self):
         if sys.platform.startswith('linux'):
@@ -78,10 +78,10 @@ class NativeApp():
         # print('Installing... please see the progress in logfile: ' + logfile)
         # print('Please also download Optract browser extension.')
         if forced:
-            self.installer.main(self.basedir, self.distdir, self.datadir)
+            self.installer.install()
         else:
             if not os.path.exists(os.path.join(distdir, '.installed')):
-                self.installer.main(self.basedir, self.distdir, self.datadir)
+                self.installer.install()
 
     # Read a message from stdin and decode it.
     def get_message(self):

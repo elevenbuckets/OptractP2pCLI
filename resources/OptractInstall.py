@@ -16,6 +16,8 @@ if sys.platform == "win32":
 
 class OptractInstall():
     def __init__(self, basedir, distdir, datadir):
+        if not (sys.platform.startswith('linux') or sys.platform.startswith('darwin') or sys.platform.startswith('win32')):
+            raise BaseException('Unsupported platform')
         self.basedir = basedir
         self.distdir = distdir
         self.datadir = datadir
@@ -137,7 +139,7 @@ class OptractInstall():
             extension_manifest = None
         return extension_manifest
 
-    def check_mainfest_path(self, browser):
+    def check_manifest_path(self, browser):
         if sys.platform.startswith('win32'):
             # TODO: check registry
             content = None  # add something later
@@ -152,6 +154,7 @@ class OptractInstall():
         return content
 
     def create_and_write_manifest(self, browser):
+        # logging.info('in creating manifest...')
         if browser not in ['firefox', 'chrome']:
             raise BaseException('Unsupported browser {0}'.format(browser))
 
@@ -181,6 +184,7 @@ class OptractInstall():
                 manifest_content = self.create_manifest_firefox(nativeAppPath, self.extid[browser])
 
             # write manifest file (overwrite existing one)
+            logging.info('create manifest in {0}'.format(manifest_path))
             with open(manifest_path, 'w') as f:
                 json.dump(manifest_content, f, indent=4)
         return True
@@ -307,12 +311,8 @@ class OptractInstall():
 
 
 def main(basedir, distdir, datadir):
-    if not (sys.platform.startswith('linux') or sys.platform.startswith('darwin') or sys.platform.startswith('win32')):
-        raise BaseException('Unsupported platform')
-
     installer = OptractInstall(basedir, distdir, datadir)
     installer.install()
-
     return
 
 
