@@ -8,7 +8,12 @@ import os
 import time
 import psutil
 import logging
+import threading
+import wx.lib.newevent as NE
 from nativeApp import NativeApp
+
+InstallEvent, EVT_INSTALL = NE.NewEvent()
+StartserverEvent, EVT_STARTSERVER = NE.NewEvent()
 
 distdir = os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))
 if sys.platform.startswith('darwin'):
@@ -34,18 +39,6 @@ logfile = os.path.join(nativeApp.basedir, 'optract.log')
 # replace the `filename=logfile` to `stream=sys.stdout` to direct log to stdout
 logging.basicConfig(filename=logfile, level=logging.INFO, format=log_format,
                     datefmt=log_datefmt)
-
-
-# def simple_daemon(self):
-#     while True:
-#         time.sleep(3)
-#         # pl = subprocess.Popen(['pgrep', '-lf', 'firefox'], stdout=subprocess.PIPE).communicate()[0]
-#         # pl = pl.split("\n")[0:-1]
-#         # if (len(pl) == 0):
-#         firefox_pids = [p.info for p in psutil.process_iter(attrs=['pid', 'name']) if 'firefox' == p.info['name']]
-#         if len(firefox_pids) == 0:
-#             nativeApp.stopServer()
-#             sys.exit(0)
 
 
 def create_menu_item(menu, label, func, enable=True):
@@ -245,22 +238,24 @@ class MainFrame(wx.Frame):
         self.sizer = wx.GridBagSizer()
 
         # make buttons
+        row = 0
         self.button_start_server = wx.Button(self.panel, label="start server")
         self.button_start_server.Bind(wx.EVT_BUTTON, self.on_button_start_server)
-        self.sizer.Add(self.button_start_server, pos=(0, 0), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
+        self.sizer.Add(self.button_start_server, pos=(row, 0), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
 
         self.button_stop_server = wx.Button(self.panel, label="stop server")
         self.button_stop_server.Bind(wx.EVT_BUTTON, self.on_button_stop_server)
-        self.sizer.Add(self.button_stop_server, pos=(0, 1), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
+        self.sizer.Add(self.button_stop_server, pos=(row, 1), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
 
+        row = 1
         self.button_ipfs_restart= wx.Button(self.panel, label="restart ipfs")
         self.button_ipfs_restart.Bind(wx.EVT_BUTTON, self.on_button_ipfs_restart)
         self.button_ipfs_restart.Disable()
-        self.sizer.Add(self.button_ipfs_restart, pos=(1, 0), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
+        self.sizer.Add(self.button_ipfs_restart, pos=(row, 0), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
 
         self.button_exit = wx.Button(self.panel, label="Exit")
         self.button_exit.Bind(wx.EVT_BUTTON, self.on_exit)
-        self.sizer.Add(self.button_exit, pos=(1, 1), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
+        self.sizer.Add(self.button_exit, pos=(row, 1), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
 
         row = 2
         if self.tbIcon.IsAvailable():
@@ -278,14 +273,6 @@ class MainFrame(wx.Frame):
         self.sizer.Add(self.st, pos=(row, 0), span=(1, 2), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
         row += 1
 
-        if os.path.exists(os.path.join(nativeApp.distdir, '.installed')):
-            # TODO: also check browser manifest are properly configured
-            self.st_install = wx.StaticText(self.panel, label='Welcome to Optract!')
-        else:
-            self.st_install = wx.StaticText(self.panel, label='Installing Optract...')
-        self.st_install.SetFont(font)
-        self.sizer.Add(self.st_install, pos=(row, 0), span=(1, 2), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
-
         # setSizer to panel
         self.panel.SetSizer(self.sizer)
 
@@ -295,6 +282,28 @@ class MainFrame(wx.Frame):
         # and a status bar
         self.CreateStatusBar()
         self.SetStatusText("Welcome to Optract!")
+
+        # install if necessary
+        self.Bind(EVT_INSTALL, self.on_evt_install)
+        self.Bind(EVT_STARTSERVER, self.on_evt_startserver)
+        try:
+            self.install_called  # check existence of this variable
+        except AttributeError:
+            self.install_called = True
+            if os.path.exists(os.path.join(nativeApp.distdir, '.installed')):
+                logging.info('calling StartserverEvent')
+                # TODO: also check browser manifest are properly configured
+                # TODO: remove Optract.LOCK if no other instance is running
+                self.st_install = wx.StaticText(self.panel, label='Welcome to Optract!')
+                wx.PostEvent(self, StartserverEvent())
+            else:
+                logging.info('calling InstallEvent')
+                self.st_install = wx.StaticText(self.panel, label='Installing Optract...')
+                wx.PostEvent(self, InstallEvent())
+
+        self.st_install.SetFont(font)
+        self.sizer.Add(self.st_install, pos=(row, 0), span=(1, 2), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
+        row += 1
 
         # events
         self.Bind(wx.EVT_CLOSE, self.on_iconize)  # iconize instead of close
@@ -386,6 +395,21 @@ class MainFrame(wx.Frame):
         # if self.IsIconized():
         #     self.Hide()
 
+    def on_evt_install(self, event):
+        def _evt_install(win):
+            nativeApp.install()
+            nativeApp.startServer(can_exit=True)  # to prevent multiple instances
+        t = threading.Thread(target=_evt_install, args=(self, ))
+        t.setDaemon(True)
+        t.start()
+
+    def on_evt_startserver(self, event):
+        def _evt_startserver(win):
+            nativeApp.startServer(can_exit=True)  # to prevent multiple instances
+        t = threading.Thread(target=_evt_startserver, args=(self, ))
+        t.setDaemon(True)
+        t.start()
+
     def on_hello(self, event):
         """Say hello to the user."""
         wx.MessageBox("Hello again from wxPython")
@@ -399,14 +423,14 @@ class MainFrame(wx.Frame):
 
 class App(wx.App):
     def OnInit(self):
-        frame = MainFrame(None, title='Optract GUI', size=(220, 300))
+        frame = MainFrame(None, title='Optract GUI', size=(260, 320))
         self.SetTopWindow(frame)
 
         # install if necessary; show gui only when systray is not available or during install
         if not os.path.exists(os.path.join(nativeApp.distdir, '.installed')):
             logging.info('Installing Optract')
             frame.Show()
-            nativeApp.install()
+            # nativeApp.install()  # put this line in MainFrame()
         if not frame.tbIcon.IsAvailable():
             logging.warning("TaskBarIcon not available")  # such as Ubuntu 18.04 (Gnome3 + unity DE)
             frame.Show()
@@ -423,7 +447,6 @@ def main():
     app = App(False)
     # frame = MainFrame(None, title='Optract GUI')
     # frame.Show()
-    nativeApp.startServer(can_exit=True)  # to prevent multiple instances
     app.MainLoop()
 
 
