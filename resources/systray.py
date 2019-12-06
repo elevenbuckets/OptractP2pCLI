@@ -422,7 +422,8 @@ class MainFrame(wx.Frame):
     def on_evt_install(self, event):
         def _evt_install(win):
             nativeApp.install()
-            self.st_status.SetLabel("Starting server...")
+            wx.CallAfter(self.st_status.SetLabel, 'Starting server....')
+            # self.st_status.SetLabel("Starting server...")  # this line cause core dumped in Ubuntu (due to calling gui from other thread?), use wx.callAfter instead
             nativeApp.startServer(can_exit=True)  # to prevent multiple instances
         t = threading.Thread(target=_evt_install, args=(self, ))
         t.setDaemon(True)
@@ -430,7 +431,7 @@ class MainFrame(wx.Frame):
 
     def on_evt_startserver(self, event):
         def _evt_startserver(win):
-            self.st_status.SetLabel("Starting server...")
+            wx.CallAfter(self.st_status.SetLabel, 'Starting server....')
             nativeApp.startServer(can_exit=True)  # to prevent multiple instances
         t = threading.Thread(target=_evt_startserver, args=(self, ))
         t.setDaemon(True)
