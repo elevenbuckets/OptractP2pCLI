@@ -158,6 +158,7 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
 
     def on_show_frame(self, event):
         self.frame.Show()
+        self.frame.Raise()
 
     def on_left_down(self, event):
         self.PopupMenu(self.CreatePopupMenu())
@@ -218,10 +219,13 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         config_file = os.path.join(nativeApp.datadir, 'config.json')
         wx.MessageBox('regenerate config file in: {0}'.format(config_file))
 
-    def on_exit(self, event):  # TODO/BUG: segmentfault while call this (and not the on_exit() in MainFrame())
+    def on_exit(self, event):
+        # TODO/BUG: sometimes segmentfault or buserror, especially while (1)window is shown; (2)exit shortly after open
         nativeApp.stopServer()
-        time.sleep(1)  # is it necessary to wait a bit for ipfs?
-        self.frame.Destroy()
+        time.sleep(1.2)  # is it necessary to wait a bit for ipfs?
+        logging.info('[taskbar] call frame.DestroyLater()')
+        self.frame.DestroyLater()
+        logging.info('[taskbar] call Destroy()')
         self.Destroy()
 
 
@@ -399,11 +403,16 @@ class MainFrame(wx.Frame):
 
     def on_exit(self, event):
         """Close the frame, terminating the application."""
+        # TODO/BUG: sometimes segmentfault
+        # TODO: if TaskBarIcon is available, add an event handler which close window and keep servers running
         nativeApp.stopServer()
+        time.sleep(1.2)
+        # logging.info('call RemoveIcon()')
         # self.tbIcon.RemoveIcon()
-        time.sleep(1)
+        logging.info('[frame] call tbIcon.Destroy()')
         self.tbIcon.Destroy()
-        self.Destroy()
+        logging.info('[frame] call DestroyLater()')
+        self.DestroyLater()
 
     def on_iconize(self, event):
         self.Iconize(True)
@@ -413,6 +422,7 @@ class MainFrame(wx.Frame):
     def on_evt_install(self, event):
         def _evt_install(win):
             nativeApp.install()
+            self.st_status.SetLabel("Starting server...")
             nativeApp.startServer(can_exit=True)  # to prevent multiple instances
         t = threading.Thread(target=_evt_install, args=(self, ))
         t.setDaemon(True)
@@ -420,6 +430,7 @@ class MainFrame(wx.Frame):
 
     def on_evt_startserver(self, event):
         def _evt_startserver(win):
+            self.st_status.SetLabel("Starting server...")
             nativeApp.startServer(can_exit=True)  # to prevent multiple instances
         t = threading.Thread(target=_evt_startserver, args=(self, ))
         t.setDaemon(True)
