@@ -55,6 +55,7 @@ shutil.copytree(os.path.join(basedir, 'resources', 'dist', 'nativeApp'),
 # shutil.copy2(os.path.join(basedir, 'resources', 'dist', 'nativeApp.exe'),
 #              os.path.join(basedir, 'dist'))
 subprocess.check_call(["pyarmor", "pack", "systray.py"])  # Why error if pass args to pyinstaller via '-e'?
+# subprocess.check_call(["pyarmor", "pack", "-e--noconsole", "systray.py"])  # "Failed to execute script"???
 shutil.copytree(os.path.join(basedir, 'resources', 'dist', 'systray'),
                 os.path.join(basedir, 'dist', 'systray'))
 os.chdir(os.path.join(basedir))
@@ -64,8 +65,14 @@ package = 'OptractClient_win64'
 if os.path.isfile(package):
     os.remove(package)
 
+releasedir = 'Optract_release'
+if os.path.isdir(releasedir):
+    shutil.rmtree(releasedir)
+os.mkdir(releasedir)
+shutil.move('dist', releasedir)
+
 print('# packing...')
-shutil.make_archive(package, 'zip', 'dist')
+shutil.make_archive(package, 'zip', '.', 'Optract_release')
 # with tarfile.open(package, 'w') as tar:  # do not compres 
 # with tarfile.open(package, 'w:gz') as tar:
 #     tar.add('dist')  # use relative path
