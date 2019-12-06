@@ -149,9 +149,9 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
                 ipfsP_symbol = '✔️'
                 self.ipfsP_is_running = True
 
-        if (hasattr(nativeApp.nodeP, 'pid') and hasattr(nativeApp.ipfsP, 'pid') and
-                node_locked and nodeP_is_running and
-                ipfs_locked and ipfsP_is_running):
+        if hasattr(nativeApp.nodeP, 'pid') and hasattr(nativeApp.ipfsP, 'pid') and \
+                node_locked and nodeP_is_running and \
+                ipfs_locked and ipfsP_is_running:
             is_running = True
 
         return (is_running, nodeP_symbol, nodeP_status_report, ipfsP_symbol, ipfsP_status_report)
@@ -218,7 +218,7 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         config_file = os.path.join(nativeApp.datadir, 'config.json')
         wx.MessageBox('regenerate config file in: {0}'.format(config_file))
 
-    def on_exit(self, event):
+    def on_exit(self, event):  # TODO/BUG: segmentfault while call this (and not the on_exit() in MainFrame())
         nativeApp.stopServer()
         time.sleep(1)  # is it necessary to wait a bit for ipfs?
         self.frame.Destroy()
@@ -242,36 +242,57 @@ class MainFrame(wx.Frame):
         self.button_start_server = wx.Button(self.panel, label="start server")
         self.button_start_server.Bind(wx.EVT_BUTTON, self.on_button_start_server)
         self.sizer.Add(self.button_start_server, pos=(row, 0), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
+        self.button_start_server.Disable()
 
         self.button_stop_server = wx.Button(self.panel, label="stop server")
         self.button_stop_server.Bind(wx.EVT_BUTTON, self.on_button_stop_server)
         self.sizer.Add(self.button_stop_server, pos=(row, 1), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
+        self.button_stop_server.Disable()
 
-        row = 1
         self.button_ipfs_restart= wx.Button(self.panel, label="restart ipfs")
         self.button_ipfs_restart.Bind(wx.EVT_BUTTON, self.on_button_ipfs_restart)
         self.button_ipfs_restart.Disable()
-        self.sizer.Add(self.button_ipfs_restart, pos=(row, 0), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
+        self.sizer.Add(self.button_ipfs_restart, pos=(row, 2), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
 
-        self.button_exit = wx.Button(self.panel, label="Exit")
-        self.button_exit.Bind(wx.EVT_BUTTON, self.on_exit)
-        self.sizer.Add(self.button_exit, pos=(row, 1), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
-
-        row = 2
+        row = 1
+        _ = 0
         if self.tbIcon.IsAvailable():
             self.button_minimize = wx.Button(self.panel, label="Minimize")
             self.button_minimize.Bind(wx.EVT_BUTTON, self.on_iconize)
             self.sizer.Add(self.button_minimize, pos=(row, 0), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
-            row += 1
+            _ += 1
+        self.button_exit = wx.Button(self.panel, label="Exit")
+        self.button_exit.Bind(wx.EVT_BUTTON, self.on_exit)
+        self.sizer.Add(self.button_exit, pos=(row, _), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
 
         # put some text with a larger bold font on it
+        row = 2
         self.st = wx.StaticText(self.panel, label=self.get_status_text())
         font = self.st.GetFont()
         font.PointSize += 3
         # font = font.Bold()
         self.st.SetFont(font)
         self.sizer.Add(self.st, pos=(row, 0), span=(1, 2), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
-        row += 1
+
+        # install if necessary
+        row = 3
+        self.Bind(EVT_INSTALL, self.on_evt_install)
+        self.Bind(EVT_STARTSERVER, self.on_evt_startserver)
+        try:
+            self.install_called  # check existence of this variable
+        except AttributeError:
+            self.install_called = True
+            if os.path.exists(os.path.join(nativeApp.distdir, '.installed')):
+                # TODO: also check browser manifest are properly configured
+                # TODO: deal with Optract.LOCK (rm it in some cases)
+                self.st_status = wx.StaticText(self.panel, label='Welcome to Optract!')
+                wx.PostEvent(self, StartserverEvent())
+            else:
+                self.st_status = wx.StaticText(self.panel, label='Installing Optract...')
+                wx.PostEvent(self, InstallEvent())
+
+        self.st_status.SetFont(font)  # use wx.LogWindow instead?
+        self.sizer.Add(self.st_status, pos=(row, 0), span=(1, 2), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
 
         # setSizer to panel
         self.panel.SetSizer(self.sizer)
@@ -282,28 +303,6 @@ class MainFrame(wx.Frame):
         # and a status bar
         self.CreateStatusBar()
         self.SetStatusText("Welcome to Optract!")
-
-        # install if necessary
-        self.Bind(EVT_INSTALL, self.on_evt_install)
-        self.Bind(EVT_STARTSERVER, self.on_evt_startserver)
-        try:
-            self.install_called  # check existence of this variable
-        except AttributeError:
-            self.install_called = True
-            if os.path.exists(os.path.join(nativeApp.distdir, '.installed')):
-                logging.info('calling StartserverEvent')
-                # TODO: also check browser manifest are properly configured
-                # TODO: remove Optract.LOCK if no other instance is running
-                self.st_install = wx.StaticText(self.panel, label='Welcome to Optract!')
-                wx.PostEvent(self, StartserverEvent())
-            else:
-                logging.info('calling InstallEvent')
-                self.st_install = wx.StaticText(self.panel, label='Installing Optract...')
-                wx.PostEvent(self, InstallEvent())
-
-        self.st_install.SetFont(font)
-        self.sizer.Add(self.st_install, pos=(row, 0), span=(1, 2), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
-        row += 1
 
         # events
         self.Bind(wx.EVT_CLOSE, self.on_iconize)  # iconize instead of close
@@ -361,16 +360,30 @@ class MainFrame(wx.Frame):
 
     def on_timer(self, event):
         self.update_status_text()
-        if (not self.tbIcon.ipfsP_is_running and self.tbIcon.nodeP_is_running and
-                (time.time() - self.tbIcon.time_ipfs_boot > self.tbIcon.ipfs_boot_required_time)):
+
+        # enable/disable buttons
+        if os.path.exists(os.path.join(nativeApp.distdir, '.installed')) and \
+                (not self.tbIcon.ipfsP_is_running) and (not self.tbIcon.nodeP_is_running):
+            self.button_start_server.Enable()
+        else:
+            self.button_start_server.Disable()
+
+        if self.tbIcon.ipfsP_is_running and self.tbIcon.nodeP_is_running:
+            self.button_stop_server.Enable()
+        else:
+            self.button_stop_server.Disable()
+
+        if (not self.tbIcon.ipfsP_is_running) and self.tbIcon.nodeP_is_running and \
+                (time.time() - self.tbIcon.time_ipfs_boot > self.tbIcon.ipfs_boot_required_time):
             self.button_ipfs_restart.Enable()
         else:
             self.button_ipfs_restart.Disable()
 
-        if os.path.exists(os.path.join(nativeApp.distdir, '.installed')):
-            self.st_install.SetLabel('Welcome to Optract!')
-        else:
-            self.st_install.SetLabel('Installing Optract...')
+        # update information text (or use wx.LogWindow instead?)
+        if os.path.exists(os.path.join(nativeApp.distdir, '.installed')) \
+                and self.tbIcon.ipfsP_is_running and self.tbIcon.nodeP_is_running:
+            # TODO: also check whether browser manifest are properly configured
+            self.st_status.SetLabel('Optract is running')
 
     def on_button_ipfs_restart(self, event):
         nativeApp.start_ipfs()
@@ -378,9 +391,11 @@ class MainFrame(wx.Frame):
 
     def on_button_start_server(self, event):
         nativeApp.startServer()  # can_exit=False
+        self.button_start_server.Disable()
 
     def on_button_stop_server(self, event):
         nativeApp.stopServer()  # can_exit=False
+        self.button_stop_server.Disable()
 
     def on_exit(self, event):
         """Close the frame, terminating the application."""
@@ -423,7 +438,7 @@ class MainFrame(wx.Frame):
 
 class App(wx.App):
     def OnInit(self):
-        frame = MainFrame(None, title='Optract GUI', size=(260, 320))
+        frame = MainFrame(None, title='Optract GUI', size=(280, 260))
         self.SetTopWindow(frame)
 
         # install if necessary; show gui only when systray is not available or during install
