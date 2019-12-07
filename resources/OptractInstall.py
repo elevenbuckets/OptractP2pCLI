@@ -321,4 +321,5 @@ def main(basedir, distdir, datadir):
 
 
 if __name__ == '__main__':
-    print("please do not run this script directly")
+    # print("please do not run this script directly")
+    pass

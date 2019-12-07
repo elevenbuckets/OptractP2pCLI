@@ -330,8 +330,9 @@ if __name__ == '__main__':
                         datefmt=log_datefmt)
 
     logging.info('nativeApp path = {0}'.format(os.path.realpath(sys.argv[0])))
-    print('nativeApp path = {0}'.format(os.path.realpath(sys.argv[0])))
-    print('basedir path = {0}'.format(basedir))
+    logging.info('basedir path = {0}'.format(basedir))
+    # print('nativeApp path = {0}'.format(os.path.realpath(sys.argv[0])))
+    # print('basedir path = {0}'.format(basedir))
 
     # install
     nativeApp.install()  # check the existence of .installed in distdir
