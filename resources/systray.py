@@ -292,7 +292,7 @@ class MainFrame(wx.Frame):
             self.install_called  # check existence of this variable
         except AttributeError:
             self.install_called = True
-            if os.path.exists(os.path.join(nativeApp.distdir, '.installed')):
+            if os.path.exists(nativeApp.install_lockFile):
                 # TODO: also check browser manifest are properly configured
                 # TODO: deal with Optract.LOCK (rm it in some cases)
                 self.st_status = wx.StaticText(self.panel, label='Welcome to Optract!')
@@ -372,7 +372,7 @@ class MainFrame(wx.Frame):
         self.update_status_text()
 
         # enable/disable buttons
-        if os.path.exists(os.path.join(nativeApp.distdir, '.installed')) and \
+        if os.path.exists(nativeApp.install_lockFile) and \
                 (not self.tbIcon.ipfsP_is_running) and (not self.tbIcon.nodeP_is_running):
             self.button_start_server.Enable()
         else:
@@ -390,7 +390,7 @@ class MainFrame(wx.Frame):
             self.button_ipfs_restart.Disable()
 
         # update information text (or use wx.LogWindow instead?)
-        if os.path.exists(os.path.join(nativeApp.distdir, '.installed')) \
+        if os.path.exists(nativeApp.install_lockFile) \
                 and self.tbIcon.ipfsP_is_running and self.tbIcon.nodeP_is_running:
             # TODO: also check whether browser manifest are properly configured
             self.st_status.SetLabel('Optract is running')
@@ -460,7 +460,7 @@ class App(wx.App):
         self.SetTopWindow(frame)
 
         # install if necessary; show gui only when systray is not available or during install
-        if not os.path.exists(os.path.join(nativeApp.distdir, '.installed')):
+        if not os.path.exists(nativeApp.install_lockFile):
             logging.info('Installing Optract')
             frame.Show()
             # nativeApp.install()  # put this line in MainFrame()
