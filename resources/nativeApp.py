@@ -1,4 +1,5 @@
 #!/usr/bin/python -u
+# -*- coding:utf-8 -*- 
 
 # Note that running python with the `-u` flag is required on Windows,
 # in order to ensure that stdin and stdout are opened in binary, rather
@@ -39,7 +40,8 @@ if sys.platform.startswith('linux'):
 elif sys.platform.startswith('darwin'):
     systray = os.path.join(distdir, 'systray.app', 'Contents', 'MacOS', 'systray')
 elif sys.platform.startswith('win32'):
-    systray = os.path.join(distdir, 'systray', 'systray.exe')
+    # systray = os.path.join(distdir, 'systray', 'systray.exe')  # if pyarmor pack without "-F"
+    systray = os.path.join(distdir, 'systray.exe')
 else:
     raise BaseException('Unsupported platform')
 
@@ -59,6 +61,7 @@ class NativeApp():
         self.datadir = os.path.dirname(distdir)  # for now, put data in basedir
         self.lockFile = os.path.join(self.distdir, 'Optract.LOCK')
         self.ipfs_lockFile = os.path.join(self.datadir, 'ipfs_repo', 'repo.lock')
+        self.install_lockFile = os.path.join(self.distdir, '.installed')
         self.nodeP = None
         self.ipfsP = None
         self.installer = OptractInstall.OptractInstall(self.basedir, self.distdir, self.datadir)
@@ -80,7 +83,7 @@ class NativeApp():
         if forced:
             self.installer.install()
         else:
-            if not os.path.exists(os.path.join(distdir, '.installed')):
+            if not os.path.exists(self.install_lockFile):
                 self.installer.install()
 
     # Read a message from stdin and decode it.

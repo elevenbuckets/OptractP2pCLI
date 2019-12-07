@@ -1,5 +1,5 @@
 #!/usr/bin/env pythonw
-# encoding: utf-8
+# -*- coding:utf-8 -*- 
 from __future__ import print_function
 import wx.adv
 import wx
@@ -15,11 +15,17 @@ from nativeApp import NativeApp
 InstallEvent, EVT_INSTALL = NE.NewEvent()
 StartserverEvent, EVT_STARTSERVER = NE.NewEvent()
 
-distdir = os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))
+# path
+systray_dir = os.path.dirname(os.path.realpath(sys.argv[0]))  # os.getcwd() may not correct
 if sys.platform.startswith('darwin'):
-    # in windows/linux: systray = os.path.join(distdir, 'systray', 'systray.exe')
     # in mac: systray = os.path.join(distdir, 'systray.app', 'Contents', 'MacOS', 'systray')
-    distdir = os.path.dirname(os.path.dirname(distdir))
+    distdir = os.path.dirname(os.path.dirname(os.path.dirname(systray_dir)))
+elif sys.platform.startswith('linux'):
+    # in linux: systray = os.path.join(distdir, 'systray', 'systray')
+    distdir = os.path.dirname(systray_dir)
+elif sys.platform.startswith('win32'):
+    # in win: systray = os.path.join(distdir, 'systray.exe')
+    distdir = systray_dir
 nativeApp = NativeApp(distdir)
 
 TRAY_TOOLTIP = 'Optract'
@@ -450,7 +456,7 @@ class MainFrame(wx.Frame):
 
 class App(wx.App):
     def OnInit(self):
-        frame = MainFrame(None, title='Optract GUI', size=(280, 260))
+        frame = MainFrame(None, title='Optract GUI', size=(300, 260))
         self.SetTopWindow(frame)
 
         # install if necessary; show gui only when systray is not available or during install

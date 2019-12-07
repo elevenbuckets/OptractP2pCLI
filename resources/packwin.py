@@ -45,19 +45,28 @@ shutil.copy2(os.path.join(basedir, 'resources', 'install.bat'),
 shutil.copytree(os.path.join(basedir, 'resources', 'assets'),
                 os.path.join(basedir, 'dist', 'assets'))
 
-# pack and copy nativeApp
+# pack and copy nativeApp and systray
+# note: the depth (of folders) of nativeApp.exe and systray.exe are different if pack
+#       with different arguments and has to update the relative path at least in
+#       systray.py and nativeApp.py
 print('# pack nativeApp')
 os.chdir(os.path.join(basedir, 'resources'))
+# subprocess.check_call(["pyarmor", "pack", "nativeApp.py"])
+# shutil.copytree(os.path.join(basedir, 'resources', 'dist', 'nativeApp'),
+#                 os.path.join(basedir, 'dist', 'nativeApp'))
 # subprocess.check_call(["pyinstaller", "-F", "nativeApp.py"])
-subprocess.check_call(["pyarmor", "pack", "nativeApp.py"])
-shutil.copytree(os.path.join(basedir, 'resources', 'dist', 'nativeApp'),
-                os.path.join(basedir, 'dist', 'nativeApp'))
-# shutil.copy2(os.path.join(basedir, 'resources', 'dist', 'nativeApp.exe'),
-#              os.path.join(basedir, 'dist'))
-subprocess.check_call(["pyarmor", "pack", "systray.py"])  # Why error if pass args to pyinstaller via '-e'?
-# subprocess.check_call(["pyarmor", "pack", "-e--noconsole", "systray.py"])  # "Failed to execute script"???
-shutil.copytree(os.path.join(basedir, 'resources', 'dist', 'systray'),
-                os.path.join(basedir, 'dist', 'systray'))
+subprocess.check_call(["pyarmor", "pack", "-e", "-F --noconsole", "nativeApp.py"])
+shutil.copy2(os.path.join(basedir, 'resources', 'dist', 'nativeApp.exe'),
+             os.path.join(basedir, 'dist'))
+
+# subprocess.check_call(["pyarmor", "pack", "systray.py"])
+# subprocess.check_call(["pyarmor.exe", "pack", "-e'--noconsole'", "systray.py"])  # "Failed to execute script" with "--noconsole"?
+# shutil.copytree(os.path.join(basedir, 'resources', 'dist', 'systray'),
+#                 os.path.join(basedir, 'dist', 'systray'))
+# subprocess.check_call(["pyarmor", "pack", "-e", "-F --noconsole", "systray.py"])  # "Failed to execute script" with "--noconsole"?
+subprocess.check_call(["pyarmor", "pack", "-e", "'-F'", "systray.py"])
+shutil.copy2(os.path.join(basedir, 'resources', 'dist', 'systray.exe'),
+             os.path.join(basedir, 'dist'))
 os.chdir(os.path.join(basedir))
 
 # pack

@@ -23,8 +23,12 @@ class OptractInstall():
         self.datadir = datadir
         self.installed = os.path.join(self.distdir, '.installed')
         extid_file = os.path.join(self.distdir, 'extension_id.json')  # or write fix values here?
-        with open(extid_file, 'r') as f:
-            self.extid = json.load(f)
+        try:
+            with open(extid_file, 'r') as f:
+                self.extid = json.load(f)
+        except IOError:  # python3: FileNotFoundError
+            logging.error('Failed to find file: {0}'.format(extid_file))
+            sys.exit(1)
         return
 
     def install(self, force=False):
