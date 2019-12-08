@@ -1,5 +1,5 @@
 #!/usr/bin/env pythonw
-# -*- coding:utf-8 -*- 
+# -*- coding:utf-8 -*-
 from __future__ import print_function
 import wx.adv
 import wx
@@ -295,14 +295,14 @@ class MainFrame(wx.Frame):
             if os.path.exists(nativeApp.install_lockFile):
                 # TODO: also check browser manifest are properly configured
                 # TODO: deal with Optract.LOCK (rm it in some cases)
-                self.st_status = wx.StaticText(self.panel, label='Welcome to Optract!')
+                self.st_nativeApp= wx.StaticText(self.panel, label='Welcome to Optract!')
                 wx.PostEvent(self, StartserverEvent())
             else:
-                self.st_status = wx.StaticText(self.panel, label='Installing Optract...')
+                self.st_nativeApp= wx.StaticText(self.panel, label='Installing Optract...')
                 wx.PostEvent(self, InstallEvent())
 
-        self.st_status.SetFont(font)  # use wx.LogWindow instead?
-        self.sizer.Add(self.st_status, pos=(row, 0), span=(1, 2), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
+        self.st_nativeApp.SetFont(font)  # use wx.LogWindow instead?
+        self.sizer.Add(self.st_nativeApp, pos=(row, 0), span=(1, 2), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
 
         # setSizer to panel
         self.panel.SetSizer(self.sizer)
@@ -320,7 +320,7 @@ class MainFrame(wx.Frame):
 
         self.timer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.on_timer)
-        self.timer.Start(2000)  # every 2 seconds
+        self.timer.Start(1000)  # ms
 
     def makeMenuBar(self):
         # Make a file menu with Hello and Exit items
@@ -390,10 +390,15 @@ class MainFrame(wx.Frame):
             self.button_ipfs_restart.Disable()
 
         # update information text (or use wx.LogWindow instead?)
+        # TODO: also check whether browser manifest are properly configured
+        # TODO: also add nativeApp.message, and ignore nativeApp.installer.message except during installation
         if os.path.exists(nativeApp.install_lockFile) \
                 and self.tbIcon.ipfsP_is_running and self.tbIcon.nodeP_is_running:
-            # TODO: also check whether browser manifest are properly configured
-            self.st_status.SetLabel('Optract is running')
+            self.timer.Stop()
+            self.timer.Start(5000)  # use lower frequency
+            self.st_nativeApp.SetLabel('Optract is running')
+        else:
+            self.st_nativeApp.SetLabel(nativeApp.installer.message)
 
     def on_button_ipfs_restart(self, event):
         nativeApp.start_ipfs()
@@ -428,8 +433,8 @@ class MainFrame(wx.Frame):
     def on_evt_install(self, event):
         def _evt_install(win):
             nativeApp.install()
-            wx.CallAfter(self.st_status.SetLabel, 'Starting server....')
-            # self.st_status.SetLabel("Starting server...")  # this line cause core dumped in Ubuntu (due to calling gui from other thread?), use wx.callAfter instead
+            wx.CallAfter(self.st_nativeApp.SetLabel, 'Starting server....')
+            # self.st_nativeApp.SetLabel("Starting server...")  # this line cause core dumped in Ubuntu (due to calling gui from other thread?), use wx.callAfter instead
             nativeApp.startServer(can_exit=True)  # to prevent multiple instances
         t = threading.Thread(target=_evt_install, args=(self, ))
         t.setDaemon(True)
@@ -437,7 +442,7 @@ class MainFrame(wx.Frame):
 
     def on_evt_startserver(self, event):
         def _evt_startserver(win):
-            wx.CallAfter(self.st_status.SetLabel, 'Starting server....')
+            wx.CallAfter(self.st_nativeApp.SetLabel, 'Starting server....')
             nativeApp.startServer(can_exit=True)  # to prevent multiple instances
         t = threading.Thread(target=_evt_startserver, args=(self, ))
         t.setDaemon(True)
@@ -477,6 +482,7 @@ class App(wx.App):
 
 
 def main():
+    # TODO: if there is another instance of systray (either running or not), show a warning (modal?) and quit
     app = App(False)
     # frame = MainFrame(None, title='Optract GUI')
     # frame.Show()

@@ -29,7 +29,8 @@ class OptractInstall():
         except IOError:  # python3: FileNotFoundError
             logging.error('Failed to find file: {0}'.format(extid_file))
             sys.exit(1)
-        return
+
+        self.message = 'Welcome to Optract'  # message to systray or other modules
 
     def install(self, force=False):
         if not os.path.isfile(self.installed) or force:
@@ -43,6 +44,7 @@ class OptractInstall():
             if not self.create_and_write_manifest('chrome'):
                 logging.warning('Failed to create manifest for chrome')
             logging.info('Done! Optract is ready to use.')
+            self.message = 'Done! Optract is ready to use.'
             open(self.installed, 'a').close()
         else:
             logging.warning('Already installed in {0}'.format(self.distdir))
@@ -53,7 +55,7 @@ class OptractInstall():
             keyVal = r'Software\Google\Chrome\NativeMessagingHosts\optract'
             try:
                 key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, keyVal, 0, winreg.KEY_ALL_ACCESS)
-            except:
+            except WindowsError:  # WindowsError for python2; OSError in python3
                 key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, keyVal)
             nativeMessagingMainfest = os.path.join(self.distdir, 'optract-win-chrome.json')
             winreg.SetValueEx(key, "", 0, winreg.REG_SZ, nativeMessagingMainfest)
@@ -71,7 +73,7 @@ class OptractInstall():
             keyVal = r'SOFTWARE\Mozilla\NativeMessagingHosts\optract'
             try:
                 key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, keyVal, 0, winreg.KEY_ALL_ACCESS)
-            except:
+            except WindowsError:  # WindowsError for python2; OSError in python3
                 key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, keyVal)
             nativeMessagingMainfest = os.path.join(self.distdir, 'optract-win-firefox.json')
             winreg.SetValueEx(key, "", 0, winreg.REG_SZ, nativeMessagingMainfest)
@@ -89,6 +91,7 @@ class OptractInstall():
 
         if os.path.exists(ipfs_config):
             logging.warning("ipfs repo exists, will use existing one in " + ipfs_path)
+            self.message = "ipfs repo exists, will use existing one in " + ipfs_path
             return
 
         # create ipfs_repo
@@ -97,6 +100,7 @@ class OptractInstall():
         ipfs_bin = os.path.join(self.distdir, "bin", "ipfs")
 
         logging.info("initilalizing ipfs in " + ipfs_path)
+        self.message = "initilalizing ipfs in " + ipfs_path
         process = subprocess.Popen([ipfs_bin, "init"], env=myenv, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output, error = process.communicate()
         logging.info('ipfs results: \n' + str(output))
@@ -107,22 +111,22 @@ class OptractInstall():
     def create_manifest_chrome(self, nativeAppPath, extension_id):
         # extension_id = "jlanclpnebjipbolljoenepmcofibpmk"
         manifest_json = {
-          "name": "optract",
-          "description": "optract server",
-          "path": nativeAppPath,
-          "type": "stdio",
-          "allowed_origins": ["chrome-extension://{0}/".format(extension_id)]
+            "name": "optract",
+            "description": "optract server",
+            "path": nativeAppPath,
+            "type": "stdio",
+            "allowed_origins": ["chrome-extension://{0}/".format(extension_id)]
         }
         return manifest_json
 
     def create_manifest_firefox(self, nativeAppPath, extension_id):
         # extension_id = "{5b2b58c5-1a22-4893-ac58-9ca33f27cdd4}"
         manifest_json= {
-          "name": "optract",
-          "description": "optract server",
-          "path": nativeAppPath,
-          "type": "stdio",
-          "allowed_extensions": [extension_id]
+            "name": "optract",
+            "description": "optract server",
+            "path": nativeAppPath,
+            "type": "stdio",
+            "allowed_extensions": [extension_id]
         }
         return manifest_json
 
@@ -233,6 +237,7 @@ class OptractInstall():
         self.extract_node_modules(os.path.join(self.distdir, 'node_modules.tar'), self.distdir)
 
         logging.info('creating keystore folder if necessary')
+        self.message = 'creating keystore folder if necessary'
         key_folder = os.path.join(self.datadir, 'keystore')
         if not os.path.isdir(key_folder):
             os.mkdir(key_folder)
@@ -308,8 +313,19 @@ class OptractInstall():
         if os.path.isdir(dest_node_modules):
             shutil.rmtree(dest_node_modules)
         logging.info('extracting latest version of node_modules to ' + dest_node_modules)
+        self.message = 'extracting latest version of node_modules to ' + dest_node_modules
+
+        def _track_progress(members):
+            nfiles_extracted = 0
+            for member in members:
+                yield member  # this will be the current file being extracted
+                nfiles_extracted += 1
+                # print(('{0} \t{0}/{1}'.format(member.name, nfiles_extracted, nfiles)))
+                self.message = 'extracing ... {0:.2f}% done'.format(100*nfiles_extracted/float(nfiles))
+
         with tarfile.open(src) as tar:
-            tar.extractall(dest)
+            nfiles = len(tar.getnames())
+            tar.extractall(path=dest, members=_track_progress(tar))
         logging.info('Done extracting latest version of node_modules.')
         return
 
