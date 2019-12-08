@@ -33,6 +33,10 @@ class OptractInstall():
         self.message = 'Welcome to Optract'  # message to systray or other modules
 
     def install(self, force=False):
+        if (not os.path.isdir(self.distdir)) or (not os.path.isdir(self.basedir)):
+            # TODO: cannot see this raise... maybe return something to systray then systray popup warning then exit?
+            raise BaseException('Cannot find folder \'{0}\' or \'{1}\' (forget to extract zip first?)'.format(self.distdir, self.basedir))
+            sys.exit(1)
         if not os.path.isfile(self.installed) or force:
             logging.info('Initializing Optract in {0}'.format(self.distdir))
             self.prepare_files()
@@ -321,7 +325,7 @@ class OptractInstall():
                 yield member  # this will be the current file being extracted
                 nfiles_extracted += 1
                 # print(('{0} \t{0}/{1}'.format(member.name, nfiles_extracted, nfiles)))
-                self.message = 'extracing ... {0:.2f}% done'.format(100*nfiles_extracted/float(nfiles))
+                self.message = 'extracting ... {0:.2f}% done'.format(100*nfiles_extracted/float(nfiles))
 
         with tarfile.open(src) as tar:
             nfiles = len(tar.getnames())

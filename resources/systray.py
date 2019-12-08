@@ -304,6 +304,8 @@ class MainFrame(wx.Frame):
         self.st_nativeApp.SetFont(font)  # use wx.LogWindow instead?
         self.sizer.Add(self.st_nativeApp, pos=(row, 0), span=(1, 2), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
 
+        # TODO: add buttons to enter config menu (such as re-configure browser manifest)
+
         # setSizer to panel
         self.panel.SetSizer(self.sizer)
 
@@ -399,6 +401,9 @@ class MainFrame(wx.Frame):
             self.st_nativeApp.SetLabel('Optract is running')
         else:
             self.st_nativeApp.SetLabel(nativeApp.installer.message)
+            self.button_start_server.Disable()
+            self.button_stop_server.Disable()
+            self.button_ipfs_restart.Disable()
 
     def on_button_ipfs_restart(self, event):
         nativeApp.start_ipfs()
