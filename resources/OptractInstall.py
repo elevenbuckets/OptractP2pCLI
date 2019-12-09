@@ -125,7 +125,7 @@ class OptractInstall():
 
     def create_manifest_firefox(self, nativeAppPath, extension_id):
         # extension_id = "{5b2b58c5-1a22-4893-ac58-9ca33f27cdd4}"
-        manifest_json= {
+        manifest_json = {
             "name": "optract",
             "description": "optract server",
             "path": nativeAppPath,
@@ -144,7 +144,7 @@ class OptractInstall():
         elif sys.platform.startswith('darwin') and browser == 'chrome':
             extension_manifest = os.path.expanduser('~/Library/Application Support/Google/Chrome/NativeMessagingHosts/optract.json')
         elif sys.platform.startswith('darwin') and browser == 'firefox':
-            extension_manifest= os.path.expanduser('~/Library/Application Support/Mozilla/NativeMessagingHosts/optract.json')
+            extension_manifest = os.path.expanduser('~/Library/Application Support/Mozilla/NativeMessagingHosts/optract.json')
         else:
             # raise BaseException('Unsupported platform and/or browser.')
             logging.error('Unsupported platform and/or browser.')
@@ -302,7 +302,7 @@ class OptractInstall():
                 logging.warning('Cannot load "streamr" from previous config file. Use default: "false".')
 
             logging.warning('{0} already exists, will move it to {1}'.format(config_file, config_file + '.orig'))
-            shutil.move(config_file, config_file+'.orig')
+            shutil.move(config_file, config_file + '.orig')
 
         # write
         with open(config_file, 'w') as f:
@@ -325,7 +325,7 @@ class OptractInstall():
                 yield member  # this will be the current file being extracted
                 nfiles_extracted += 1
                 # print(('{0} \t{0}/{1}'.format(member.name, nfiles_extracted, nfiles)))
-                self.message = 'extracting ... {0:.2f}% done'.format(100*nfiles_extracted/float(nfiles))
+                self.message = 'extracting ... {0:.2f}% done'.format(100 * nfiles_extracted / float(nfiles))
 
         with tarfile.open(src) as tar:
             nfiles = len(tar.getnames())

@@ -259,7 +259,7 @@ class MainFrame(wx.Frame):
         self.sizer.Add(self.button_stop_server, pos=(row, 1), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
         self.button_stop_server.Disable()
 
-        self.button_ipfs_restart= wx.Button(self.panel, label="restart ipfs")
+        self.button_ipfs_restart = wx.Button(self.panel, label="restart ipfs")
         self.button_ipfs_restart.Bind(wx.EVT_BUTTON, self.on_button_ipfs_restart)
         self.button_ipfs_restart.Disable()
         self.sizer.Add(self.button_ipfs_restart, pos=(row, 2), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
@@ -295,10 +295,10 @@ class MainFrame(wx.Frame):
             if os.path.exists(nativeApp.install_lockFile):
                 # TODO: also check browser manifest are properly configured
                 # TODO: deal with Optract.LOCK (rm it in some cases)
-                self.st_nativeApp= wx.StaticText(self.panel, label='Welcome to Optract!')
+                self.st_nativeApp = wx.StaticText(self.panel, label='Welcome to Optract!')
                 wx.PostEvent(self, StartserverEvent())
             else:
-                self.st_nativeApp= wx.StaticText(self.panel, label='Installing Optract...')
+                self.st_nativeApp = wx.StaticText(self.panel, label='Installing Optract...')
                 wx.PostEvent(self, InstallEvent())
 
         self.st_nativeApp.SetFont(font)  # use wx.LogWindow instead?
@@ -435,11 +435,20 @@ class MainFrame(wx.Frame):
         # if self.IsIconized():
         #     self.Hide()
 
+    def dialog_finish_install(self):
+        msg = "Now finish install!\nPlease download firefox/chrome extensions: http://11be.org/download"
+        dlg = wx.MessageDialog(parent=None, message=msg,
+                               caption="Optract Installer",
+                               style=wx.OK | wx.ICON_INFORMATION)
+        dlg.ShowModal()
+        dlg.Destroy()
+
     def on_evt_install(self, event):
         def _evt_install(win):
             nativeApp.install()
             wx.CallAfter(self.st_nativeApp.SetLabel, 'Starting server....')
-            # self.st_nativeApp.SetLabel("Starting server...")  # this line cause core dumped in Ubuntu (due to calling gui from other thread?), use wx.callAfter instead
+            # note: use wx.CallAfter instead of calling gui from another thread (otherwise core dumped in Ubuntu)
+            wx.CallAfter(self.dialog_finish_install)
             nativeApp.startServer(can_exit=True)  # to prevent multiple instances
         t = threading.Thread(target=_evt_install, args=(self, ))
         t.setDaemon(True)
