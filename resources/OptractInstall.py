@@ -325,7 +325,7 @@ class OptractInstall():
                 yield member  # this will be the current file being extracted
                 nfiles_extracted += 1
                 # print(('{0} \t{0}/{1}'.format(member.name, nfiles_extracted, nfiles)))
-                self.message = 'extracting ... {0:.2f}% done'.format(100 * nfiles_extracted / float(nfiles))
+                self.message = 'extracting... {0:.2f}% done\nGet firefox/chrome add-ons from 11be.org'.format(100 * nfiles_extracted / float(nfiles))
 
         with tarfile.open(src) as tar:
             nfiles = len(tar.getnames())

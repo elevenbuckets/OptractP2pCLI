@@ -279,7 +279,7 @@ class MainFrame(wx.Frame):
         row = 2
         self.st = wx.StaticText(self.panel, label=self.get_status_text())
         font = self.st.GetFont()
-        font.PointSize += 3
+        font.PointSize += 1
         # font = font.Bold()
         self.st.SetFont(font)
         self.sizer.Add(self.st, pos=(row, 0), span=(1, 2), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
