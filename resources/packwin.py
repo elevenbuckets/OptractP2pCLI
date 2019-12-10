@@ -64,7 +64,8 @@ print('# pack systray')
 # shutil.copytree(os.path.join(basedir, 'resources', 'dist', 'systray'),
 #                 os.path.join(basedir, 'dist', 'systray'))
 # subprocess.check_call(["pyarmor", "pack", "-e", "-F --noconsole", "systray.py"])  # "Failed to execute script" with "--noconsole"?
-subprocess.check_call(["pyarmor", "pack", "-e", "'-F'", "systray.py"])
+subprocess.check_call(["pyarmor", "pack", "-e", "-F -i assets/icon.ico", "systray.py"])
+# subprocess.check_call(["pyarmor", "pack", "-e", "'-F'", "systray.py"])
 shutil.copy2(os.path.join(basedir, 'resources', 'dist', 'systray.exe'),
              os.path.join(basedir, 'dist'))
 os.chdir(os.path.join(basedir))
@@ -74,15 +75,9 @@ package = 'OptractClient_win64'
 if os.path.isfile(package):
     os.remove(package)
 
-releasedir = 'Optract_release'
-if os.path.isdir(releasedir):
-    shutil.rmtree(releasedir)
-os.mkdir(releasedir)
-shutil.move('dist', releasedir)
-
 print('# packing...')
-shutil.make_archive(package, 'zip', '.', 'Optract_release')
-# with tarfile.open(package, 'w') as tar:  # do not compres 
+shutil.make_archive(package, 'zip', '.', 'dist')
+# with tarfile.open(package, 'w') as tar:  # do not compress
 # with tarfile.open(package, 'w:gz') as tar:
 #     tar.add('dist')  # use relative path
 print('Done!')
