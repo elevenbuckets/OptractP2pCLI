@@ -30,7 +30,16 @@ class OptractInstall():
             logging.error('Failed to find file: {0}'.format(extid_file))
             sys.exit(1)
 
-        self.message = 'Welcome to Optract'  # message to systray or other modules
+        # communicate with GUI components
+        self.message = 'Welcome to Optract'
+        self.status = {
+            'check_md5': None,  # boolean
+            'extract_node_modules': None,  # float
+            'create_config': None,  # string (path)
+            'init_ipfs': None,  # string (output of init OR use existing one)
+            'firefox': None,  # string (path)
+            'chrome': None  # string (path)
+        }
 
     def install(self, force=False):
         if (not os.path.isdir(self.distdir)) or (not os.path.isdir(self.basedir)):
@@ -42,7 +51,7 @@ class OptractInstall():
             self.prepare_files()
             self.create_config()
             self.init_ipfs()
-            # install for all supporting browsers (for now assume firefox is must)
+            # install for all supporting browsers
             if not self.create_and_write_manifest('firefox'):
                 logging.warning('Failed to create manifest for firefox')
             if not self.create_and_write_manifest('chrome'):
@@ -151,7 +160,25 @@ class OptractInstall():
             extension_manifest = None
         return extension_manifest
 
-    def check_manifest_path(self, browser):
+    def read_browser_manifest(self, browser):
+        # assume sys.platform != 'win32'
+        extension_manifest = self.get_manifest_path(browser)
+        if os.path.isfile(extension_manifest):
+            with open(extension_manifest, 'r') as f:
+                try:
+                    content = json.load(f)  # ValueError if not a json file
+                    nativeApp_path = content['path']  # KeyError if no such key
+                except (ValueError, KeyError) as e:
+                    logging.error('Something wrong with the manifest file: {0}, error: {1}'.format(extension_manifest, e))
+                    nativeApp_path = False
+        else:
+            logging.error('cannot find manifest for {0} in {1}'.format(browser, extension_manifest))
+            nativeApp_path = False
+        return nativeApp_path
+
+    def verify_browser_manifest(self, browser):
+        # make sure browser (chrome or firefox) are properly configured
+        content = None
         if sys.platform.startswith('win32'):
             # TODO: check registry
             content = None  # add something later
@@ -204,7 +231,9 @@ class OptractInstall():
     def _compare_md5(self, filename, md5_expected):
         md5_seen = hashlib.md5(open(filename, 'rb').read()).hexdigest()
         if md5_seen != md5_expected:
-            raise BaseException('The md5sum of file {0} is inconsistent with expected hash.'.format(filename))
+            msg = 'The md5sum of file {0} is inconsistent with expected hash.'.format(filename)
+            logging.error(msg)
+            raise BaseException(msg)
 
     def check_md5(self):
         if sys.platform.startswith('win32'):
