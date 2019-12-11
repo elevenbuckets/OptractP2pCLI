@@ -282,10 +282,17 @@ class MainFrame(wx.Frame):
         font.PointSize += 1
         # font = font.Bold()
         self.st.SetFont(font)
-        self.sizer.Add(self.st, pos=(row, 0), span=(1, 2), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
+        self.sizer.Add(self.st, pos=(row, 0), span=(1, 3), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
+
+        # check browser status
+        row = 3
+        _ = 'fx:{0}\nch:{1}'.format(nativeApp.installer.get_nativeApp_from_browser_manifest('firefox'),
+                                    nativeApp.installer.get_nativeApp_from_browser_manifest('chrome'))
+        self.st_browser = wx.StaticText(self.panel, label=_)
+        self.sizer.Add(self.st_browser, pos=(row, 0), span=(1, 3), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
 
         # install if necessary
-        row = 3
+        row = 4
         self.Bind(EVT_INSTALL, self.on_evt_install)
         self.Bind(EVT_STARTSERVER, self.on_evt_startserver)
         try:
@@ -302,7 +309,7 @@ class MainFrame(wx.Frame):
                 wx.PostEvent(self, InstallEvent())
 
         self.st_nativeApp.SetFont(font)  # use wx.LogWindow instead?
-        self.sizer.Add(self.st_nativeApp, pos=(row, 0), span=(1, 2), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
+        self.sizer.Add(self.st_nativeApp, pos=(row, 0), span=(1, 3), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
 
         # TODO: add buttons to enter config menu (such as re-configure browser manifest)
 
@@ -370,6 +377,18 @@ class MainFrame(wx.Frame):
   ipfs status: {2}'''.format(is_running_symbol, node_symbol, ipfs_symbol)
         return status_text
 
+    def check_browser(self, browser):
+        # check if browser nativeMsg are properly configured
+        browser_nativeApp = nativeApp.installer.get_nativeApp_from_browser_manifest(browser)
+        if sys.platform.startswith('win32'):
+            current_nativeApp = os.path.join(nativeApp.distdir, 'nativeApp', 'nativeApp.exe')
+        elif sys.platform.startswith('darwin'):
+            current_nativeApp = os.path.join(nativeApp.distdir, 'nativeApp', 'nativeApp')
+        elif sys.platform.startswith('linux'):
+            current_nativeApp = os.path.join(nativeApp.distdir, 'nativeApp', 'nativeApp')
+        logging.info('DEBUG:: {0} | {1}'.format(browser_nativeApp, current_nativeApp))
+        return browser_nativeApp == current_nativeApp
+
     def on_timer(self, event):
         self.update_status_text()
 
@@ -404,6 +423,11 @@ class MainFrame(wx.Frame):
             self.button_start_server.Disable()
             self.button_stop_server.Disable()
             self.button_ipfs_restart.Disable()
+        # test: browser status
+        # _ = 'fx:{0}\nch:{1}'.format(nativeApp.installer.get_nativeApp_from_browser_manifest('firefox'),
+        #                             nativeApp.installer.get_nativeApp_from_browser_manifest('chrome'))
+        _ = 'firefox: {0}\nchrome: {1}'.format(self.check_browser('firefox'), self.check_browser('chrome'))
+        self.st_browser.SetLabel(_)
 
     def on_button_ipfs_restart(self, event):
         nativeApp.start_ipfs()

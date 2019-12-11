@@ -160,37 +160,46 @@ class OptractInstall():
             extension_manifest = None
         return extension_manifest
 
-    def read_browser_manifest(self, browser):
-        # assume sys.platform != 'win32'
-        extension_manifest = self.get_manifest_path(browser)
-        if os.path.isfile(extension_manifest):
-            with open(extension_manifest, 'r') as f:
-                try:
+    def get_nativeApp_from_browser_manifest(self, browser):  # return False if something's wrong
+        def _get_nativeAppPath(manifest):
+            path = False
+            try:
+                with open(manifest, 'r') as f:
                     content = json.load(f)  # ValueError if not a json file
-                    nativeApp_path = content['path']  # KeyError if no such key
-                except (ValueError, KeyError) as e:
-                    logging.error('Something wrong with the manifest file: {0}, error: {1}'.format(extension_manifest, e))
-                    nativeApp_path = False
-        else:
-            logging.error('cannot find manifest for {0} in {1}'.format(browser, extension_manifest))
-            nativeApp_path = False
-        return nativeApp_path
+                    path = content['path']  # KeyError if no such key
+            except (ValueError, KeyError) as e:
+                logging.error('Something wrong while open or read {0} manifest file {1}: {2}'.format(browser, manifest, e))
+            except IOError as e:  # such as no such file or permission denied (python2)
+                logging.error('Error while open {0} manifest in {1}: {2}'.format(browser, manifest, e))
+            return path
 
-    def verify_browser_manifest(self, browser):
-        # make sure browser (chrome or firefox) are properly configured
-        content = None
-        if sys.platform.startswith('win32'):
-            # TODO: check registry
-            content = None  # add something later
-        else:
-            manifest_path = self.get_manifest_path(browser)
-            if os.path.isfile(manifest_path):
-                # try...except open?
-                with open(manifest_path, 'r') as f:
-                    content = f.load(f)
+        if browser not in ('chrome', 'firefox'):
+            logging.error('Unsupported browser: {0}'.format(browser))
+            nativeAppPath = False
+        elif sys.platform.startswith('win32'):
+            if browser == 'chrome':
+                keyVal = r'Software\Google\Chrome\NativeMessagingHosts\optract'
+            elif browser == 'firefox':
+                keyVal = r'SOFTWARE\Mozilla\NativeMessagingHosts\optract'
+            try:
+                key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, keyVal, 0, winreg.KEY_ALL_ACCESS)
+                extension_manifest = winreg.QueryValueEx(key, "")[0]
+            except WindowsError as err:
+                logging.error('Error while read registry {0}: {1}'.format(keyVal, err))
+                nativeAppPath = False
             else:
-                content = None
-        return content
+                # in optract-win-[firefox]|[chrome].json, the nativeApp path is relative path to the json
+                nativeAppPath = _get_nativeAppPath(extension_manifest)
+                if nativeAppPath:
+                    nativeAppPath = os.path.join(os.path.dirname(extension_manifest), nativeAppPath)
+        else:  # linux or mac
+            extension_manifest = self.get_manifest_path(browser)
+            if os.path.isfile(extension_manifest):
+                nativeAppPath = _get_nativeAppPath(extension_manifest)
+            else:
+                logging.error('cannot find manifest for {0} in {1}'.format(browser, extension_manifest))
+                nativeAppPath = False
+        return nativeAppPath
 
     def create_and_write_manifest(self, browser):
         # logging.info('in creating manifest...')
