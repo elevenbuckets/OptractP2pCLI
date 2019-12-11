@@ -99,7 +99,7 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         create_menu_item(config_menu, 'reset config file', self.on_create_config)
         # create_menu_item(config_menu, 'reset ipfs', self.on_null)
         # create_menu_item(config_menu, 'reset', self.on_null)  # remove existing and re-install
-        menu.Append(wx.ID_ANY, '&config browsers', config_menu)
+        menu.AppendSubMenu(config_menu, '&config browsers')
 
         if not self.ipfsP_is_running and self.nodeP_is_running:
             create_menu_item(menu, 'restart ipfs (experimental)', self.on_restart_ipfs)
@@ -210,11 +210,12 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         nativeApp.start_ipfs()
 
     def on_config_firefox(self, event):
-        logging.info('createing manifest for firefox')
+        logging.info('tbIcon: createing or reset manifest for firefox')
         nativeApp.installer.create_and_write_manifest('firefox')
-        wx.MessageBox('create nativeApp for firefox. Please install browser extension from https://11be.org/browser_extensions')
+        wx.MessageBox('create nativeApp for firefox. Please install browser extension from https://11be.org')
 
     def on_config_chrome(self, event):
+        logging.info('tbIcon: createing manifest for chrome')
         nativeApp.installer.create_and_write_manifest('chrome')
         wx.MessageBox('create nativeApp for chrome. Please install browser extension from https://11be.org/browser_extensions')
 
@@ -286,10 +287,15 @@ class MainFrame(wx.Frame):
 
         # check browser status
         row = 3
-        _ = 'fx:{0}\nch:{1}'.format(nativeApp.installer.get_nativeApp_from_browser_manifest('firefox'),
-                                    nativeApp.installer.get_nativeApp_from_browser_manifest('chrome'))
-        self.st_browser = wx.StaticText(self.panel, label=_)
-        self.sizer.Add(self.st_browser, pos=(row, 0), span=(1, 3), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
+        self.button_reset_firefox = wx.Button(self.panel, label='reset firefox')
+        self.button_reset_firefox.Bind(wx.EVT_BUTTON, self.on_reset_firefox)
+        self.sizer.Add(self.button_reset_firefox, pos=(row, 0), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
+        self.button_reset_firefox.Disable()
+
+        self.button_reset_chrome = wx.Button(self.panel, label='reset chrome')
+        self.button_reset_chrome.Bind(wx.EVT_BUTTON, self.on_reset_chrome)
+        self.sizer.Add(self.button_reset_chrome, pos=(row, 1), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
+        self.button_reset_chrome.Disable()
 
         # install if necessary
         row = 4
@@ -386,8 +392,8 @@ class MainFrame(wx.Frame):
             current_nativeApp = os.path.join(nativeApp.distdir, 'nativeApp', 'nativeApp')
         elif sys.platform.startswith('linux'):
             current_nativeApp = os.path.join(nativeApp.distdir, 'nativeApp', 'nativeApp')
-        logging.info('DEBUG:: {0} | {1}'.format(browser_nativeApp, current_nativeApp))
-        return browser_nativeApp == current_nativeApp
+        # logging.info('DEBUG:: {0} | {1}'.format(browser_nativeApp, current_nativeApp))
+        return browser_nativeApp == current_nativeApp  # note: browser_nativeApp can be False
 
     def on_timer(self, event):
         self.update_status_text()
@@ -423,11 +429,18 @@ class MainFrame(wx.Frame):
             self.button_start_server.Disable()
             self.button_stop_server.Disable()
             self.button_ipfs_restart.Disable()
+
         # test: browser status
         # _ = 'fx:{0}\nch:{1}'.format(nativeApp.installer.get_nativeApp_from_browser_manifest('firefox'),
         #                             nativeApp.installer.get_nativeApp_from_browser_manifest('chrome'))
-        _ = 'firefox: {0}\nchrome: {1}'.format(self.check_browser('firefox'), self.check_browser('chrome'))
-        self.st_browser.SetLabel(_)
+        if os.path.exists(nativeApp.install_lockFile) and not self.check_browser('firefox'):
+            self.button_reset_firefox.Enable()
+        else:
+            self.button_reset_firefox.Disable()
+        if os.path.exists(nativeApp.install_lockFile) and not self.check_browser('chrome'):
+            self.button_reset_chrome.Enable()
+        else:
+            self.button_reset_chrome.Disable()
 
     def on_button_ipfs_restart(self, event):
         nativeApp.start_ipfs()
@@ -478,6 +491,16 @@ class MainFrame(wx.Frame):
         t.setDaemon(True)
         t.start()
 
+    def on_reset_firefox(self, event):
+        logging.info('createing or reset manifest for firefox')
+        nativeApp.installer.create_and_write_manifest('firefox')
+        wx.MessageBox('create nativeApp for firefox. Please install browser extension from https://11be.org')
+
+    def on_reset_chrome(self, event):
+        logging.info('createing or reset manifest for chrome')
+        nativeApp.installer.create_and_write_manifest('chrome')
+        wx.MessageBox('create nativeApp for chrome. Please install browser extension from https://11be.org')
+
     def on_evt_startserver(self, event):
         def _evt_startserver(win):
             wx.CallAfter(self.st_nativeApp.SetLabel, 'Starting server....')
@@ -499,7 +522,7 @@ class MainFrame(wx.Frame):
 
 class App(wx.App):
     def OnInit(self):
-        frame = MainFrame(None, title='Optract GUI', size=(300, 260))
+        frame = MainFrame(None, title='Optract GUI', size=(300, 280))
         self.SetTopWindow(frame)
 
         # install if necessary; show gui only when systray is not available or during install

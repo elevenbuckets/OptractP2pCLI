@@ -32,13 +32,13 @@ class OptractInstall():
 
         # communicate with GUI components
         self.message = 'Welcome to Optract'
-        self.status = {
+        self.status = {  # TODO: use status in some cases
             'check_md5': None,  # boolean
             'extract_node_modules': None,  # float
             'create_config': None,  # string (path)
             'init_ipfs': None,  # string (output of init OR use existing one)
-            'firefox': None,  # string (path)
-            'chrome': None  # string (path)
+            'firefox': None,  # string (path) (or bool?)
+            'chrome': None  # string (path) (or bool?)
         }
 
     def install(self, force=False):
@@ -207,6 +207,7 @@ class OptractInstall():
             raise BaseException('Unsupported browser {0}'.format(browser))
 
         # create manifest file and write to native message folder
+        logging.info('create manifest registry for {0}'.format(browser))
         if sys.platform.startswith('win32'):
             if browser == 'chrome':
                 self.add_registry_chrome()
