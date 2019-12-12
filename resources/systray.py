@@ -73,12 +73,7 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
 
         self.set_icon(TRAY_ICON)
         self.Bind(wx.adv.EVT_TASKBAR_LEFT_DOWN, self.on_left_down)
-        # if len(sys.argv) > 1:
-        #     ppid = sys.argv[1]  # the browser pid which call nativeApp which Popen systray
-        # else:
-        #     ppid = 1
-        # wx.CallAfter(simple_daemon)
-        # time event
+
         self.timer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.on_timer)
         self.timer.Start(5000)  # every 5 seconds
@@ -97,8 +92,8 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
 
         config_menu = wx.Menu()
         # should detect the existence of 'optract.json' (and check if they point to the running instance of optract)
-        create_menu_item(config_menu, 'connect to firefox', self.frame.on_reset_firefox, parent_menu=menu)
-        create_menu_item(config_menu, 'connect to chrome', self.on_config_chrome, parent_menu=menu)
+        create_menu_item(config_menu, 'config firefox', self.frame.on_config_firefox, parent_menu=menu)
+        create_menu_item(config_menu, 'config chrome', self.frame.on_config_chrome, parent_menu=menu)
         create_menu_item(config_menu, 'reset config file', self.on_create_config, parent_menu=menu)
         # create_menu_item(config_menu, 'reset ipfs', self.on_null)
         # create_menu_item(config_menu, 'reset', self.on_null)  # remove existing and re-install
@@ -212,27 +207,27 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
     def on_restart_ipfs(self, event):
         nativeApp.start_ipfs()
 
-    def on_config_firefox(self, event):
-        logging.info('tbIcon: createing or reset manifest for firefox')
-        nativeApp.installer.create_and_write_manifest('firefox')
-        wx.MessageBox('create nativeApp for firefox. Please install browser extension from https://11be.org')
-
-    def on_config_chrome(self, event):
-        logging.info('tbIcon: createing manifest for chrome')
-        nativeApp.installer.create_and_write_manifest('chrome')
-        wx.MessageBox('create nativeApp for chrome. Please install browser extension from https://11be.org')
-
     def on_create_config(self, event):
         # TODO: popup a confirm window
-        # TODO: it only create a config and does not migrate
-        nativeApp.installer.create_config()
-        config_file = os.path.join(nativeApp.datadir, 'config.json')
-        wx.MessageBox('regenerate config file in: {0}'.format(config_file))
+        msg = "Are you sure to regenerate the config file to default value?\nIf ok, will take some time to restart server."
+        dlg = wx.MessageDialog(None, msg, "Optract config",
+                               wx.YES_NO | wx.YES_DEFAULT | wx.ICON_EXCLAMATION)
+        ret = dlg.ShowModal()
+        if ret == wx.ID_YES:
+            logging.info('regenerate config.json')
+            nativeApp.installer.create_config()
+            config_file = os.path.join(nativeApp.datadir, 'config.json')
+            nativeApp.stopServer()
+            time.sleep(1)
+            nativeApp.startServer()
+            wx.MessageBox('Server restarted!.\nConfig file in: \n{0}'.format(config_file))
+        else:
+            wx.MessageBox('do nothing')
 
     def on_exit(self, event):
         # TODO/BUG: sometimes segmentfault or buserror, especially while (1)window is shown; (2)exit shortly after open
         nativeApp.stopServer()
-        time.sleep(1.2)  # is it necessary to wait a bit for ipfs?
+        time.sleep(0.9)  # is it necessary to wait a bit for ipfs?
         logging.info('[taskbar] call frame.DestroyLater()')
         self.frame.DestroyLater()
         logging.info('[taskbar] call Destroy()')
@@ -290,15 +285,15 @@ class MainFrame(wx.Frame):
 
         # check browser status
         row = 3
-        self.button_reset_firefox = wx.Button(self.panel, label='reset firefox')
-        self.button_reset_firefox.Bind(wx.EVT_BUTTON, self.on_reset_firefox)
-        self.sizer.Add(self.button_reset_firefox, pos=(row, 0), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
-        self.button_reset_firefox.Disable()
+        self.button_config_firefox = wx.Button(self.panel, label='config firefox')
+        self.button_config_firefox.Bind(wx.EVT_BUTTON, self.on_config_firefox)
+        self.sizer.Add(self.button_config_firefox, pos=(row, 0), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
+        self.button_config_firefox.Disable()
 
-        self.button_reset_chrome = wx.Button(self.panel, label='reset chrome')
-        self.button_reset_chrome.Bind(wx.EVT_BUTTON, self.on_reset_chrome)
-        self.sizer.Add(self.button_reset_chrome, pos=(row, 1), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
-        self.button_reset_chrome.Disable()
+        self.button_config_chrome = wx.Button(self.panel, label='config chrome')
+        self.button_config_chrome.Bind(wx.EVT_BUTTON, self.on_config_chrome)
+        self.sizer.Add(self.button_config_chrome, pos=(row, 1), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
+        self.button_config_chrome.Disable()
 
         # install if necessary
         row = 4
@@ -345,9 +340,10 @@ class MainFrame(wx.Frame):
         fileMenu = wx.Menu()
         # The "\t..." syntax defines an accelerator key that also triggers
         # the same event
-        helloItem = fileMenu.Append(
-            -1, "&Hello...\tCtrl-H",
-            "Help string shown in status bar for this menu item")
+        start_item = fileMenu.Append(
+            -1, "&Start...\tCtrl-R", "Start server")
+        stop_item = fileMenu.Append(
+            -1, "&Stop...\tCtrl-S", "Stop server")
         fileMenu.AppendSeparator()
         # When using a stock ID we don't need to specify the menu item's
         # label
@@ -371,7 +367,8 @@ class MainFrame(wx.Frame):
         # Finally, associate a handler function with the EVT_MENU event for
         # each of the menu items. That means that when that menu item is
         # activated then the associated handler function will be called.
-        self.Bind(wx.EVT_MENU, self.on_hello, helloItem)
+        self.Bind(wx.EVT_MENU, self.on_start_server, start_item)
+        self.Bind(wx.EVT_MENU, self.on_stop_server, stop_item)
         self.Bind(wx.EVT_MENU, self.on_exit, exitItem)
         self.Bind(wx.EVT_MENU, self.on_about, aboutItem)
 
@@ -437,13 +434,13 @@ class MainFrame(wx.Frame):
         # _ = 'fx:{0}\nch:{1}'.format(nativeApp.installer.get_nativeApp_from_browser_manifest('firefox'),
         #                             nativeApp.installer.get_nativeApp_from_browser_manifest('chrome'))
         if os.path.exists(nativeApp.install_lockFile) and not self.check_browser('firefox'):
-            self.button_reset_firefox.Enable()
+            self.button_config_firefox.Enable()
         else:
-            self.button_reset_firefox.Disable()
+            self.button_config_firefox.Disable()
         if os.path.exists(nativeApp.install_lockFile) and not self.check_browser('chrome'):
-            self.button_reset_chrome.Enable()
+            self.button_config_chrome.Enable()
         else:
-            self.button_reset_chrome.Disable()
+            self.button_config_chrome.Disable()
 
     def on_button_ipfs_restart(self, event):
         nativeApp.start_ipfs()
@@ -461,13 +458,11 @@ class MainFrame(wx.Frame):
         """Close the frame, terminating the application."""
         # TODO/BUG: sometimes segmentfault
         # TODO: if TaskBarIcon is available, add an event handler which close window and keep servers running
+        logging.info('Bye!')
         nativeApp.stopServer()
-        time.sleep(1.2)
-        # logging.info('call RemoveIcon()')
+        time.sleep(0.9)
         # self.tbIcon.RemoveIcon()
-        logging.info('[frame] call tbIcon.Destroy()')
         self.tbIcon.Destroy()
-        logging.info('[frame] call DestroyLater()')
         self.DestroyLater()
 
     def on_iconize(self, event):
@@ -494,13 +489,13 @@ class MainFrame(wx.Frame):
         t.setDaemon(True)
         t.start()
 
-    def on_reset_firefox(self, event):
-        logging.info('createing or reset manifest for firefox')
+    def on_config_firefox(self, event):
+        logging.info('createing or config manifest for firefox')
         nativeApp.installer.create_and_write_manifest('firefox')
         wx.MessageBox('create nativeApp for firefox. Please install browser extension from https://11be.org')
 
-    def on_reset_chrome(self, event):
-        logging.info('createing or reset manifest for chrome')
+    def on_config_chrome(self, event):
+        logging.info('createing or config manifest for chrome')
         nativeApp.installer.create_and_write_manifest('chrome')
         wx.MessageBox('create nativeApp for chrome. Please install browser extension from https://11be.org')
 
@@ -512,14 +507,12 @@ class MainFrame(wx.Frame):
         t.setDaemon(True)
         t.start()
 
-    def on_hello(self, event):
-        """Say hello to the user."""
-        wx.MessageBox("Hello again from wxPython")
-
     def on_about(self, event):
         """Display an About Dialog"""
-        wx.MessageBox("This is a wxPython Hello World sample",
-                      "About Hello World 2",
+        wx.MessageBox("Optract Optract is a consensus protocol representing collective intelligence\n" + 
+                      "for the process of assessing the value of any information stream.\n" +
+                      "Please visit https://11be.org for more information",
+                      "About",
                       wx.OK | wx.ICON_INFORMATION)
 
 
