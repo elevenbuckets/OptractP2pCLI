@@ -10,6 +10,7 @@ import psutil
 import logging
 import threading
 import wx.lib.newevent as NE
+import webbrowser
 from nativeApp import NativeApp
 
 InstallEvent, EVT_INSTALL = NE.NewEvent()
@@ -249,12 +250,12 @@ class MainFrame(wx.Frame):
         # make buttons
         row = 0
         self.button_start_server = wx.Button(self.panel, label="start server")
-        self.button_start_server.Bind(wx.EVT_BUTTON, self.on_button_start_server)
+        self.button_start_server.Bind(wx.EVT_BUTTON, self.on_start_server)
         self.sizer.Add(self.button_start_server, pos=(row, 0), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
         self.button_start_server.Disable()
 
         self.button_stop_server = wx.Button(self.panel, label="stop server")
-        self.button_stop_server.Bind(wx.EVT_BUTTON, self.on_button_stop_server)
+        self.button_stop_server.Bind(wx.EVT_BUTTON, self.on_stop_server)
         self.sizer.Add(self.button_stop_server, pos=(row, 1), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
         self.button_stop_server.Disable()
 
@@ -341,17 +342,19 @@ class MainFrame(wx.Frame):
         # The "\t..." syntax defines an accelerator key that also triggers
         # the same event
         start_item = fileMenu.Append(
-            -1, "&Start...\tCtrl-R", "Start server")
+            -1, "&Start...\tCtrl-r", "Start server")
         stop_item = fileMenu.Append(
-            -1, "&Stop...\tCtrl-S", "Stop server")
+            -1, "&Stop...\tCtrl-s", "Stop server")
         fileMenu.AppendSeparator()
         # When using a stock ID we don't need to specify the menu item's
         # label
-        exitItem = fileMenu.Append(wx.ID_EXIT)
+        exit_item = fileMenu.Append(wx.ID_EXIT)
 
         # Now a help menu for the about item
         helpMenu = wx.Menu()
-        aboutItem = helpMenu.Append(wx.ID_ABOUT)
+        about_item = helpMenu.Append(wx.ID_ABOUT)
+        visit_item = helpMenu.Append(
+            -1, "&visit homepage", "visit 11be.org")
 
         # Make the menu bar and add the two menus to it. The '&' defines
         # that the next letter is the "mnemonic" for the menu item. On the
@@ -369,8 +372,9 @@ class MainFrame(wx.Frame):
         # activated then the associated handler function will be called.
         self.Bind(wx.EVT_MENU, self.on_start_server, start_item)
         self.Bind(wx.EVT_MENU, self.on_stop_server, stop_item)
-        self.Bind(wx.EVT_MENU, self.on_exit, exitItem)
-        self.Bind(wx.EVT_MENU, self.on_about, aboutItem)
+        self.Bind(wx.EVT_MENU, self.on_visit_homepage, visit_item)
+        self.Bind(wx.EVT_MENU, self.on_exit, exit_item)
+        self.Bind(wx.EVT_MENU, self.on_about, about_item)
 
     def update_status_text(self):
         self.st.SetLabel(self.get_status_text())
@@ -446,11 +450,11 @@ class MainFrame(wx.Frame):
         nativeApp.start_ipfs()
         # self.sizer.Layout()  # or panel.layout()
 
-    def on_button_start_server(self, event):
+    def on_start_server(self, event):
         nativeApp.startServer()  # can_exit=False
         self.button_start_server.Disable()
 
-    def on_button_stop_server(self, event):
+    def on_stop_server(self, event):
         nativeApp.stopServer()  # can_exit=False
         self.button_stop_server.Disable()
 
@@ -478,7 +482,14 @@ class MainFrame(wx.Frame):
         dlg.ShowModal()
         dlg.Destroy()
 
+    def on_visit_homepage(self, event):
+        webbrowser.open("https://11be.org")
+
     def on_evt_install(self, event):
+        # TODO: provide information about the addon is installed locally and only create nativeMsg for
+        #       chrome or firefox
+        # TODO: detect existing installation from browser nativeMsg, and confirm to use the data there
+        #       (by replacing the dist folder there)
         def _evt_install(win):
             nativeApp.install()
             wx.CallAfter(self.st_nativeApp.SetLabel, 'Starting server....')
@@ -488,6 +499,11 @@ class MainFrame(wx.Frame):
         t = threading.Thread(target=_evt_install, args=(self, ))
         t.setDaemon(True)
         t.start()
+        dlg = wx.MessageDialog(None, "Press OK to visit https://11be.org to get the browser addon", "Visit homepage",
+                               wx.OK | wx.CANCEL | wx.ICON_INFORMATION)
+        ret = dlg.ShowModal()
+        if ret == wx.ID_OK:
+            webbrowser.open("https://11be.org")
 
     def on_config_firefox(self, event):
         logging.info('createing or config manifest for firefox')
