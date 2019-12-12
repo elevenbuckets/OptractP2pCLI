@@ -47,9 +47,12 @@ logging.basicConfig(filename=logfile, level=logging.INFO, format=log_format,
                     datefmt=log_datefmt)
 
 
-def create_menu_item(menu, label, func, enable=True):
+def create_menu_item(menu, label, func, enable=True, parent_menu=None):
     item = wx.MenuItem(menu, -1, label)
-    menu.Bind(wx.EVT_MENU, func, id=item.GetId())
+    if parent_menu is not None:
+        parent_menu.Bind(wx.EVT_MENU, func, id=item.GetId())
+    else:
+        menu.Bind(wx.EVT_MENU, func, id=item.GetId())
     menu.Append(item)
     if not enable:
         item.Enable(False)
@@ -94,12 +97,12 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
 
         config_menu = wx.Menu()
         # should detect the existence of 'optract.json' (and check if they point to the running instance of optract)
-        create_menu_item(config_menu, 'connect to firefox', self.on_config_firefox)
-        create_menu_item(config_menu, 'connect to chrome', self.on_config_chrome)
-        create_menu_item(config_menu, 'reset config file', self.on_create_config)
+        create_menu_item(config_menu, 'connect to firefox', self.frame.on_reset_firefox, parent_menu=menu)
+        create_menu_item(config_menu, 'connect to chrome', self.on_config_chrome, parent_menu=menu)
+        create_menu_item(config_menu, 'reset config file', self.on_create_config, parent_menu=menu)
         # create_menu_item(config_menu, 'reset ipfs', self.on_null)
         # create_menu_item(config_menu, 'reset', self.on_null)  # remove existing and re-install
-        menu.AppendSubMenu(config_menu, '&config browsers')
+        menu.AppendSubMenu(config_menu, 'config browsers')
 
         if not self.ipfsP_is_running and self.nodeP_is_running:
             create_menu_item(menu, 'restart ipfs (experimental)', self.on_restart_ipfs)
@@ -217,7 +220,7 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
     def on_config_chrome(self, event):
         logging.info('tbIcon: createing manifest for chrome')
         nativeApp.installer.create_and_write_manifest('chrome')
-        wx.MessageBox('create nativeApp for chrome. Please install browser extension from https://11be.org/browser_extensions')
+        wx.MessageBox('create nativeApp for chrome. Please install browser extension from https://11be.org')
 
     def on_create_config(self, event):
         # TODO: popup a confirm window
@@ -473,7 +476,7 @@ class MainFrame(wx.Frame):
         #     self.Hide()
 
     def dialog_finish_install(self):
-        msg = "Now finish install!\nPlease download firefox/chrome extensions: http://11be.org/download"
+        msg = "Now finish install!\nPlease download firefox/chrome extensions: http://11be.org"
         dlg = wx.MessageDialog(parent=None, message=msg,
                                caption="Optract Installer",
                                style=wx.OK | wx.ICON_INFORMATION)
