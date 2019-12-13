@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding:utf-8 -*-
-from __future__ import print_function
 import os
 import sys
 import shutil
@@ -27,7 +26,7 @@ class OptractInstall():
         try:
             with open(extid_file, 'r') as f:
                 self.extid = json.load(f)
-        except IOError:  # python3: FileNotFoundError
+        except FileNotFoundError:  # python3; except IOError:  # python2
             log.error('Failed to find file: {0}'.format(extid_file))
             sys.exit(1)
 
@@ -69,7 +68,7 @@ class OptractInstall():
             keyVal = r'Software\Google\Chrome\NativeMessagingHosts\optract'
             try:
                 key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, keyVal, 0, winreg.KEY_ALL_ACCESS)
-            except WindowsError:  # WindowsError for python2; OSError in python3
+            except OSError:  # WindowsError for python2; OSError in python3
                 key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, keyVal)
             nativeMessagingMainfest = os.path.join(self.distdir, 'optract-win-chrome.json')
             winreg.SetValueEx(key, "", 0, winreg.REG_SZ, nativeMessagingMainfest)
@@ -87,7 +86,7 @@ class OptractInstall():
             keyVal = r'SOFTWARE\Mozilla\NativeMessagingHosts\optract'
             try:
                 key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, keyVal, 0, winreg.KEY_ALL_ACCESS)
-            except WindowsError:  # WindowsError for python2; OSError in python3
+            except OSError:  # WindowsError for python2; OSError in python3
                 key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, keyVal)
             nativeMessagingMainfest = os.path.join(self.distdir, 'optract-win-firefox.json')
             winreg.SetValueEx(key, "", 0, winreg.REG_SZ, nativeMessagingMainfest)
@@ -168,9 +167,10 @@ class OptractInstall():
                 with open(manifest, 'r') as f:
                     content = json.load(f)  # ValueError if not a json file
                     path = content['path']  # KeyError if no such key
-            except (ValueError, KeyError) as e:
+            except (ValueError, KeyError) as e:  # in python3 can also use (json.JSONDecodeError, KeyError)
                 log.error('Something wrong while open or read {0} manifest file {1}: {2}'.format(browser, manifest, e))
-            except IOError as e:  # such as no such file or permission denied (python2)
+            # except IOError as e:  # python2: such as no such file or permission denied
+            except FileNotFoundError as e:  # python3
                 log.error('Error while open {0} manifest in {1}: {2}'.format(browser, manifest, e))
             return path
 
@@ -185,7 +185,8 @@ class OptractInstall():
             try:
                 key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, keyVal, 0, winreg.KEY_ALL_ACCESS)
                 extension_manifest = winreg.QueryValueEx(key, "")[0]
-            except WindowsError as err:
+            # except WindowsError as err:  # python2
+            except OSError as err:  # python3
                 log.error('Error while read registry {0}: {1}'.format(keyVal, err))
                 nativeAppPath = False
             else:
@@ -222,7 +223,8 @@ class OptractInstall():
             if not os.path.isdir(browser_nativeMsg_dir):
                 try:
                     os.mkdir(browser_nativeMsg_dir)
-                except OSError:  # most likely due to parent dir of browser_nativeMsg_dir not exist
+                # except OSError:  # python2: most likely due to parent dir of browser_nativeMsg_dir not exist
+                except FileNotFoundError:  # python3
                     log.error('Failed to create folder {0} for {1} browser.'.format(browser_nativeMsg_dir, browser))
                     return False
 

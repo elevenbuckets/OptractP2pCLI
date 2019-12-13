@@ -1,6 +1,5 @@
 #!/usr/bin/env pythonw
 # -*- coding:utf-8 -*-
-from __future__ import print_function
 import wx.adv
 import wx
 import sys
@@ -99,6 +98,27 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         # create_menu_item(config_menu, 'reset ipfs', self.on_null)
         # create_menu_item(config_menu, 'reset', self.on_null)  # remove existing and re-install
         menu.AppendSubMenu(config_menu, 'config browsers')
+
+        # tests (will remove soon)
+        item_2a = wx.MenuItem(menu, -1, 'fx2a')
+        menu.Bind(wx.EVT_MENU, self.frame.on_config_firefox, id=item_2a.GetId())
+        config_menu.Append(item_2a)
+
+        item_2b = wx.MenuItem(config_menu, -1, 'fx2b')
+        menu.Bind(wx.EVT_MENU, self.frame.on_config_firefox, id=item_2b.GetId())
+        config_menu.Append(item_2b)
+
+        item_3a = wx.MenuItem(menu, -1, 'fx3a')  # work on ubuntu 18.04 mate desktop
+        config_menu.Bind(wx.EVT_MENU, self.frame.on_config_firefox, id=item_3a.GetId())
+        config_menu.Append(item_3a)
+
+        item_3b = wx.MenuItem(config_menu, -1, 'fx3b')  # work on: ubuntu 18.04 mate desktop
+        config_menu.Bind(wx.EVT_MENU, self.frame.on_config_firefox, id=item_3b.GetId())
+        config_menu.Append(item_3b)
+
+        item_4 = wx.MenuItem(menu, -1, 'fx4')
+        menu.Bind(wx.EVT_MENU, self.frame.on_config_firefox, id=item_4.GetId())
+        menu.Append(item_4)
 
         if not self.ipfsP_is_running and self.nodeP_is_running:
             create_menu_item(menu, 'restart ipfs (experimental)', self.on_restart_ipfs)
@@ -398,7 +418,8 @@ class MainFrame(wx.Frame):
             current_nativeApp = os.path.join(nativeApp.distdir, 'nativeApp', 'nativeApp')
         # log.info('DEBUG:: {0} | {1}'.format(browser_nativeApp, current_nativeApp))
         if browser_nativeApp:  # note: browser_nativeApp can be False
-            return browser_nativeApp == unicode(current_nativeApp, encoding='utf-8')  # python2; the latter is 'string'
+            # return browser_nativeApp == unicode(current_nativeApp, encoding='utf-8')  # python2; the latter is 'string'
+            return browser_nativeApp == current_nativeApp  # python3
         else:
             return False
 

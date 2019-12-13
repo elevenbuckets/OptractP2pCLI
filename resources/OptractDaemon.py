@@ -4424,7 +4424,7 @@ def OptractDaemon(nodeP, basedir):
     #     raise BaseException('cannot find node binary not exists in bin or ../bin')
     # p = subprocess.Popen([node],  stdin=subprocess.PIPE)  #, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     os.chdir(os.path.join(basedir, "dist", "lib"))
-    out = nodeP.communicate(input=code)
+    out = nodeP.communicate(input=code.encode('utf-8'))
     # print(out[0])  # stdout
     # print(out[1])  # stderr
     return

@@ -4,7 +4,6 @@
 # Note that running python with the `-u` flag is required on Windows,
 # in order to ensure that stdin and stdout are opened in binary, rather
 # than text, mode.
-from __future__ import print_function
 import time
 import json
 import sys
@@ -29,8 +28,8 @@ if sys.platform == "win32":
 
 # global variables
 log = logging.getLogger(__name__)
-FNULL = open(os.devnull, 'w')  # python2
-# FNULL = subprocess.DEVNULL  # python3
+# FNULL = open(os.devnull, 'w')  # python2
+FNULL = subprocess.DEVNULL  # python3
 
 # basedir: root directory of Optract, for example: ~/Downloads/Optract
 # distdir: release directory, contain binaries and modules; replace this one while update, for example: ~/Downloads/Optract/dist
@@ -93,8 +92,8 @@ class NativeApp():
         raw_length = sys.stdin.read(4)
         if not raw_length:
             sys.exit(0)
-        message_length = struct.unpack('=I', raw_length)[0]  # python2
-        # message_length = struct.unpack('=I', bytes(raw_length, encoding="utf-8"))[0]  # python3
+        # message_length = struct.unpack('=I', raw_length)[0]  # python2
+        message_length = struct.unpack('=I', bytes(raw_length, encoding="utf-8"))[0]  # python3
         message = sys.stdin.read(message_length)
         return json.loads(message)
 
@@ -102,8 +101,8 @@ class NativeApp():
     # note: encode_message() and send_message() are not used now, but keep them just in case
     def encode_message(self, message_content):
         encoded_content = json.dumps(message_content)
-        encoded_length = struct.pack('=I', len(encoded_content))  # python2
-        # encoded_length = struct.pack('=I', len(encoded_content)).decode()  # python3
+        # encoded_length = struct.pack('=I', len(encoded_content))  # python2
+        encoded_length = struct.pack('=I', len(encoded_content)).decode()  # python3
         return {'length': encoded_length, 'content': encoded_content}
 
     def send_message(self, encode_message):
@@ -225,7 +224,8 @@ class NativeApp():
             log.info('kill process {0}'.format(self.nodeP.pid))
             try:
                 os.kill(self.nodeP.pid, signal.SIGTERM)
-            except Exception as err:
+            # except OSError as err:  # python2
+            except ProcessLookupError as err:  # python3
                 log.error("Can't stop pid {0}: {1}: {2}".format(
                                self.nodeP.pid, err.__class__.__name__, err))
 
@@ -233,14 +233,16 @@ class NativeApp():
             log.info('kill process {0}'.format(self.ipfsP.pid))
             try:
                 os.kill(self.ipfsP.pid, signal.SIGINT)
-            except Exception as err:
+            # except OSError as err:  # python2
+            except ProcessLookupError as err:  # python3
                 log.error("Can't stop pid {0}: {1}: {2}".format(
                                self.ipfsP.pid, err.__class__.__name__, err))
             # send one more signal
             time.sleep(1)
             try:
                 os.kill(self.ipfsP.pid, signal.SIGINT)
-            except OSError:
+            # except OSError as err:  # python2
+            except ProcessLookupError as err:  # python3
                 pass
         return
 
@@ -350,8 +352,8 @@ if __name__ == '__main__':
             nativeApp.install()
         elif sys.argv[1] == 'test':
             nativeApp.startServer()
-            raw_input("press <enter> to stop...")  # python2
-            # input("press <enter> to stop...")  # python3
+            # raw_input("press <enter> to stop...")  # python2
+            input("press <enter> to stop...")  # python3
             nativeApp.stopServer()
         elif sys.argv[1] == 'testtray':
             systrapP = subprocess.Popen([systray, ppid])  # TODO: remove ppid
