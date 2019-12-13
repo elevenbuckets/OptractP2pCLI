@@ -39,7 +39,7 @@ icons = {
 TRAY_ICON = icons['inactive']
 
 # logging
-# even though logging is not used in systray, nativeApp still use logging and have to be defined here
+log = logging.getLogger(__name__)
 log_format = '[%(asctime)s] %(levelname)-7s : %(message)s'
 log_datefmt = '%Y-%m-%d %H:%M:%S'
 logfile = os.path.join(nativeApp.basedir, 'optract.log')
@@ -188,15 +188,15 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
             self.set_icon(icons['inactive'])
             if not self.ipfsP_is_running and self.nodeP_is_running:
                 if self.ipfs_restart_tried > 10:
-                    logging.error('Already retry restarting ipfs for {0} times. Bye!'.format(self.ipfs_restart_max_retry))
+                    log.error('Already retry restarting ipfs for {0} times. Bye!'.format(self.ipfs_restart_max_retry))
                     sys.exit(1)
                 if time.time() - self.time_ipfs_boot > self.ipfs_boot_required_time:  # prevent (re)start ipfs too soon
                     self.time_ipfs_boot = time.time()
                     self.ipfs_restart_tried += 1
-                    logging.info("Restarting ipfs")
+                    log.info("Restarting ipfs")
                     nativeApp.start_ipfs()
                 # else:
-                #     logging.info("Waiting for another try of restarting ipfs")
+                #     log.info("Waiting for another try of restarting ipfs")
 
     def on_start_server(self, event):
         nativeApp.startServer()  # can_exit=False
@@ -215,7 +215,7 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
                                wx.YES_NO | wx.YES_DEFAULT | wx.ICON_EXCLAMATION)
         ret = dlg.ShowModal()
         if ret == wx.ID_YES:
-            logging.info('regenerate config.json')
+            log.info('regenerate config.json')
             nativeApp.installer.create_config()
             config_file = os.path.join(nativeApp.datadir, 'config.json')
             nativeApp.stopServer()
@@ -229,9 +229,9 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         # TODO/BUG: sometimes segmentfault or buserror, especially while (1)window is shown; (2)exit shortly after open
         nativeApp.stopServer()
         time.sleep(0.9)  # is it necessary to wait a bit for ipfs?
-        logging.info('[taskbar] call frame.DestroyLater()')
+        log.info('[taskbar] call frame.DestroyLater()')
         self.frame.DestroyLater()
-        logging.info('[taskbar] call Destroy()')
+        log.info('[taskbar] call Destroy()')
         self.Destroy()
 
 
@@ -396,7 +396,7 @@ class MainFrame(wx.Frame):
             current_nativeApp = os.path.join(nativeApp.distdir, 'nativeApp', 'nativeApp')
         elif sys.platform.startswith('linux'):
             current_nativeApp = os.path.join(nativeApp.distdir, 'nativeApp', 'nativeApp')
-        # logging.info('DEBUG:: {0} | {1}'.format(browser_nativeApp, current_nativeApp))
+        # log.info('DEBUG:: {0} | {1}'.format(browser_nativeApp, current_nativeApp))
         return browser_nativeApp == current_nativeApp  # note: browser_nativeApp can be False
 
     def on_timer(self, event):
@@ -437,14 +437,15 @@ class MainFrame(wx.Frame):
         # test: browser status
         # _ = 'fx:{0}\nch:{1}'.format(nativeApp.installer.get_nativeApp_from_browser_manifest('firefox'),
         #                             nativeApp.installer.get_nativeApp_from_browser_manifest('chrome'))
-        if os.path.exists(nativeApp.install_lockFile) and not self.check_browser('firefox'):
-            self.button_config_firefox.Enable()
-        else:
-            self.button_config_firefox.Disable()
-        if os.path.exists(nativeApp.install_lockFile) and not self.check_browser('chrome'):
-            self.button_config_chrome.Enable()
-        else:
-            self.button_config_chrome.Disable()
+        if os.path.exists(nativeApp.install_lockFile):
+            if not self.check_browser('firefox'):
+                self.button_config_firefox.Enable()
+            else:
+                self.button_config_firefox.Disable()
+            if not self.check_browser('chrome'):
+                self.button_config_chrome.Enable()
+            else:
+                self.button_config_chrome.Disable()
 
     def on_button_ipfs_restart(self, event):
         nativeApp.start_ipfs()
@@ -462,7 +463,7 @@ class MainFrame(wx.Frame):
         """Close the frame, terminating the application."""
         # TODO/BUG: sometimes segmentfault
         # TODO: if TaskBarIcon is available, add an event handler which close window and keep servers running
-        logging.info('Bye!')
+        log.info('Bye!')
         nativeApp.stopServer()
         time.sleep(0.9)
         # self.tbIcon.RemoveIcon()
@@ -506,12 +507,12 @@ class MainFrame(wx.Frame):
             webbrowser.open("https://11be.org")
 
     def on_config_firefox(self, event):
-        logging.info('createing or config manifest for firefox')
+        log.info('createing or config manifest for firefox')
         nativeApp.installer.create_and_write_manifest('firefox')
         wx.MessageBox('create nativeApp for firefox. Please install browser extension from https://11be.org')
 
     def on_config_chrome(self, event):
-        logging.info('createing or config manifest for chrome')
+        log.info('createing or config manifest for chrome')
         nativeApp.installer.create_and_write_manifest('chrome')
         wx.MessageBox('create nativeApp for chrome. Please install browser extension from https://11be.org')
 
@@ -539,14 +540,14 @@ class App(wx.App):
 
         # install if necessary; show gui only when systray is not available or during install
         if not os.path.exists(nativeApp.install_lockFile):
-            logging.info('Installing Optract')
+            log.info('Installing Optract')
             frame.Show()
             # nativeApp.install()  # put this line in MainFrame()
         if not frame.tbIcon.IsAvailable():
-            logging.warning("TaskBarIcon not available")  # such as Ubuntu 18.04 (Gnome3 + unity DE)
+            log.warning("TaskBarIcon not available")  # such as Ubuntu 18.04 (Gnome3 + unity DE)
             frame.Show()
         if not frame.tbIcon.IsOk():
-            logging.error("Failed to init TaskBarIcon")
+            log.error("Failed to init TaskBarIcon")
             sys.exit(1)
 
         icon = wx.Icon(wx.Bitmap(TRAY_ICON))
@@ -556,6 +557,8 @@ class App(wx.App):
 
 def main():
     # TODO: if there is another instance of systray (either running or not), show a warning (modal?) and quit
+    print('DEBUG: running sysatry in {0}'.format(distdir))
+    print('DEBUG: sysatry logfile in {0}'.format(logfile))
     app = App(False)
     # frame = MainFrame(None, title='Optract GUI')
     # frame.Show()

@@ -28,6 +28,7 @@ if sys.platform == "win32":
     msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
 
 # global variables
+log = logging.getLogger(__name__)
 FNULL = open(os.devnull, 'w')  # python2
 # FNULL = subprocess.DEVNULL  # python3
 
@@ -50,7 +51,7 @@ class NativeApp():
     def __init__(self, distdir):
         self.platform = self.get_platform()
         if not (self.platform == 'linux' or self.platform == 'darwin' or self.platform == 'win32'):
-            logging.error('Unsupported platform')
+            log.error('Unsupported platform')
             raise BaseException('Unsupported platform')
 
         # if extract file in ~/Downloads, then basedir and datadir are both: ~/Downloads/Optract,
@@ -65,6 +66,7 @@ class NativeApp():
         self.nodeP = None
         self.ipfsP = None
         self.installer = OptractInstall.OptractInstall(self.basedir, self.distdir, self.datadir)
+        log.info('nativeApp path: {0}'.format(distdir))
 
     def get_platform(self):
         if sys.platform.startswith('linux'):
@@ -117,10 +119,10 @@ class NativeApp():
         # elif os.path.isdir(target):
         #     md5_seen = dirhash(target, 'md5')
         else:
-            logging.error('The target {0} is neither file nor directory.'.format(target))
+            log.error('The target {0} is neither file nor directory.'.format(target))
             raise BaseException('The target {0} is neither file nor directory.'.format(target))
         if md5_seen != md5_expected:
-            logging.error('The md5sum of file or directory {0} is inconsistent with expected hash.'.format(target))
+            log.error('The md5sum of file or directory {0} is inconsistent with expected hash.'.format(target))
             raise BaseException('The md5sum of file or directory {0} is inconsistent with expected hash.'.format(target))
 
     def check_md5(self):
@@ -159,7 +161,7 @@ class NativeApp():
             'lock': os.path.join(self.datadir, 'ipfs_repo', 'repo.lock'),
             'bin': os.path.join(self.distdir, 'bin', 'ipfs')
         }
-        # logging.info('debug: basedir={0}'.format(self.basedir))
+        # log.info('debug: basedir={0}'.format(self.basedir))
         myenv = os.environ.copy()  # "DLL initialize error..." in Windows while set the env inside subprocess calls
         myenv['IPFS_PATH'] = ipfs_path['repo']
         if not os.path.exists(ipfs_path['config']):
@@ -197,10 +199,10 @@ class NativeApp():
         if not self.platform == 'win32':  # in windows, nativeApp cannot close properly so lockFile is always there
             if os.path.exists(self.lockFile):
                 if can_exit:
-                    logging.warning('Do nothing: lockFile exists in: {0}'.format(self.lockFile))
+                    log.warning('Do nothing: lockFile exists in: {0}'.format(self.lockFile))
                     sys.exit(0)
                 else:
-                    logging.warning('Do nothing: lockFile exists in: {0}'.format(self.lockFile))
+                    log.warning('Do nothing: lockFile exists in: {0}'.format(self.lockFile))
                     return
 
         if check_md5:  # chach_md5=False inside start_ipfs()
@@ -211,28 +213,28 @@ class NativeApp():
             time.sleep(.2)
 
         self.start_node()
-        logging.info(' daemon started')
-        logging.info('  pid of node: {0}'.format(self.nodeP.pid))
-        logging.info('  pid of ipfs: {0}'.format(self.ipfsP.pid))
+        log.info(' daemon started')
+        log.info('  pid of node: {0}'.format(self.nodeP.pid))
+        log.info('  pid of ipfs: {0}'.format(self.ipfsP.pid))
 
     def stopServer(self):
         if os.path.exists(self.lockFile):
             os.remove(self.lockFile)
         # nodeP.terminate()
         if self.nodeP is not None:
-            logging.info('kill process {0}'.format(self.nodeP.pid))
+            log.info('kill process {0}'.format(self.nodeP.pid))
             try:
                 os.kill(self.nodeP.pid, signal.SIGTERM)
             except Exception as err:
-                logging.error("Can't stop pid {0}: {1}: {2}".format(
+                log.error("Can't stop pid {0}: {1}: {2}".format(
                                self.nodeP.pid, err.__class__.__name__, err))
 
         if self.ipfsP is not None:
-            logging.info('kill process {0}'.format(self.ipfsP.pid))
+            log.info('kill process {0}'.format(self.ipfsP.pid))
             try:
                 os.kill(self.ipfsP.pid, signal.SIGINT)
             except Exception as err:
-                logging.error("Can't stop pid {0}: {1}: {2}".format(
+                log.error("Can't stop pid {0}: {1}: {2}".format(
                                self.ipfsP.pid, err.__class__.__name__, err))
             # send one more signal
             time.sleep(1)
@@ -246,7 +248,7 @@ class NativeApp():
 # major functions
 def main(nativeApp):
     started = False
-    logging.info('Start to listen to native message...')
+    log.info('Start to listen to native message...')
     while True:
         message = nativeApp.get_message()
         if "ping" in message.values() and started is False:
@@ -255,38 +257,38 @@ def main(nativeApp):
             # TODO: (bug) can generate two systray if the first systray call "stop" and then start or restart browser
             # add a lockfile for systray?
             systrayP = subprocess.Popen([systray, ppid], shell=True, stdin=FNULL, stdout=FNULL, stderr=FNULL)  # the "shell=True" is essential for windows
-            logging.info('sysatry (pid:{0}) and server starting...'.format(systrayP.pid))
+            log.info('sysatry (pid:{0}) and server starting...'.format(systrayP.pid))
     return
 
 
 # def mainwin():
 #     nativeApp = NativeApp()
 #     started = False
-#     logging.info('Start to listen to native message...')
+#     log.info('Start to listen to native message...')
 #     while True:
 #         message = nativeApp.get_message()
 #         if "ping" in message.values() and started == False:
 #             started = True
 #             nativeApp.startServer()
-#             logging.info('server started')
+#             log.info('server started')
 #         if "pong" in message.values() and started == True:
 #             started = False
-#             logging.info('closing native app...')
+#             log.info('closing native app...')
 #             nativeApp.stopServer()
-#             logging.info('native app closed')
+#             log.info('native app closed')
 #             sys.exit(0)
 #     return
 
 
 # def launcher():
 #     nativeApp = NativeApp()
-#     logging.info('in launcher...')
+#     log.info('in launcher...')
 #     started = False
 #     while True:
 #         if started == False:
 #             started = True
 #             nativeApp.startServer()
-#             logging.info('in launcher...starting server')
+#             log.info('in launcher...starting server')
 #         time.sleep(3)
 #         pl = subprocess.Popen(['pgrep', '-lf', 'firefox'], stdout=subprocess.PIPE).communicate()[0]
 #         pl = pl.split("\n")[0:-1]
@@ -298,16 +300,16 @@ def main(nativeApp):
 
 # def starter():
 #     nativeApp = NativeApp()
-#     logging.info('in starter...')
+#     log.info('in starter...')
 #     started = False
 #     while True:
 #         message = nativeApp.get_message()
 #         if "ping" in message.values() and started == False:
-#             logging.info('[starter]got ping signal')
+#             log.info('[starter]got ping signal')
 #             started = True
 #             time.sleep(1)
 #             nativeApp = os.path.realpath(sys.argv[0])
-#             logging.info('[starter]calling: {0} launch'.format(nativeApp))
+#             log.info('[starter]calling: {0} launch'.format(nativeApp))
 #             subprocess.Popen([nativeApp, "launch"])
 
 #             sys.exit(0)
@@ -321,7 +323,7 @@ if __name__ == '__main__':
     nativeApp = NativeApp(distdir)
     basedir = nativeApp.basedir
 
-    # logging
+    # log
     log_format = '[%(asctime)s] %(levelname)-7s : %(message)s'
     log_datefmt = '%Y-%m-%d %H:%M:%S'
     logfile = os.path.join(basedir, 'optract.log')
@@ -329,8 +331,8 @@ if __name__ == '__main__':
     logging.basicConfig(filename=logfile, level=logging.INFO, format=log_format,
                         datefmt=log_datefmt)
 
-    logging.info('nativeApp path = {0}'.format(os.path.realpath(sys.argv[0])))
-    logging.info('basedir path = {0}'.format(basedir))
+    log.info('nativeApp path = {0}'.format(os.path.realpath(sys.argv[0])))
+    log.info('basedir path = {0}'.format(basedir))
     # print('nativeApp path = {0}'.format(os.path.realpath(sys.argv[0])))
     # print('basedir path = {0}'.format(basedir))
 
@@ -366,11 +368,11 @@ if __name__ == '__main__':
         #     if platform == 'win32':
         #         mainwin()
         #     else:
-        #         logging.info('calling starter() 1')
+        #         log.info('calling starter() 1')
         #         starter()
     # else:
         # if platform == 'win32':
         #     mainwin()
         # else:
-        #     logging.info('calling starter() 2')
+        #     log.info('calling starter() 2')
         #     starter()

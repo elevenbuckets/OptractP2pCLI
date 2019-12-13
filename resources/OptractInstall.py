@@ -27,7 +27,7 @@ class OptractInstall():
             with open(extid_file, 'r') as f:
                 self.extid = json.load(f)
         except IOError:  # python3: FileNotFoundError
-            logging.error('Failed to find file: {0}'.format(extid_file))
+            log.error('Failed to find file: {0}'.format(extid_file))
             sys.exit(1)
 
         # communicate with GUI components
@@ -47,20 +47,20 @@ class OptractInstall():
             raise BaseException('Cannot find folder \'{0}\' or \'{1}\' (forget to extract zip first?)'.format(self.distdir, self.basedir))
             sys.exit(1)
         if not os.path.isfile(self.installed) or force:
-            logging.info('Initializing Optract in {0}'.format(self.distdir))
+            log.info('Initializing Optract in {0}'.format(self.distdir))
             self.prepare_files()
             self.create_config()
             self.init_ipfs()
             # install for all supporting browsers
             if not self.create_and_write_manifest('firefox'):
-                logging.warning('Failed to create manifest for firefox')
+                log.warning('Failed to create manifest for firefox')
             if not self.create_and_write_manifest('chrome'):
-                logging.warning('Failed to create manifest for chrome')
-            logging.info('Done! Optract is ready to use.')
+                log.warning('Failed to create manifest for chrome')
+            log.info('Done! Optract is ready to use.')
             self.message = 'Done! Optract is ready to use.'
             open(self.installed, 'a').close()
         else:
-            logging.warning('Already installed in {0}'.format(self.distdir))
+            log.warning('Already installed in {0}'.format(self.distdir))
 
     def add_registry_chrome(self):
         # TODO: add remove_registry()
@@ -103,7 +103,7 @@ class OptractInstall():
         ipfs_config = os.path.join(ipfs_path, 'config')
 
         if os.path.exists(ipfs_config):
-            logging.warning("ipfs repo exists, will use existing one in " + ipfs_path)
+            log.warning("ipfs repo exists, will use existing one in " + ipfs_path)
             self.message = "ipfs repo exists, will use existing one in " + ipfs_path
             return
 
@@ -112,13 +112,13 @@ class OptractInstall():
         myenv['IPFS_PATH'] = ipfs_path
         ipfs_bin = os.path.join(self.distdir, "bin", "ipfs")
 
-        logging.info("initilalizing ipfs in " + ipfs_path)
+        log.info("initilalizing ipfs in " + ipfs_path)
         self.message = "initilalizing ipfs in " + ipfs_path
         process = subprocess.Popen([ipfs_bin, "init"], env=myenv, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output, error = process.communicate()
-        logging.info('ipfs results: \n' + str(output))
+        log.info('ipfs results: \n' + str(output))
         if len(error) > 0:
-            logging.critical('ipfs error message: \n' + str(error))
+            log.critical('ipfs error message: \n' + str(error))
         return
 
     def create_manifest_chrome(self, nativeAppPath, extension_id):
@@ -156,7 +156,7 @@ class OptractInstall():
             extension_manifest = os.path.expanduser('~/Library/Application Support/Mozilla/NativeMessagingHosts/optract.json')
         else:
             # raise BaseException('Unsupported platform and/or browser.')
-            logging.error('Unsupported platform and/or browser.')
+            log.error('Unsupported platform and/or browser.')
             extension_manifest = None
         return extension_manifest
 
@@ -168,13 +168,13 @@ class OptractInstall():
                     content = json.load(f)  # ValueError if not a json file
                     path = content['path']  # KeyError if no such key
             except (ValueError, KeyError) as e:
-                logging.error('Something wrong while open or read {0} manifest file {1}: {2}'.format(browser, manifest, e))
+                log.error('Something wrong while open or read {0} manifest file {1}: {2}'.format(browser, manifest, e))
             except IOError as e:  # such as no such file or permission denied (python2)
-                logging.error('Error while open {0} manifest in {1}: {2}'.format(browser, manifest, e))
+                log.error('Error while open {0} manifest in {1}: {2}'.format(browser, manifest, e))
             return path
 
         if browser not in ('chrome', 'firefox'):
-            logging.error('Unsupported browser: {0}'.format(browser))
+            log.error('Unsupported browser: {0}'.format(browser))
             nativeAppPath = False
         elif sys.platform.startswith('win32'):
             if browser == 'chrome':
@@ -185,7 +185,7 @@ class OptractInstall():
                 key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, keyVal, 0, winreg.KEY_ALL_ACCESS)
                 extension_manifest = winreg.QueryValueEx(key, "")[0]
             except WindowsError as err:
-                logging.error('Error while read registry {0}: {1}'.format(keyVal, err))
+                log.error('Error while read registry {0}: {1}'.format(keyVal, err))
                 nativeAppPath = False
             else:
                 # in optract-win-[firefox]|[chrome].json, the nativeApp path is relative path to the json
@@ -197,17 +197,17 @@ class OptractInstall():
             if os.path.isfile(extension_manifest):
                 nativeAppPath = _get_nativeAppPath(extension_manifest)
             else:
-                logging.error('cannot find manifest for {0} in {1}'.format(browser, extension_manifest))
+                # log.warning('cannot find manifest for {0} in {1}'.format(browser, extension_manifest))
                 nativeAppPath = False
         return nativeAppPath
 
     def create_and_write_manifest(self, browser):
-        # logging.info('in creating manifest...')
+        # log.info('in creating manifest...')
         if browser not in ['firefox', 'chrome']:
             raise BaseException('Unsupported browser {0}'.format(browser))
 
         # create manifest file and write to native message folder
-        logging.info('create manifest registry for {0}'.format(browser))
+        log.info('create manifest registry for {0}'.format(browser))
         if sys.platform.startswith('win32'):
             if browser == 'chrome':
                 self.add_registry_chrome()
@@ -222,7 +222,7 @@ class OptractInstall():
                 try:
                     os.mkdir(browser_nativeMsg_dir)
                 except OSError:  # most likely due to parent dir of browser_nativeMsg_dir not exist
-                    logging.error('Failed to create folder {0} for {1} browser.'.format(browser_nativeMsg_dir, browser))
+                    log.error('Failed to create folder {0} for {1} browser.'.format(browser_nativeMsg_dir, browser))
                     return False
 
             # create content for manifest file of native messaging
@@ -233,7 +233,7 @@ class OptractInstall():
                 manifest_content = self.create_manifest_firefox(nativeAppPath, self.extid[browser])
 
             # write manifest file (overwrite existing one)
-            logging.info('create manifest in {0}'.format(manifest_path))
+            log.info('create manifest in {0}'.format(manifest_path))
             with open(manifest_path, 'w') as f:
                 json.dump(manifest_content, f, indent=4)
         return True
@@ -242,7 +242,7 @@ class OptractInstall():
         md5_seen = hashlib.md5(open(filename, 'rb').read()).hexdigest()
         if md5_seen != md5_expected:
             msg = 'The md5sum of file {0} is inconsistent with expected hash.'.format(filename)
-            logging.error(msg)
+            log.error(msg)
             raise BaseException(msg)
 
     def check_md5(self):
@@ -272,14 +272,14 @@ class OptractInstall():
         return
 
     def prepare_files(self):
-        logging.info('Preparing folder for optract in: ' + self.basedir)
+        log.info('Preparing folder for optract in: ' + self.basedir)
 
         # check md5sum
         self.check_md5()
 
         self.extract_node_modules(os.path.join(self.distdir, 'node_modules.tar'), self.distdir)
 
-        logging.info('creating keystore folder if necessary')
+        log.info('creating keystore folder if necessary')
         self.message = 'creating keystore folder if necessary'
         key_folder = os.path.join(self.datadir, 'keystore')
         if not os.path.isdir(key_folder):
@@ -338,15 +338,15 @@ class OptractInstall():
             try:
                 config['dapps']['OptractMedia']['streamr'] = orig['dapps']['OptractMedia']['streamr']
             except KeyError:
-                logging.warning('Cannot load "streamr" from previous config file. Use default: "false".')
+                log.warning('Cannot load "streamr" from previous config file. Use default: "false".')
 
-            logging.warning('{0} already exists, will move it to {1}'.format(config_file, config_file + '.orig'))
+            log.warning('{0} already exists, will move it to {1}'.format(config_file, config_file + '.orig'))
             shutil.move(config_file, config_file + '.orig')
 
         # write
         with open(config_file, 'w') as f:
             json.dump(config, f, indent=4)
-            logging.info('config write to file {0}'.format(config_file))
+            log.info('config write to file {0}'.format(config_file))
         return
 
     def extract_node_modules(self, src, dest):
@@ -355,7 +355,7 @@ class OptractInstall():
         dest_node_modules = os.path.join(dest, 'node_modules')
         if os.path.isdir(dest_node_modules):
             shutil.rmtree(dest_node_modules)
-        logging.info('extracting latest version of node_modules to ' + dest_node_modules)
+        log.info('extracting latest version of node_modules to ' + dest_node_modules)
         self.message = 'extracting latest version of node_modules to ' + dest_node_modules
 
         def _track_progress(members):
@@ -369,7 +369,7 @@ class OptractInstall():
         with tarfile.open(src) as tar:
             nfiles = len(tar.getnames())
             tar.extractall(path=dest, members=_track_progress(tar))
-        logging.info('Done extracting latest version of node_modules.')
+        log.info('Done extracting latest version of node_modules.')
         return
 
 
