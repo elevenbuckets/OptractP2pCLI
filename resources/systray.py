@@ -397,7 +397,10 @@ class MainFrame(wx.Frame):
         elif sys.platform.startswith('linux'):
             current_nativeApp = os.path.join(nativeApp.distdir, 'nativeApp', 'nativeApp')
         # log.info('DEBUG:: {0} | {1}'.format(browser_nativeApp, current_nativeApp))
-        return browser_nativeApp == current_nativeApp  # note: browser_nativeApp can be False
+        if browser_nativeApp:  # note: browser_nativeApp can be False
+            return browser_nativeApp == unicode(current_nativeApp, encoding='utf-8')  # python2; the latter is 'string'
+        else:
+            return False
 
     def on_timer(self, event):
         self.update_status_text()
