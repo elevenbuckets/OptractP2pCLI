@@ -49,7 +49,9 @@ logging.basicConfig(filename=logfile, level=logging.INFO, format=log_format,
 
 def create_menu_item(menu, label, func, enable=True, parent_menu=None):
     item = wx.MenuItem(menu, -1, label)
-    if parent_menu is not None:
+    # in windows, need to bind with "parent_menu", while for ubuntu 18.04 and mac
+    # need to bind with "menu" (wxpython 4.0.7.post2)
+    if parent_menu is not None and sys.platform.startswith('win32'):
         parent_menu.Bind(wx.EVT_MENU, func, id=item.GetId())
     else:
         menu.Bind(wx.EVT_MENU, func, id=item.GetId())
@@ -98,27 +100,6 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         # create_menu_item(config_menu, 'reset ipfs', self.on_null)
         # create_menu_item(config_menu, 'reset', self.on_null)  # remove existing and re-install
         menu.AppendSubMenu(config_menu, 'config browsers')
-
-        # tests (will remove soon)
-        item_2a = wx.MenuItem(menu, -1, 'fx2a')
-        menu.Bind(wx.EVT_MENU, self.frame.on_config_firefox, id=item_2a.GetId())
-        config_menu.Append(item_2a)
-
-        item_2b = wx.MenuItem(config_menu, -1, 'fx2b')
-        menu.Bind(wx.EVT_MENU, self.frame.on_config_firefox, id=item_2b.GetId())
-        config_menu.Append(item_2b)
-
-        item_3a = wx.MenuItem(menu, -1, 'fx3a')  # work on ubuntu 18.04 mate desktop
-        config_menu.Bind(wx.EVT_MENU, self.frame.on_config_firefox, id=item_3a.GetId())
-        config_menu.Append(item_3a)
-
-        item_3b = wx.MenuItem(config_menu, -1, 'fx3b')  # work on: ubuntu 18.04 mate desktop
-        config_menu.Bind(wx.EVT_MENU, self.frame.on_config_firefox, id=item_3b.GetId())
-        config_menu.Append(item_3b)
-
-        item_4 = wx.MenuItem(menu, -1, 'fx4')
-        menu.Bind(wx.EVT_MENU, self.frame.on_config_firefox, id=item_4.GetId())
-        menu.Append(item_4)
 
         if not self.ipfsP_is_running and self.nodeP_is_running:
             create_menu_item(menu, 'restart ipfs (experimental)', self.on_restart_ipfs)

@@ -224,27 +224,24 @@ class NativeApp():
             log.info('kill process {0}'.format(self.nodeP.pid))
             try:
                 os.kill(self.nodeP.pid, signal.SIGTERM)
-            # except OSError as err:  # python2
-            except ProcessLookupError as err:  # python3
-                log.error("Can't stop pid {0}: {1}: {2}".format(
+            except OSError as err:
+                log.error("Error while stop pid {0}: {1}: {2}".format(
                                self.nodeP.pid, err.__class__.__name__, err))
 
         if self.ipfsP is not None:
             log.info('kill process {0}'.format(self.ipfsP.pid))
             try:
                 os.kill(self.ipfsP.pid, signal.SIGINT)
-            # except OSError as err:  # python2
-            except ProcessLookupError as err:  # python3
+            except OSError as err:
                 log.error("Can't stop pid {0}: {1}: {2}".format(
                                self.ipfsP.pid, err.__class__.__name__, err))
-            # send one more signal
+
+            # send one more signal (redundant?)
             time.sleep(1)
             try:
                 os.kill(self.ipfsP.pid, signal.SIGINT)
-            # except OSError as err:  # python2
-            except ProcessLookupError as err:  # python3
+            except Exception as err:
                 pass
-        return
 
 
 # major functions
