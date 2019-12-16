@@ -1,5 +1,5 @@
 #!/usr/bin/python -u
-# -*- coding:utf-8 -*- 
+# -*- coding:utf-8 -*-
 
 # Note that running python with the `-u` flag is required on Windows,
 # in order to ensure that stdin and stdout are opened in binary, rather
@@ -65,6 +65,8 @@ class NativeApp():
         self.nodeP = None
         self.ipfsP = None
         self.installer = OptractInstall.OptractInstall(self.basedir, self.distdir, self.datadir)
+
+        self.message = '[na]Welcome to Optract!'
         log.info('nativeApp path: {0}'.format(distdir))
 
     def get_platform(self):
@@ -81,11 +83,14 @@ class NativeApp():
     def install(self, forced=False):
         # print('Installing... please see the progress in logfile: ' + logfile)
         # print('Please also download Optract browser extension.')
+        self.message = '[na]Installing'
         if forced:
             self.installer.install()
         else:
             if not os.path.exists(self.install_lockFile):
                 self.installer.install()
+            else:
+                self.message = '[na]Lockfile exists ({0})'.format(self.install_lockFile)
 
     # Read a message from stdin and decode it.
     def get_message(self):
@@ -164,6 +169,7 @@ class NativeApp():
         myenv = os.environ.copy()  # "DLL initialize error..." in Windows while set the env inside subprocess calls
         myenv['IPFS_PATH'] = ipfs_path['repo']
         if not os.path.exists(ipfs_path['config']):
+            self.message = '[na] creating a new ipfs repo in {0}'.format(ipfs_path['repo'])
             subprocess.check_call([ipfs_path['bin'], "init"], env=myenv, stdout=FNULL, stderr=subprocess.STDOUT)
             return self.startServer(check_md5=False)  # is it safe to check_md5=False? if true then need to check frequently while starting
         else:
@@ -237,7 +243,7 @@ class NativeApp():
                                self.ipfsP.pid, err.__class__.__name__, err))
 
             # send one more signal (redundant?)
-            time.sleep(1)
+            time.sleep(0.8)
             try:
                 os.kill(self.ipfsP.pid, signal.SIGINT)
             except Exception as err:

@@ -172,12 +172,6 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
     def on_null(self, event):
         pass
 
-    def on_hello(self, event):
-        if nativeApp.nodeP is not None:
-            print(nativeApp.nodeP.pid)
-        if nativeApp.ipfsP is not None:
-            print(nativeApp.ipfsP.pid)
-
     def on_timer(self, event):
         is_running, _, _, _, _ = self.get_status()
         if is_running:
@@ -189,7 +183,9 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
             self.set_icon(icons['inactive'])
             if not self.ipfsP_is_running and self.nodeP_is_running:
                 if self.ipfs_restart_tried > 10:
-                    log.error('Already retry restarting ipfs for {0} times. Bye!'.format(self.ipfs_restart_max_retry))
+                    msg = 'Error: Try to restart ipfs for {0} times.\nPlease try again later or check the logfile in {1}.\nReport this issue if still wrong.'.format(self.ipfs_restart_max_retry, logfile)
+                    log.error(msg)
+                    wx.MessageBox(msg)
                     sys.exit(1)
                 if time.time() - self.time_ipfs_boot > self.ipfs_boot_required_time:  # prevent (re)start ipfs too soon
                     self.time_ipfs_boot = time.time()
@@ -210,8 +206,7 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         nativeApp.start_ipfs()
 
     def on_create_config(self, event):
-        # TODO: popup a confirm window
-        msg = "Are you sure to regenerate the config file to default value?\nIf ok, will take some time to restart server."
+        msg = "Are you sure to reset the config?\nIf yes, will take some time to restart server."
         dlg = wx.MessageDialog(None, msg, "Optract config",
                                wx.YES_NO | wx.YES_DEFAULT | wx.ICON_EXCLAMATION)
         ret = dlg.ShowModal()
@@ -220,16 +215,15 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
             nativeApp.installer.create_config()
             config_file = os.path.join(nativeApp.datadir, 'config.json')
             nativeApp.stopServer()
-            time.sleep(1)
+            time.sleep(0.5)  # note: already wait inside stopServer
             nativeApp.startServer()
             wx.MessageBox('Server restarted!.\nConfig file in: \n{0}'.format(config_file))
         else:
             wx.MessageBox('do nothing')
 
     def on_exit(self, event):
-        # TODO/BUG: sometimes segmentfault or buserror, especially while (1)window is shown; (2)exit shortly after open
+        # TODO/BUG: on mac, sometimes segmentfault or buserror, especially while (1)window is shown; (2)exit shortly after open
         nativeApp.stopServer()
-        time.sleep(0.9)  # is it necessary to wait a bit for ipfs?
         log.info('[taskbar] call frame.DestroyLater()')
         self.frame.DestroyLater()
         log.info('[taskbar] call Destroy()')
@@ -261,7 +255,7 @@ class MainFrame(wx.Frame):
         self.button_stop_server.Disable()
 
         self.button_ipfs_restart = wx.Button(self.panel, label="restart ipfs")
-        self.button_ipfs_restart.Bind(wx.EVT_BUTTON, self.on_button_ipfs_restart)
+        self.button_ipfs_restart.Bind(wx.EVT_BUTTON, self.on_restart_ipfs)
         self.button_ipfs_restart.Disable()
         self.sizer.Add(self.button_ipfs_restart, pos=(row, 2), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
 
@@ -328,6 +322,7 @@ class MainFrame(wx.Frame):
         # and a status bar
         self.CreateStatusBar()
         self.SetStatusText("Welcome to Optract!")
+        # TODO: add more status text (for example, while mouse on buttons)
 
         # events
         self.Bind(wx.EVT_CLOSE, self.on_iconize)  # iconize instead of close
@@ -339,30 +334,29 @@ class MainFrame(wx.Frame):
 
     def makeMenuBar(self):
         # Make a file menu with Hello and Exit items
-        fileMenu = wx.Menu()
+        server_menu = wx.Menu()
         # The "\t..." syntax defines an accelerator key that also triggers
         # the same event
-        start_item = fileMenu.Append(
-            -1, "&Start...\tCtrl-r", "Start server")
-        stop_item = fileMenu.Append(
-            -1, "&Stop...\tCtrl-s", "Stop server")
-        fileMenu.AppendSeparator()
-        # When using a stock ID we don't need to specify the menu item's
-        # label
-        exit_item = fileMenu.Append(wx.ID_EXIT)
+        start_item = server_menu.Append(-1, "&Start...\tCtrl-r", "Start server")
+        stop_item = server_menu.Append(-1, "&Stop...\tCtrl-p", "Stop server")
+        restart_ipfs_item = server_menu.Append(-1, "&Restart ipfs", "Restart ipfs")
+        server_menu.AppendSeparator()
+        config_firefox_item = server_menu.Append(-1, "create firefox config", "create firefox config")
+        config_chrome_item = server_menu.Append(-1, "create chrome config", "create chrome config")
+        # When using a stock ID we don't need to specify the menu item's label
+        exit_item = server_menu.Append(wx.ID_EXIT)
 
         # Now a help menu for the about item
         helpMenu = wx.Menu()
         about_item = helpMenu.Append(wx.ID_ABOUT)
-        visit_item = helpMenu.Append(
-            -1, "&visit homepage", "visit 11be.org")
+        visit_item = helpMenu.Append(-1, "&visit homepage", "visit 11be.org")
 
         # Make the menu bar and add the two menus to it. The '&' defines
         # that the next letter is the "mnemonic" for the menu item. On the
         # platforms that support it those letters are underlined and can be
         # triggered from the keyboard.
         menuBar = wx.MenuBar()
-        menuBar.Append(fileMenu, "&File")
+        menuBar.Append(server_menu, "&Server")
         menuBar.Append(helpMenu, "&Help")
 
         # Give the menu bar to the frame
@@ -373,6 +367,9 @@ class MainFrame(wx.Frame):
         # activated then the associated handler function will be called.
         self.Bind(wx.EVT_MENU, self.on_start_server, start_item)
         self.Bind(wx.EVT_MENU, self.on_stop_server, stop_item)
+        self.Bind(wx.EVT_MENU, self.on_restart_ipfs, restart_ipfs_item)
+        self.Bind(wx.EVT_MENU, self.on_config_firefox, config_firefox_item)
+        self.Bind(wx.EVT_MENU, self.on_config_chrome, config_chrome_item)
         self.Bind(wx.EVT_MENU, self.on_visit_homepage, visit_item)
         self.Bind(wx.EVT_MENU, self.on_exit, exit_item)
         self.Bind(wx.EVT_MENU, self.on_about, about_item)
@@ -397,10 +394,9 @@ class MainFrame(wx.Frame):
             current_nativeApp = os.path.join(nativeApp.distdir, 'nativeApp', 'nativeApp')
         elif sys.platform.startswith('linux'):
             current_nativeApp = os.path.join(nativeApp.distdir, 'nativeApp', 'nativeApp')
-        # log.info('DEBUG:: {0} | {1}'.format(browser_nativeApp, current_nativeApp))
         if browser_nativeApp:  # note: browser_nativeApp can be False
-            # return browser_nativeApp == unicode(current_nativeApp, encoding='utf-8')  # python2; the latter is 'string'
-            return browser_nativeApp == current_nativeApp  # python3
+            # return browser_nativeApp == unicode(current_nativeApp, encoding='utf-8')  # in python2 the latter is 'string'
+            return browser_nativeApp == current_nativeApp
         else:
             return False
 
@@ -440,8 +436,6 @@ class MainFrame(wx.Frame):
             self.button_ipfs_restart.Disable()
 
         # test: browser status
-        # _ = 'fx:{0}\nch:{1}'.format(nativeApp.installer.get_nativeApp_from_browser_manifest('firefox'),
-        #                             nativeApp.installer.get_nativeApp_from_browser_manifest('chrome'))
         if os.path.exists(nativeApp.install_lockFile):
             if not self.check_browser('firefox'):
                 self.button_config_firefox.Enable()
@@ -452,17 +446,19 @@ class MainFrame(wx.Frame):
             else:
                 self.button_config_chrome.Disable()
 
-    def on_button_ipfs_restart(self, event):
+    def on_restart_ipfs(self, event):
+        self.button_start_server.Disable()
+        self.button_stop_server.Disable()
         nativeApp.start_ipfs()
         # self.sizer.Layout()  # or panel.layout()
 
     def on_start_server(self, event):
-        nativeApp.startServer()  # can_exit=False
         self.button_start_server.Disable()
+        nativeApp.startServer()  # can_exit=False
 
     def on_stop_server(self, event):
-        nativeApp.stopServer()  # can_exit=False
         self.button_stop_server.Disable()
+        nativeApp.stopServer()  # can_exit=False
 
     def on_exit(self, event):
         """Close the frame, terminating the application."""
@@ -470,7 +466,7 @@ class MainFrame(wx.Frame):
         # TODO: if TaskBarIcon is available, add an event handler which close window and keep servers running
         log.info('Bye!')
         nativeApp.stopServer()
-        time.sleep(0.9)
+        time.sleep(0.8)
         # self.tbIcon.RemoveIcon()
         self.tbIcon.Destroy()
         self.DestroyLater()
@@ -545,9 +541,8 @@ class App(wx.App):
 
         # install if necessary; show gui only when systray is not available or during install
         if not os.path.exists(nativeApp.install_lockFile):
-            log.info('Installing Optract')
+            log.info('Installing Optract')  # do it in MainFrame()
             frame.Show()
-            # nativeApp.install()  # put this line in MainFrame()
         if not frame.tbIcon.IsAvailable():
             log.warning("TaskBarIcon not available")  # such as Ubuntu 18.04 (Gnome3 + unity DE)
             frame.Show()

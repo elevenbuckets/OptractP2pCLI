@@ -52,9 +52,15 @@ class OptractInstall():
             self.create_config()
             self.init_ipfs()
             # install for all supporting browsers
-            if not self.create_and_write_manifest('firefox'):
+            if self.create_and_write_manifest('firefox'):
+                self.status['firefox'] = True
+            else:
+                self.status['firefox'] = False
                 log.warning('Failed to create manifest for firefox')
             if not self.create_and_write_manifest('chrome'):
+                self.status['chrome'] = True
+            else:
+                self.status['chrome'] = False
                 log.warning('Failed to create manifest for chrome')
             log.info('Done! Optract is ready to use.')
             self.message = 'Done! Optract is ready to use.'
