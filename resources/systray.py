@@ -88,8 +88,8 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         create_menu_item(menu, ' node: pid {0} {1}'.format(nodeP_report, node_symbol), self.on_null, enable=False)  # TODO: hide these details
         create_menu_item(menu, ' ipfs: pid {0} {1}'.format(ipfsP_report, ipfs_symbol), self.on_null, enable=False)
         menu.AppendSeparator()
-        create_menu_item(menu, 'Start', self.on_start_server)
-        create_menu_item(menu, 'Stop', self.on_stop_server)
+        create_menu_item(menu, 'Start', self.frame.on_start_server)
+        create_menu_item(menu, 'Stop', self.frame.on_stop_server)
         menu.AppendSeparator()
 
         config_menu = wx.Menu()
@@ -195,12 +195,15 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
                 # else:
                 #     log.info("Waiting for another try of restarting ipfs")
 
-    def on_start_server(self, event):
-        nativeApp.startServer()  # can_exit=False
+    # def on_start_server(self, event):
+    #     msg = nativeApp.startServer()  # can_exit=False
+    #     if msg != '':
+    #         wx.MessageBox(msg + '\n Quit now')
+    #         sys.exit(0)
 
-    def on_stop_server(self, event):
-        # TODO?: kill the process "nativeApp" if exists
-        nativeApp.stopServer()
+    # def on_stop_server(self, event):
+    #     # TODO?: kill the process "nativeApp" if exists
+    #     nativeApp.stopServer()
 
     def on_restart_ipfs(self, event):
         nativeApp.start_ipfs()
@@ -454,7 +457,7 @@ class MainFrame(wx.Frame):
 
     def on_start_server(self, event):
         self.button_start_server.Disable()
-        nativeApp.startServer()  # can_exit=False
+        self.start_server(False)
 
     def on_stop_server(self, event):
         self.button_stop_server.Disable()
@@ -462,7 +465,7 @@ class MainFrame(wx.Frame):
 
     def on_exit(self, event):
         """Close the frame, terminating the application."""
-        # TODO/BUG: sometimes segmentfault
+        # TODO/BUG: sometimes segmentfault on mac
         # TODO: if TaskBarIcon is available, add an event handler which close window and keep servers running
         log.info('Bye!')
         nativeApp.stopServer()
@@ -477,11 +480,20 @@ class MainFrame(wx.Frame):
         #     self.Hide()
 
     def dialog_finish_install(self):
-        msg = "Now finish install!\nPlease download firefox/chrome extensions: http://11be.org"
-        dlg = wx.MessageDialog(parent=None, message=msg,
-                               caption="Optract Installer",
-                               style=wx.OK | wx.ICON_INFORMATION)
-        dlg.ShowModal()
+        # msg = "Now finish install!\nPlease download firefox/chrome extensions: http://11be.org"
+        # dlg = wx.MessageDialog(parent=None, message=msg,
+        #                        caption="Optract Installer",
+        #                        style=wx.OK | wx.ICON_INFORMATION)
+        if sys.platform.startswith('win32'):  # already popup dialog in the beginning of installation for win32
+            dlg = wx.MessageBox("Finish installation")
+            dlg.ShowModal()
+        else:
+            msg = "Finish installation. Press OK to visit https://11be.org to get the browser addon."
+            dlg = wx.MessageDialog(None, msg, "Visit homepage",
+                                   wx.OK | wx.CANCEL | wx.ICON_INFORMATION)
+            ret = dlg.ShowModal()
+            if ret == wx.ID_OK:
+                webbrowser.open("https://11be.org")
         dlg.Destroy()
 
     def on_visit_homepage(self, event):
@@ -497,15 +509,17 @@ class MainFrame(wx.Frame):
             wx.CallAfter(self.st_nativeApp.SetLabel, 'Starting server....')
             # note: use wx.CallAfter instead of calling gui from another thread (otherwise core dumped in Ubuntu)
             wx.CallAfter(self.dialog_finish_install)
-            nativeApp.startServer(can_exit=True)  # to prevent multiple instances
+            wx.CallAfter(self.start_server, True)
         t = threading.Thread(target=_evt_install, args=(self, ))
         t.setDaemon(True)
         t.start()
-        dlg = wx.MessageDialog(None, "Press OK to visit https://11be.org to get the browser addon", "Visit homepage",
-                               wx.OK | wx.CANCEL | wx.ICON_INFORMATION)
-        ret = dlg.ShowModal()
-        if ret == wx.ID_OK:
-            webbrowser.open("https://11be.org")
+
+        if sys.platform.startswith('win32'):
+            dlg = wx.MessageDialog(None, "Press OK to visit https://11be.org to get the browser addon", "Visit homepage",
+                                   wx.OK | wx.CANCEL | wx.ICON_INFORMATION)
+            ret = dlg.ShowModal()
+            if ret == wx.ID_OK:
+                webbrowser.open("https://11be.org")
 
     def on_config_firefox(self, event):
         log.info('createing or config manifest for firefox')
@@ -517,17 +531,26 @@ class MainFrame(wx.Frame):
         nativeApp.installer.create_and_write_manifest('chrome')
         wx.MessageBox('create nativeApp for chrome. Please install browser extension from https://11be.org')
 
+    def start_server(self, can_exit):
+        msg = nativeApp.pgrep_services_msg()
+        if msg != '':
+            wx.MessageBox(msg + '\nQuit now')
+            sys.exit(0)
+        else:
+            nativeApp.startServer(can_exit=can_exit)
+
     def on_evt_startserver(self, event):
         def _evt_startserver(win):
             wx.CallAfter(self.st_nativeApp.SetLabel, 'Starting server....')
-            nativeApp.startServer(can_exit=True)  # to prevent multiple instances
+            # nativeApp.startServer(can_exit=True)  # to prevent multiple instances
+            wx.CallAfter(self.start_server, True)
         t = threading.Thread(target=_evt_startserver, args=(self, ))
         t.setDaemon(True)
         t.start()
 
     def on_about(self, event):
         """Display an About Dialog"""
-        wx.MessageBox("Optract Optract is a consensus protocol representing collective intelligence\n" + 
+        wx.MessageBox("Optract Optract is a consensus protocol representing collective intelligence\n" +
                       "for the process of assessing the value of any information stream.\n" +
                       "Please visit https://11be.org for more information",
                       "About",

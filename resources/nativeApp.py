@@ -200,7 +200,32 @@ class NativeApp():
         op_daemon.start()
         os.chdir(self.basedir)
 
+    def pgrep_services(self):
+        ''' return dictionary {'ipfs':pid, 'node': pid} where pip is None or int '''
+        result = {'ipfs': None, 'node': None}  # or make it an attribute of this class?
+        for p in psutil.process_iter(attrs=['pid', 'name', 'cmdline']):
+            if p.info['name'] == 'ipfs' and len(p.info['cmdline']) >= 2:
+                if p.info['cmdline'][1] == 'daemon':
+                    result['ipfs'] = p.info
+            elif p.info['name'] == 'node' and p.info['cmdline'][0] == os.path.join(self.distdir, 'bin', 'node'):
+                result['node'] = p.info
+        return result
+
+    def pgrep_services_msg(self):
+        msg = ''
+        processes = self.pgrep_services()
+        if processes['ipfs'] is not None:
+            msg += '\nAnother instance of ipfs is running with pid {0}:\n\n{1}\n'.format(
+                processes['ipfs']['pid'], ' '.join(processes['ipfs']['cmdline']))
+        if processes['node'] is not None:
+            msg += '\nAnother instance of daemon is running with pid {0}:\n{1}\n'.format(
+                processes['node']['pid'], ' '.join(processes['node']['cmdline']))
+        if processes['node'] is not None or processes['ipfs'] is not None:
+            msg += '\n Detect another Optract and/or ipfs running, please kill/stop the process, close browser, and run Optract-gui again.\n'
+        return msg.lstrip()
+
     def startServer(self, can_exit=False, check_md5=True):
+        ''' note: in GUI, use pgrep_services_msg() to check existing services and exit if necessary'''
         if not self.platform == 'win32':  # in windows, nativeApp cannot close properly so lockFile is always there
             if os.path.exists(self.lockFile):
                 if can_exit:
