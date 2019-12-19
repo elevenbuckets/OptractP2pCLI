@@ -43,6 +43,8 @@ log_format = '[%(asctime)s] %(levelname)-7s : %(message)s'
 log_datefmt = '%Y-%m-%d %H:%M:%S'
 logfile = os.path.join(nativeApp.basedir, 'optract.log')
 # replace the `filename=logfile` to `stream=sys.stdout` to direct log to stdout
+# TODO: add logrotate or similar mechanism to remote old log for optract.log
+# TODO: let log level=logging.WARNING for released version? or make a toggle for the level
 logging.basicConfig(filename=logfile, level=logging.INFO, format=log_format,
                     datefmt=log_datefmt)
 

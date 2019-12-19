@@ -27,36 +27,34 @@
 
 Above instruction still valid for validator's node.
 
-The `OptractClient` will install in the following folders (call it `$basedir` below):
+The `OptractClient` will install in where user extract the file (the `$basedir`).
 
-- mac and linux: `~/.config/Optract`
-- windows: `~/AppData/Local/Optract`
-
-Under `$basedir` there contain files and directories after installation:
-- `dist/`: the main code, include executables, contract related, node_modules, nativeApp, systray
-  and gui
-- `config.json`, `ipfs_repo/`, `myArchive.bcup`, and `keystore/`: should keep these file while
-  update the main code
-    - note that cache files also in `$basedir` and may need to remove them in some cases
-- `optract.log`: contain installation log, and a couple lines while `nativeApp` start to work
+After install, `$basedir` contain files and directories:
+- `dist/`: the main code, include executables, contract related, node_modules, nativeApp,
+  systray and gui
+- `config.json`, `ipfs_repo/`, `myArchive.bcup`, and `keystore/`: should keep these file
+  while update the main code
+    - note that cache files also in `$basedir`
+- `optract.log`: contain installation log, and a couple lines while `nativeApp` start to
+  work
 
 ## To build
-- requirements: python2.7
-    - `pip` and `virtualenv`: it is probably better to use virtualenv of python and install python
-      modules in user space.  There's no `pip` in mac (at least not in MacOS 10.13) and no python
-      in windows 10. One way is to download and install python from python.org, install `virtualenv`
-      using `pip`, and create virtualenv (using python 2.7) as a non-root user. In mac, use
-      anaconda/miniconda (my choice) or homebrew or get-pip.py or macports are alternative choices.
+- requirements: python3 and modules
+    - create virtualenv: assume there are python3 installed (through python.org or
+      anaconda/minoconda or homebrew on mac or linux package managers). For example:
+        - unix, python3, bash or zsh
+            - `python3 -m venv ~/py37`
+            - `~/py37/bin/activate`
+        - unix, anaconda/miniconda, bash or zsh
+            - `conda create --name py37 python=3.7`
+            - `conda activate py37`
+        - to leave virtualenv, use `source deactivate` or `conda deactivate`
     - install python modules:
         - `pip install pyinstaller pyarmor wxPython psutil`
-    - register pyarmor (assume the register file is in `~/Downloads`)
+    - register pyarmor (assume the register file is in `~/Downloads/pyarmor-regfile-1.zip`)
         - `pyarmor register ~/Downloads/pyarmor-regfile-1.zip`
-        - then, run `pyarmor register` should see something like `This code is authorized to ...`
-    - note: should migrate to python3 in near future. In case that happens, at lease need to
-      update following places:
-        - encode/decode `bytes` in `struct.pack()` and `struct.unpack()`
-        - `raw_input()` -> `input()`
-        - remove `from __future__ import print_function`
+        - then, after run `pyarmor register` should show something like
+          `This code is authorized to ...`
 - if not yet:
     - `git clone git@github.com:elevenbuckets/OptractP2pCLI.git` 
     - `git checkout init_setup`
@@ -65,55 +63,37 @@ Under `$basedir` there contain files and directories after installation:
     - linux: `npm run release`
     - mac: `npm run releaseMac64`
     - win: `npm run releaseWin64`
-- Now there's a `dist` folder and the corresponding archive `Optract*.tar.gz` or zip file (for
-  windows release). 
-- What's next (for developer under linux)
-    - install: close browser and then `cd dist; ./install.sh`. More detail see **To install**
-      section
-    - log file in `~/.config/Optract/optract.log`
-    - test server and GUI (to see `stdout` and `stderr`), `cd ~/.config/Optract/dist`, then:
-        - start server: `./nativeApp/nativeApp test`
-        - systray: `./nativeApp/nativeApp testtray`
-            - note that wxpython's `TaskBarIcon` is not compatible with ubuntu, so pop up a window
-              instead
-    - access console
-        - in OptractP2PCli folder, `cd lib; cp pubsubNode.js libSampleTickets.js console.js ~/.config/Optract/dist`
-        - TODO: fix the config path in `console.js`
-        - `cd ~/.config/Optract/dist; ./bin/node ./lib/console.js` 
+- Now there's a `Optract_release` folder and the corresponding archive `Optract*.tar.gz` or
+  `.zip` file (for windows release). 
 
-To build without pyarmor (for debug purpose):
-- In `package.json`, rename the npm script `buildNativeAppNoArmor` to `buildNativeApp`, and the
-  original `buildNativeApp` or `buildNativeAppMac` to anything unused. Then run
-  `npm run release` or `npm run releaseMac64`.
 
 ## To install
-- **close browsers which has optract installed and make sure all processes are stop**
-- (optional) copy or move `keystore/`, `myArchive.bcup`, and `ipfs_repo` to `$basedir`.
-- In terminal, cd into the `dist` folder (extract the `Optract*.tar.gz` if necessary), run the 
-  following script to install:
-    - `./install.sh` for linux and mac
-    - `install.bat` for windows
-    - The script copies necessary files into `$basedir`, untar `node_modules.tar`, add registry
-      or copy the mainfest of extension to proper places depend on OS
+**close browsers which has optract installed and make sure all processes are stop**
 
-## developing
-**the following tips may be outdated**
-* to see the console:
-    - in OptractP2PCli folder: `cd lib; cp pubsubNode.js libSampleTickets.js console.js ~/.config/Optract/dist`
-        - TODO: add npm script for the line above
-        - TODO: update the path of config file in `console.js` to `../../` instead of `/../dapps`
-    - then open browser and run optract, or:
-        - `cd ~/.config/Optract/dist; ./nativeApp/nativeApp test`
-        - then wait ~10 seconds, should see a `enter anything to stop...`, wait a few more 
-          seconds to make sure nodes and ipfs are running
-    - open another terminal
-        - `cd ~/.config/Optract/dist; ./bin/node ./lib/console.js`
-    - to stop, go back to first terminal (if use this method) and press `enter` to stop
-* if update `daemon.js`, `pubSubNode.js`, or `libSampleTickets.js`, need to manually edit the `OptractDaemon.py`
-    - should find simple ways to update `OptractDaemon.py`
-* to develop nativeApp, there are two ways:
-    1. update `package.json`, and replace `buildNativeApp` by `buildNativeAppNoArmor` and build again
-        - the pyarmor-ed code are difficult to debug
-    2. simply replace the `~/.config/Optract/dist/nativeApp/nativeApp` by `nativeApp.py` and
-       also update the manifest file of browser extension
-* note: for wxPython, need to use `pythonw` instead of `python`
+- (optional) copy or move `keystore/`, `myArchive.bcup`, and `ipfs_repo` to `$basedir`.
+- open folder `$basedir/dist` (after extract the `Optract*.tar.gz`), install by:
+    - mac: `./systray.app/Contents/MacOS/systray` from terminal or double click `systray.app`
+    - linux: `./systray/systray` from terminal
+    - windows: double click `systray.exe`
+- Note that `systray` will install if `$basedir/.installed` does not exist
+- Note that the `install` here mainly prepare folders, untar `node_modules.tar` and tell
+  browsers the location of `$basedir/dist/nativeApp` (by creating or updating the 
+  corresponding `nativeMessagingHost` folders or registry).
+
+## about debug
+- Even build with pyarmor, if execute systray from command line, one can still see the error
+  line number and error message (if the problem is in systray or nativeApp)
+- check the log file in `$basedir/optract.log`
+- access console
+    - in OptractP2PCli folder, `cd lib; cp pubsubNode.js libSampleTickets.js console.js $basedir/dist/lib`
+    - `cd $basedir/dist`
+    - `vi lib/console.js`
+    - change this line (around line 23):
+      - from: `const config = JSON.parse(fs.readFileSync(path.join(__dirname, '/../dapps', 'config.json')).toString()); // can become part of cfgObj`
+      - to: `const config = JSON.parse(fs.readFileSync(path.join(__dirname, '../../', 'config.json')).toString()); // can become part of cfgObj`
+    - `./bin/node ./lib/console.js` 
+- test server and GUI (to see `stdout` and `stderr`), `cd $basedir/dist`, then:
+    - start server: `./nativeApp/nativeApp test`
+    - systray: `./nativeApp/nativeApp testtray`
+        - note that wxpython's `TaskBarIcon` is not compatible with ubuntu, so pop up a window
+          instead
