@@ -28,6 +28,8 @@ elif sys.platform.startswith('win32'):
     distdir = systray_dir
 nativeApp = NativeApp(distdir)
 
+# more global variables
+other_systray_proc = []  # will fill in the pid of another systray
 TRAY_TOOLTIP = 'Optract'
 
 icons = {
@@ -66,7 +68,6 @@ def create_menu_item(menu, label, func, enable=True, parent_menu=None):
 class TaskBarIcon(wx.adv.TaskBarIcon):
     def __init__(self, frame):
         self.frame = frame
-        # self.nativeApp = nativeApp
         super(TaskBarIcon, self).__init__()
 
         # init value
@@ -197,16 +198,6 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
                 # else:
                 #     log.info("Waiting for another try of restarting ipfs")
 
-    # def on_start_server(self, event):
-    #     msg = nativeApp.startServer()  # can_exit=False
-    #     if msg != '':
-    #         wx.MessageBox(msg + '\n Quit now')
-    #         sys.exit(0)
-
-    # def on_stop_server(self, event):
-    #     # TODO?: kill the process "nativeApp" if exists
-    #     nativeApp.stopServer()
-
     def on_restart_ipfs(self, event):
         nativeApp.start_ipfs()
 
@@ -240,6 +231,9 @@ class MainFrame(wx.Frame):
         # ensure the parent's __init__ is called
         super(MainFrame, self).__init__(*args, **kw)
         self.tbIcon = TaskBarIcon(self)
+
+        # leave if another systray is running
+        self.quit_if_duplicate()
 
         # create a panel in the frame
         self.panel = wx.Panel(self)
@@ -301,9 +295,9 @@ class MainFrame(wx.Frame):
         self.Bind(EVT_INSTALL, self.on_evt_install)
         self.Bind(EVT_STARTSERVER, self.on_evt_startserver)
         try:
-            self.install_called  # check existence of this variable
+            self.check_install  # check existence of this variable
         except AttributeError:
-            self.install_called = True
+            self.check_install = True
             if os.path.exists(nativeApp.install_lockFile):
                 # TODO: also check browser manifest are properly configured
                 # TODO: deal with Optract.LOCK (rm it in some cases)
@@ -378,6 +372,14 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_visit_homepage, visit_item)
         self.Bind(wx.EVT_MENU, self.on_exit, exit_item)
         self.Bind(wx.EVT_MENU, self.on_about, about_item)
+
+    def quit_if_duplicate(self):
+        if len(other_systray_proc) > 0:
+            wx.MessageBox("Another Optract-GUI is running\nPlease use the Optract-GUI (to start server) or kill the processes manually and start again.\n pid(s): {0}".format(other_systray_proc))
+            if len([x['status'] for x in other_systray_proc if x['status'] != 'zombie']) > 0:
+                sys.exit(0)
+            else:
+                log.warning('Detect zombie process(es)')
 
     def update_status_text(self):
         self.st.SetLabel(self.get_status_text())
@@ -482,16 +484,11 @@ class MainFrame(wx.Frame):
         #     self.Hide()
 
     def dialog_finish_install(self):
-        # msg = "Now finish install!\nPlease download firefox/chrome extensions: http://11be.org"
-        # dlg = wx.MessageDialog(parent=None, message=msg,
-        #                        caption="Optract Installer",
-        #                        style=wx.OK | wx.ICON_INFORMATION)
         if sys.platform.startswith('win32'):  # already popup dialog in the beginning of installation for win32
             dlg = wx.MessageBox("Finish installation")
-            dlg.ShowModal()
         else:
-            msg = "Finish installation. Press OK to visit https://11be.org to get the browser addon."
-            dlg = wx.MessageDialog(None, msg, "Visit homepage",
+            msg = "Press OK to visit https://11be.org to get the browser addon or CANCEL to continue."
+            dlg = wx.MessageDialog(None, msg, "Finish installation",
                                    wx.OK | wx.CANCEL | wx.ICON_INFORMATION)
             ret = dlg.ShowModal()
             if ret == wx.ID_OK:
@@ -510,8 +507,9 @@ class MainFrame(wx.Frame):
             nativeApp.install()
             wx.CallAfter(self.st_nativeApp.SetLabel, 'Starting server....')
             # note: use wx.CallAfter instead of calling gui from another thread (otherwise core dumped in Ubuntu)
+            # TODO: run self.start_server() before click the button in dialog_finish_install()
             wx.CallAfter(self.dialog_finish_install)
-            wx.CallAfter(self.start_server, True)
+            wx.CallAfter(self.start_server)
         t = threading.Thread(target=_evt_install, args=(self, ))
         t.setDaemon(True)
         t.start()
@@ -533,7 +531,7 @@ class MainFrame(wx.Frame):
         nativeApp.installer.create_and_write_manifest('chrome')
         wx.MessageBox('create nativeApp for chrome. Please install browser extension from https://11be.org')
 
-    def start_server(self, can_exit):
+    def start_server(self, can_exit=True):
         msg = nativeApp.pgrep_services_msg()
         if msg != '':
             wx.MessageBox(msg + '\nQuit now')
@@ -544,8 +542,7 @@ class MainFrame(wx.Frame):
     def on_evt_startserver(self, event):
         def _evt_startserver(win):
             wx.CallAfter(self.st_nativeApp.SetLabel, 'Starting server....')
-            # nativeApp.startServer(can_exit=True)  # to prevent multiple instances
-            wx.CallAfter(self.start_server, True)
+            wx.CallAfter(self.start_server)
         t = threading.Thread(target=_evt_startserver, args=(self, ))
         t.setDaemon(True)
         t.start()
@@ -580,15 +577,25 @@ class App(wx.App):
         return True
 
 
+def pgrep_systray():
+    proc = []
+    for p in psutil.process_iter(attrs=['pid', 'name', 'cmdline', 'status']):
+        # note: cmdline may not contain full path if execute manually
+        if p.info['name'] == 'systray' and p.info['pid'] != psutil.Process().pid:
+            log.error('[systray:pgrep_systray()] {0}'.format(p.info))
+            proc.append({'pid': p.info['pid'], 'status': p.info['status']})
+    return proc
+
+
 def main():
     # TODO: if there is another instance of systray (either running or not), show a warning (modal?) and quit
     print('DEBUG: running sysatry in {0}'.format(distdir))
     print('DEBUG: sysatry logfile in {0}'.format(logfile))
     app = App(False)
-    # frame = MainFrame(None, title='Optract GUI')
-    # frame.Show()
     app.MainLoop()
 
 
 if __name__ == '__main__':
+    other_systray_proc = pgrep_systray()  # set to a positive integer while there's another systray running
+    print('proc=', other_systray_proc)
     main()  # assume first argument is pid of nativeApp

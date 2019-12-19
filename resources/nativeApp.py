@@ -81,8 +81,6 @@ class NativeApp():
         return platform
 
     def install(self, forced=False):
-        # print('Installing... please see the progress in logfile: ' + logfile)
-        # print('Please also download Optract browser extension.')
         self.message = '[na]Installing'
         if forced:
             self.installer.install()
@@ -204,28 +202,44 @@ class NativeApp():
         ''' return dictionary {'ipfs':pid, 'node': pid} where pip is None or int '''
         result = {'ipfs': None, 'node': None}  # or make it an attribute of this class?
         for p in psutil.process_iter(attrs=['pid', 'name', 'cmdline']):
-            if p.info['name'] == 'ipfs' and len(p.info['cmdline']) >= 2:
-                if p.info['cmdline'][1] == 'daemon':
-                    result['ipfs'] = p.info
-            elif p.info['name'] == 'node' and p.info['cmdline'][0] == os.path.join(self.distdir, 'bin', 'node'):
-                result['node'] = p.info
+            if p.info['name'] == 'ipfs':
+                if result['ipfs'] is not None:
+                    log.warning('There are multiple instances of ipfs running')  # or error?
+                if p.info['cmdline'] is not None:
+                    if len(p.info['cmdline']) >= 2:
+                        if p.info['cmdline'][0] == os.path.join(self.distdir, 'bin', 'ipfs') and p.info['cmdline'][1] == 'daemon':
+                            result['ipfs'] = p.info
+            elif p.info['name'] == 'node':
+                if result['node'] is not None:
+                    log.warning('There are multiple instances of Optract running')  # or error?
+                if p.info['cmdline'] is not None:
+                    if p.info['cmdline'][0] == os.path.join(self.distdir, 'bin', 'node'):
+                        result['node'] = p.info
+            # TODO: deal with existing multiple instances of ipfs and node
+            if result['ipfs'] is not None and result['node'] is not None:
+                break
         return result
 
     def pgrep_services_msg(self):
         msg = ''
         processes = self.pgrep_services()
         if processes['ipfs'] is not None:
-            msg += '\nAnother instance of ipfs is running with pid {0}:\n\n{1}\n'.format(
+            msg += 'Another instance of ipfs is running with pid {0}:\n\n{1}\n'.format(
                 processes['ipfs']['pid'], ' '.join(processes['ipfs']['cmdline']))
         if processes['node'] is not None:
-            msg += '\nAnother instance of daemon is running with pid {0}:\n{1}\n'.format(
+            msg += '\nAnother instance of Optract is running with pid {0}:\n{1}\n'.format(
                 processes['node']['pid'], ' '.join(processes['node']['cmdline']))
-        if processes['node'] is not None or processes['ipfs'] is not None:
-            msg += '\n Detect another Optract and/or ipfs running, please kill/stop the process, close browser, and run Optract-gui again.\n'
+        if msg != '':
+            msg += '\nTo run Optract-gui, please kill/stop existing process(es) and close browser.\n'
         return msg.lstrip()
 
-    def startServer(self, can_exit=False, check_md5=True):
+    def startServer(self, can_exit=True, check_md5=True, check_existing_process=True):
         ''' note: in GUI, use pgrep_services_msg() to check existing services and exit if necessary'''
+        if check_existing_process:
+            msg = self.pgrep_services_msg()
+            if msg != '' and can_exit:
+                log.warning(msg)
+                sys.exit(0)
         if not self.platform == 'win32':  # in windows, nativeApp cannot close properly so lockFile is always there
             if os.path.exists(self.lockFile):
                 if can_exit:
@@ -235,7 +249,7 @@ class NativeApp():
                     log.warning('Do nothing: lockFile exists in: {0}'.format(self.lockFile))
                     return
 
-        if check_md5:  # chach_md5=False inside start_ipfs()
+        if check_md5:  # in start_ipfs(), chach_md5 should be False to prevent un-necessary(?) checks
             self.check_md5()
 
         ipfs_path = self.start_ipfs()
@@ -271,7 +285,7 @@ class NativeApp():
             time.sleep(0.8)
             try:
                 os.kill(self.ipfsP.pid, signal.SIGINT)
-            except Exception as err:
+            except Exception:
                 pass
 
 
@@ -281,74 +295,27 @@ def main(nativeApp):
     log.info('Start to listen to native message...')
     while True:
         message = nativeApp.get_message()
-        if "ping" in message.values() and started is False:
+        if message['text'] == 'ping' and started is False:
             started = True
-            # the "Popen" below will fail if there's a systray running due to the lock file of daemon.js
-            # TODO: (bug) can generate two systray if the first systray call "stop" and then start or restart browser
-            # add a lockfile for systray?
-            systrayP = subprocess.Popen([systray, ppid], shell=True, stdin=FNULL, stdout=FNULL, stderr=FNULL)  # the "shell=True" is essential for windows
-            log.info('sysatry (pid:{0}) and server starting...'.format(systrayP.pid))
+            processes = nativeApp.pgrep_services()
+            log.info('got "ping"')
+            if processes['node'] is None and processes['ipfs'] is None:
+                systrayP = subprocess.Popen([systray,], shell=True, stdin=FNULL, stdout=FNULL, stderr=FNULL)  # the "shell=True" is essential for windows
+                log.info('systray (pid:{0}) and server starting...'.format(systrayP.pid))
+            elif processes['node'] is not None and processes['ipfs'] is not None:
+                log.info('Servers are running. Do nothing.')
+            else:  # one pid exists and the other does not
+                # TODO: popup a warning?
+                if processes['node'] is None:
+                    log.warning('ipfs is running but node is not running')
+                elif processes['ipfs'] is None:
+                    log.warning('node is running but ipfs is not running')
     return
 
 
-# def mainwin():
-#     nativeApp = NativeApp()
-#     started = False
-#     log.info('Start to listen to native message...')
-#     while True:
-#         message = nativeApp.get_message()
-#         if "ping" in message.values() and started == False:
-#             started = True
-#             nativeApp.startServer()
-#             log.info('server started')
-#         if "pong" in message.values() and started == True:
-#             started = False
-#             log.info('closing native app...')
-#             nativeApp.stopServer()
-#             log.info('native app closed')
-#             sys.exit(0)
-#     return
-
-
-# def launcher():
-#     nativeApp = NativeApp()
-#     log.info('in launcher...')
-#     started = False
-#     while True:
-#         if started == False:
-#             started = True
-#             nativeApp.startServer()
-#             log.info('in launcher...starting server')
-#         time.sleep(3)
-#         pl = subprocess.Popen(['pgrep', '-lf', 'firefox'], stdout=subprocess.PIPE).communicate()[0]
-#         pl = pl.split("\n")[0:-1]
-#         if (len(pl) == 0):
-#             nativeApp.stopServer()
-#             sys.exit(0)
-#     return
-
-
-# def starter():
-#     nativeApp = NativeApp()
-#     log.info('in starter...')
-#     started = False
-#     while True:
-#         message = nativeApp.get_message()
-#         if "ping" in message.values() and started == False:
-#             log.info('[starter]got ping signal')
-#             started = True
-#             time.sleep(1)
-#             nativeApp = os.path.realpath(sys.argv[0])
-#             log.info('[starter]calling: {0} launch'.format(nativeApp))
-#             subprocess.Popen([nativeApp, "launch"])
-
-#             sys.exit(0)
-#     return
-
-
 if __name__ == '__main__':
-    # if distdir in : ~/Downloads/Optract/dist
-    # then nativeApp (this one) in : ~/Downloads/Optract/dist/nativeApp/nativeApp
+    # Note: if distdir in "~/Downloads/Optract/dist" then nativeApp (this one) in:
+    #       "~/Downloads/Optract/dist/nativeApp/nativeApp" (same for mac,linux,win)
     distdir = os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))
     nativeApp = NativeApp(distdir)
     basedir = nativeApp.basedir
@@ -363,46 +330,18 @@ if __name__ == '__main__':
 
     log.info('nativeApp path = {0}'.format(os.path.realpath(sys.argv[0])))
     log.info('basedir path = {0}'.format(basedir))
-    # print('nativeApp path = {0}'.format(os.path.realpath(sys.argv[0])))
-    # print('basedir path = {0}'.format(basedir))
 
-    # install
-    nativeApp.install()  # check the existence of .installed in distdir
-
-    # run nativeApp or tests
-    try:
-        ppid = '{0}'.format(os.getppid())  # pid of browser; getppid() only work on unix
-    except AttributeError:
-        ppid = '-'
-
+    # if call nativeApp from browser (chrome and firefox), they add extension id as argument
     if len(sys.argv) > 1:
-        if sys.argv[1] == 'install':  # redundant?
+        if sys.argv[1] == 'install':
             nativeApp.install()
         elif sys.argv[1] == 'test':
             nativeApp.startServer()
-            # raw_input("press <enter> to stop...")  # python2
-            input("press <enter> to stop...")  # python3
+            input("press <enter> to stop...")  # python3: input(); python2: raw_input()
             nativeApp.stopServer()
         elif sys.argv[1] == 'testtray':
-            systrapP = subprocess.Popen([systray, ppid])  # TODO: remove ppid
-        else:  # chrome and firefox add extension id as argument
+            systrapP = subprocess.Popen([systray,])
+        else:
             main(nativeApp)
     else:
         main(nativeApp)
-
-        # elif sys.argv[1] == 'launch':
-        #     if platform == 'win32':
-        #         raise BaseException("windows version does not support 'launch' argument")
-        #     launcher()
-        # else:
-        #     if platform == 'win32':
-        #         mainwin()
-        #     else:
-        #         log.info('calling starter() 1')
-        #         starter()
-    # else:
-        # if platform == 'win32':
-        #     mainwin()
-        # else:
-        #     log.info('calling starter() 2')
-        #     starter()
