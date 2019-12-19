@@ -31,7 +31,6 @@ elif sys.platform.startswith('win32'):
 nativeApp = NativeApp(distdir)
 
 # more global variables
-other_systray_proc = []  # will fill in the pid of another systray
 TRAY_TOOLTIP = 'Optract'
 
 icons = {
@@ -234,13 +233,16 @@ class MainFrame(wx.Frame):
         super(MainFrame, self).__init__(*args, **kw)
         self.tbIcon = TaskBarIcon(self)
 
-        # leave if another systray is running
-        self.quit_if_duplicate()
+        # quit if something's wrong
+        if errormsg != '':
+            wx.MessageBox('Exit due to following reason:\n\n{0}'.format(errormsg))
+            log.error(errormsg)
+            sys.exit(1)
+        self.quit_if_duplicate()  # merge it to "errormsg"?
 
         # create a panel in the frame
         self.panel = wx.Panel(self)
-
-        self.init_ui()
+        self.init_ui()  # buttons and text
 
         # create a menu bar
         self.makeMenuBar()
@@ -259,6 +261,10 @@ class MainFrame(wx.Frame):
         self.timer.Start(1000)  # ms
 
     def init_ui(self):
+        def _mouse_event(btn, help_string):
+            btn.Bind(wx.EVT_ENTER_WINDOW, lambda event: self.on_mouse_enter(event, help_string))
+            btn.Bind(wx.EVT_LEAVE_WINDOW, self.on_mouse_leave)
+
         # create a self.sizer to manage the layout of child widgets
         self.sizer = wx.GridBagSizer()
 
@@ -266,16 +272,19 @@ class MainFrame(wx.Frame):
         row = 0
         self.button_start_server = wx.Button(self.panel, label="start server")
         self.button_start_server.Bind(wx.EVT_BUTTON, self.on_start_server)
+        _mouse_event(self.button_start_server, "start server")
         self.sizer.Add(self.button_start_server, pos=(row, 0), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
         self.button_start_server.Disable()
 
         self.button_stop_server = wx.Button(self.panel, label="stop server")
         self.button_stop_server.Bind(wx.EVT_BUTTON, self.on_stop_server)
+        _mouse_event(self.button_stop_server, "stop server")
         self.sizer.Add(self.button_stop_server, pos=(row, 1), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
         self.button_stop_server.Disable()
 
         self.button_ipfs_restart = wx.Button(self.panel, label="restart ipfs")
         self.button_ipfs_restart.Bind(wx.EVT_BUTTON, self.on_restart_ipfs)
+        _mouse_event(self.button_ipfs_restart, "restart ipfs")
         self.button_ipfs_restart.Disable()
         self.sizer.Add(self.button_ipfs_restart, pos=(row, 2), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
 
@@ -284,10 +293,12 @@ class MainFrame(wx.Frame):
         if self.tbIcon.IsAvailable():
             self.button_minimize = wx.Button(self.panel, label="Minimize")
             self.button_minimize.Bind(wx.EVT_BUTTON, self.on_iconize)
+            _mouse_event(self.button_minimize, "minimize to tray")
             self.sizer.Add(self.button_minimize, pos=(row, 0), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
             _ += 1
         self.button_exit = wx.Button(self.panel, label="Exit")
         self.button_exit.Bind(wx.EVT_BUTTON, self.on_exit)
+        _mouse_event(self.button_exit, "Exit")
         self.sizer.Add(self.button_exit, pos=(row, _), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
 
         # put some text with a larger bold font on it
@@ -303,11 +314,13 @@ class MainFrame(wx.Frame):
         row = 3
         self.button_config_firefox = wx.Button(self.panel, label='config firefox')
         self.button_config_firefox.Bind(wx.EVT_BUTTON, self.on_config_firefox)
+        _mouse_event(self.button_config_firefox, "tell firefox the location of Optract-gui")
         self.sizer.Add(self.button_config_firefox, pos=(row, 0), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
         self.button_config_firefox.Disable()
 
         self.button_config_chrome = wx.Button(self.panel, label='config chrome')
         self.button_config_chrome.Bind(wx.EVT_BUTTON, self.on_config_chrome)
+        _mouse_event(self.button_config_chrome, "tell chrome the location of Optract-gui")
         self.sizer.Add(self.button_config_chrome, pos=(row, 1), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
         self.button_config_chrome.Disable()
 
@@ -381,7 +394,7 @@ class MainFrame(wx.Frame):
 
     def quit_if_duplicate(self):
         if len(other_systray_proc) > 0:
-            wx.MessageBox("Another Optract-GUI is running\nPlease use the Optract-GUI (to start server) or kill the processes manually and start again.\n pid(s): {0}".format(other_systray_proc))
+            wx.MessageBox("Exit due to following reason:\n\nAnother Optract-GUI is running. Please use the Optract-GUI (and start server) or kill the processes using system task manager and start again.\n pid(s): {0}".format(other_systray_proc))
             # TODO: test the 'zombie' case
             if len([x['status'] for x in other_systray_proc if x['status'] != 'zombie']) > 0:
                 sys.exit(0)
@@ -460,6 +473,15 @@ class MainFrame(wx.Frame):
             else:
                 self.button_config_chrome.Disable()
 
+    def on_mouse_enter(self, event, help_string):
+        # self.StatusBar.SetStatusText("button: {0}".format(btn.GetLabel()))
+        self.StatusBar.SetStatusText(help_string)
+        event.Skip()
+
+    def on_mouse_leave(self, event):
+        self.StatusBar.SetStatusText("")
+        event.Skip()
+
     def on_restart_ipfs(self, event):
         self.button_start_server.Disable()
         self.button_stop_server.Disable()
@@ -494,6 +516,7 @@ class MainFrame(wx.Frame):
         if sys.platform.startswith('win32'):  # already popup dialog in the beginning of installation for win32
             dlg = wx.MessageBox("Finish installation")
         else:
+            # TODO: a bit confusing to use "cancel" button here, change to something else
             msg = "Press OK to visit https://11be.org to get the browser addon or CANCEL to continue."
             dlg = wx.MessageDialog(None, msg, "Finish installation",
                                    wx.OK | wx.CANCEL | wx.ICON_INFORMATION)
@@ -595,7 +618,6 @@ def pgrep_systray():
 
 
 def main():
-    # TODO: if there is another instance of systray (either running or not), show a warning (modal?) and quit
     print('DEBUG: running sysatry in {0}'.format(distdir))
     print('DEBUG: sysatry logfile in {0}'.format(logfile))
     app = App(False)
@@ -603,5 +625,9 @@ def main():
 
 
 if __name__ == '__main__':
-    other_systray_proc = pgrep_systray()  # set to a positive integer while there's another systray running
-    main()  # assume first argument is pid of nativeApp
+    if len(sys.argv) > 1:
+        errormsg = sys.argv[1]
+    else:
+        errormsg = ''
+    other_systray_proc = pgrep_systray()
+    main()
