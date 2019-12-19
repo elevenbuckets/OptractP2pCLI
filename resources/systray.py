@@ -11,6 +11,8 @@ import threading
 import wx.lib.newevent as NE
 import webbrowser
 from nativeApp import NativeApp
+# TODO: help user to move $basedir to another place, or detect and show warnings. Such as
+#       browser nativeMsgHost missing warning (done); and paths in config.json (not done)
 
 InstallEvent, EVT_INSTALL = NE.NewEvent()
 StartserverEvent, EVT_STARTSERVER = NE.NewEvent()
@@ -238,6 +240,25 @@ class MainFrame(wx.Frame):
         # create a panel in the frame
         self.panel = wx.Panel(self)
 
+        self.init_ui()
+
+        # create a menu bar
+        self.makeMenuBar()
+
+        # and a status bar
+        self.CreateStatusBar()
+        self.SetStatusText("Welcome to Optract!")
+        # TODO: add more status text (for example, while mouse on buttons)
+
+        # events
+        self.Bind(wx.EVT_CLOSE, self.on_iconize)  # iconize instead of close
+        # self.Bind(wx.EVT_ICONIZE, self.on_iconize)
+
+        self.timer = wx.Timer(self)
+        self.Bind(wx.EVT_TIMER, self.on_timer)
+        self.timer.Start(1000)  # ms
+
+    def init_ui(self):
         # create a self.sizer to manage the layout of child widgets
         self.sizer = wx.GridBagSizer()
 
@@ -299,9 +320,11 @@ class MainFrame(wx.Frame):
         except AttributeError:
             self.check_install = True
             if os.path.exists(nativeApp.install_lockFile):
-                # TODO: also check browser manifest are properly configured
                 # TODO: deal with Optract.LOCK (rm it in some cases)
                 self.st_nativeApp = wx.StaticText(self.panel, label='Welcome to Optract!')
+                log.info('checking browser during render UI: firefox:{0}, chrome:{1}'.format(self.check_browser('firefox'), self.check_browser('chrome')))
+                if not (self.check_browser('firefox') or self.check_browser('chrome')):
+                    wx.MessageBox('Cannot find config for firefox and chrome. Please click the "config browser" buttons')
                 wx.PostEvent(self, StartserverEvent())
             else:
                 self.st_nativeApp = wx.StaticText(self.panel, label='Installing Optract...')
@@ -311,25 +334,8 @@ class MainFrame(wx.Frame):
         self.sizer.Add(self.st_nativeApp, pos=(row, 0), span=(1, 3), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
 
         # TODO: add buttons to enter config menu (such as re-configure browser manifest)
-
         # setSizer to panel
         self.panel.SetSizer(self.sizer)
-
-        # create a menu bar
-        self.makeMenuBar()
-
-        # and a status bar
-        self.CreateStatusBar()
-        self.SetStatusText("Welcome to Optract!")
-        # TODO: add more status text (for example, while mouse on buttons)
-
-        # events
-        self.Bind(wx.EVT_CLOSE, self.on_iconize)  # iconize instead of close
-        # self.Bind(wx.EVT_ICONIZE, self.on_iconize)
-
-        self.timer = wx.Timer(self)
-        self.Bind(wx.EVT_TIMER, self.on_timer)
-        self.timer.Start(1000)  # ms
 
     def makeMenuBar(self):
         # Make a file menu with Hello and Exit items
@@ -376,6 +382,7 @@ class MainFrame(wx.Frame):
     def quit_if_duplicate(self):
         if len(other_systray_proc) > 0:
             wx.MessageBox("Another Optract-GUI is running\nPlease use the Optract-GUI (to start server) or kill the processes manually and start again.\n pid(s): {0}".format(other_systray_proc))
+            # TODO: test the 'zombie' case
             if len([x['status'] for x in other_systray_proc if x['status'] != 'zombie']) > 0:
                 sys.exit(0)
             else:
@@ -597,5 +604,4 @@ def main():
 
 if __name__ == '__main__':
     other_systray_proc = pgrep_systray()  # set to a positive integer while there's another systray running
-    print('proc=', other_systray_proc)
     main()  # assume first argument is pid of nativeApp
