@@ -512,8 +512,7 @@ class MainFrame(wx.Frame):
         if sys.platform.startswith('win32'):  # already popup dialog in the beginning of installation for win32
             dlg = wx.MessageBox("Finish installation")
         else:
-            # TODO: a bit confusing to use "cancel" button here, change to something else
-            msg = "Press OK to visit https://11be.org to get the browser addon or CANCEL to continue."
+            msg = "Visit 11be.org for the browser add-ons?\nYou can also cancel now and visit 11be.org later."
             dlg = wx.MessageDialog(None, msg, "Finish installation",
                                    wx.OK | wx.CANCEL | wx.ICON_INFORMATION)
             ret = dlg.ShowModal()
@@ -533,9 +532,8 @@ class MainFrame(wx.Frame):
             nativeApp.install()
             wx.CallAfter(self.st_nativeApp.SetLabel, 'Starting server....')
             # note: use wx.CallAfter instead of calling gui from another thread (otherwise core dumped in Ubuntu)
-            # TODO: run self.start_server() before click the button in dialog_finish_install()
-            wx.CallAfter(self.dialog_finish_install)
             wx.CallAfter(self.start_server)
+            wx.CallAfter(self.dialog_finish_install)
         t = threading.Thread(target=_evt_install, args=(self, ))
         t.setDaemon(True)
         t.start()

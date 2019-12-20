@@ -214,6 +214,7 @@ class NativeApp():
                     log.warning('There are multiple instances of Optract running')  # or error?
                 if p.info['cmdline'] is not None:
                     if p.info['cmdline'][0] == os.path.join(self.distdir, 'bin', 'node'):
+                    # full path to node here; while debugging usually use relative path like ./bin/node so should be safe
                         result['node'] = p.info
             # TODO: deal with existing multiple instances of ipfs and node
             if result['ipfs'] is not None and result['node'] is not None:
