@@ -247,7 +247,6 @@ class MainFrame(wx.Frame):
         # and a status bar
         self.CreateStatusBar()
         self.SetStatusText("Welcome to Optract!")
-        # TODO: add more status text (for example, while mouse on buttons)
 
         # events
         self.Bind(wx.EVT_CLOSE, self.on_iconize)  # iconize instead of close
@@ -258,7 +257,8 @@ class MainFrame(wx.Frame):
         self.timer.Start(1000)  # ms
 
     def init_ui(self):
-        def _mouse_event(btn, help_string):
+        def _btn_bindings(btn, func, help_string):
+            btn.Bind(wx.EVT_BUTTON, func)
             btn.Bind(wx.EVT_ENTER_WINDOW, lambda event: self.on_mouse_enter(event, help_string))
             btn.Bind(wx.EVT_LEAVE_WINDOW, self.on_mouse_leave)
 
@@ -268,20 +268,17 @@ class MainFrame(wx.Frame):
         # make buttons
         row = 0
         self.button_start_server = wx.Button(self.panel, label="start server")
-        self.button_start_server.Bind(wx.EVT_BUTTON, self.on_start_server)
-        _mouse_event(self.button_start_server, "start server")
+        _btn_bindings(self.button_start_server, self.on_start_server, "start server")
         self.sizer.Add(self.button_start_server, pos=(row, 0), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
         self.button_start_server.Disable()
 
         self.button_stop_server = wx.Button(self.panel, label="stop server")
-        self.button_stop_server.Bind(wx.EVT_BUTTON, self.on_stop_server)
-        _mouse_event(self.button_stop_server, "stop server")
+        _btn_bindings(self.button_stop_server, self.on_stop_server, "stop server")
         self.sizer.Add(self.button_stop_server, pos=(row, 1), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
         self.button_stop_server.Disable()
 
         self.button_ipfs_restart = wx.Button(self.panel, label="restart ipfs")
-        self.button_ipfs_restart.Bind(wx.EVT_BUTTON, self.on_restart_ipfs)
-        _mouse_event(self.button_ipfs_restart, "restart ipfs")
+        _btn_bindings(self.button_ipfs_restart, self.on_restart_ipfs, "restart ipfs")
         self.button_ipfs_restart.Disable()
         self.sizer.Add(self.button_ipfs_restart, pos=(row, 2), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
 
@@ -289,13 +286,12 @@ class MainFrame(wx.Frame):
         _ = 0
         if self.tbIcon.IsAvailable():
             self.button_minimize = wx.Button(self.panel, label="Minimize")
-            self.button_minimize.Bind(wx.EVT_BUTTON, self.on_iconize)
-            _mouse_event(self.button_minimize, "minimize to tray")
+            _btn_bindings(self.button_minimize, self.on_iconize, "minimize to tray")
             self.sizer.Add(self.button_minimize, pos=(row, 0), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
             _ += 1
         self.button_exit = wx.Button(self.panel, label="Exit")
         self.button_exit.Bind(wx.EVT_BUTTON, self.on_exit)
-        _mouse_event(self.button_exit, "Exit")
+        _btn_bindings(self.button_exit, self.on_exit, "Exit")
         self.sizer.Add(self.button_exit, pos=(row, _), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
 
         # put some text with a larger bold font on it
@@ -310,14 +306,12 @@ class MainFrame(wx.Frame):
         # check browser status
         row = 3
         self.button_config_firefox = wx.Button(self.panel, label='config firefox')
-        self.button_config_firefox.Bind(wx.EVT_BUTTON, self.on_config_firefox)
-        _mouse_event(self.button_config_firefox, "tell firefox the location of Optract-gui")
+        _btn_bindings(self.button_config_firefox, self.on_config_firefox, "tell firefox the location of Optract-gui")
         self.sizer.Add(self.button_config_firefox, pos=(row, 0), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
         self.button_config_firefox.Disable()
 
         self.button_config_chrome = wx.Button(self.panel, label='config chrome')
-        self.button_config_chrome.Bind(wx.EVT_BUTTON, self.on_config_chrome)
-        _mouse_event(self.button_config_chrome, "tell chrome the location of Optract-gui")
+        _btn_bindings(self.button_config_chrome, self.on_config_chrome, "tell chrome the location of Optract-gui")
         self.sizer.Add(self.button_config_chrome, pos=(row, 1), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
         self.button_config_chrome.Disable()
 
@@ -344,7 +338,6 @@ class MainFrame(wx.Frame):
         self.sizer.Add(self.st_nativeApp, pos=(row, 0), span=(1, 3), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
 
         # TODO: add buttons to enter config menu (such as re-configure browser manifest)
-        # setSizer to panel
         self.panel.SetSizer(self.sizer)
 
     def makeMenuBar(self):
