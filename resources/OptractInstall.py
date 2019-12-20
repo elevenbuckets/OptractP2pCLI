@@ -57,7 +57,7 @@ class OptractInstall():
             else:
                 self.status['firefox'] = False
                 log.warning('Failed to create manifest for firefox')
-            if not self.create_and_write_manifest('chrome'):
+            if self.create_and_write_manifest('chrome'):
                 self.status['chrome'] = True
             else:
                 self.status['chrome'] = False
@@ -215,8 +215,8 @@ class OptractInstall():
             raise BaseException('Unsupported browser {0}'.format(browser))
 
         # create manifest file and write to native message folder
-        log.info('create manifest registry for {0}'.format(browser))
         if sys.platform.startswith('win32'):
+            log.info('create manifest registry for {0}'.format(browser))
             if browser == 'chrome':
                 self.add_registry_chrome()
             elif browser == 'firefox':

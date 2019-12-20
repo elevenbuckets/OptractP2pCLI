@@ -502,8 +502,8 @@ class MainFrame(wx.Frame):
         # TODO: if TaskBarIcon is available, add an event handler which close window and keep servers running
         log.info('Bye!')
         nativeApp.stopServer()
-        time.sleep(0.8)
-        # self.tbIcon.RemoveIcon()
+        # time.sleep(0.8)
+        self.tbIcon.RemoveIcon()
         self.tbIcon.Destroy()
         self.DestroyLater()
 
