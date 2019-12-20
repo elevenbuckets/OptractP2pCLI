@@ -219,11 +219,8 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
             wx.MessageBox('do nothing')
 
     def on_exit(self, event):
-        # TODO/BUG: on mac, sometimes segmentfault or buserror, especially while (1)window is shown; (2)exit shortly after open
         nativeApp.stopServer()
-        log.info('[taskbar] call frame.DestroyLater()')
         self.frame.DestroyLater()
-        log.info('[taskbar] call Destroy()')
         self.Destroy()
 
 
@@ -335,7 +332,7 @@ class MainFrame(wx.Frame):
             if os.path.exists(nativeApp.install_lockFile):
                 # TODO: deal with Optract.LOCK (rm it in some cases)
                 self.st_nativeApp = wx.StaticText(self.panel, label='Welcome to Optract!')
-                log.info('checking browser during render UI: firefox:{0}, chrome:{1}'.format(self.check_browser('firefox'), self.check_browser('chrome')))
+                log.info('checking browser nativeMessageHost config: firefox:{0}, chrome:{1}'.format(self.check_browser('firefox'), self.check_browser('chrome')))
                 if not (self.check_browser('firefox') or self.check_browser('chrome')):
                     wx.MessageBox('Cannot find config for firefox and chrome. Please click the "config browser" buttons')
                 wx.PostEvent(self, StartserverEvent())
@@ -498,14 +495,13 @@ class MainFrame(wx.Frame):
 
     def on_exit(self, event):
         """Close the frame, terminating the application."""
-        # TODO/BUG: sometimes segmentfault on mac
         # TODO: if TaskBarIcon is available, add an event handler which close window and keep servers running
         log.info('Bye!')
         nativeApp.stopServer()
         # time.sleep(0.8)
         self.tbIcon.RemoveIcon()
         self.tbIcon.Destroy()
-        self.DestroyLater()
+        self.Destroy()
 
     def on_iconize(self, event):
         self.Iconize(True)
