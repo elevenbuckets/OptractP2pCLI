@@ -561,11 +561,11 @@ class MainFrame(wx.Frame):
         except BadChecksum as e:  # note: should not happen this for users (developers has to update OptractInstall.check_md5())
             msg = '[Error] Wrong checksum: \n{0}\nPlease download again to fix it. Press okay to quit.'.format(e)
             log.error(msg)
-            wx.MessageBox(msg)
+            wx.MessageBox(msg, "Bad checksum error", wx.OK | wx.ICON_ERROR)
             sys.exit(1)
         except Exception as e:
             log.error(e)
-            wx.MessageBox(e)
+            wx.MessageBox(e, "Error", wx.OK | wx.ICON_ERROR)
             sys.exit(1)
 
     def on_config_firefox(self, event):
@@ -601,11 +601,11 @@ class MainFrame(wx.Frame):
         except BadChecksum as e:
             msg = '[Error] Wrong checksum: \n{0}\nPlease download again to fix it. Press okay to quit.'.format(e)
             log.error(msg)
-            wx.MessageBox(msg)
+            wx.MessageBox(msg, "Bad checksum error", wx.OK | wx.ICON_ERROR)
             sys.exit(1)
         except Exception as e:
             log.error(e)
-            wx.MessageBox(e)
+            wx.MessageBox(e, "Error", wx.OK | wx.ICON_ERROR)
             sys.exit(1)
 
     def on_about(self, event):
