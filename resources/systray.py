@@ -228,6 +228,7 @@ class MainFrame(wx.Frame):
     def __init__(self, *args, **kw):
         # ensure the parent's __init__ is called
         super(MainFrame, self).__init__(*args, **kw)
+        self.Center()
         self.tbIcon = TaskBarIcon(self)
 
         # quit if something's wrong
@@ -505,7 +506,7 @@ class MainFrame(wx.Frame):
         if sys.platform.startswith('win32'):  # already popup dialog in the beginning of installation for win32
             dlg = wx.MessageBox("Finish installation")
         else:
-            msg = "Visit 11be.org for the browser add-ons?\nYou can also cancel now and visit 11be.org later."
+            msg = "Server is starting...\nVisit 11be.org for the browser add-ons and latest information (or cancel to ignore it)?"
             dlg = wx.MessageDialog(None, msg, "Finish installation",
                                    wx.OK | wx.CANCEL | wx.ICON_INFORMATION)
             ret = dlg.ShowModal()

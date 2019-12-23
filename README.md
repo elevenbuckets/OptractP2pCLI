@@ -51,6 +51,13 @@ After install, `$basedir` contain files and directories:
         - to leave virtualenv, use `source deactivate` or `conda deactivate`
     - install python modules:
         - `pip install pyinstaller pyarmor wxPython psutil`
+        - need to install at lease several dependencies. Some noticable ones are `python-dev` and `libgtk-3-dev`: https://wxpython.org/blog/2017-08-17-builds-for-linux-with-pip/index.html
+          - In a virtual machine (Arch linux with python 3.8 and gcc 9.2.0), even download all libraries mentioned above and use `pip wheel` cannot work (only see g++ fatal error but cannot tell if something's missing or what). But, somehow using `python build.py ...` can work, steps here https://github.com/wxWidgets/Phoenix/issues/1196 (it require 3.7G of space while building):
+            1. get `wxpython-4.x.x.tar.gz` from pypi and untar it
+            2. cd into the folder
+            3. `python build.py build_wx`
+            4. `python build.py build_py 2>&1 | tee build.log`
+            5. `pip install dist/wxpython-4.x.x...x86_64.whl`
     - register pyarmor (assume the register file is in `~/Downloads/pyarmor-regfile-1.zip`)
         - `pyarmor register ~/Downloads/pyarmor-regfile-1.zip`
         - then, after run `pyarmor register` should show something like
