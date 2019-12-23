@@ -597,11 +597,14 @@ class App(wx.App):
 
 def pgrep_systray():
     proc = []
+    # if sys.platform.startswith('linux'):
+    working_pids = [ os.getpid(), os.getppid() ]  # todo: test it in all platforms
     for p in psutil.process_iter(attrs=['pid', 'name', 'cmdline', 'status']):
         # note: cmdline may not contain full path if execute manually
-        if p.info['name'] == 'systray' and p.info['pid'] != psutil.Process().pid:
-            log.error('[systray:pgrep_systray()] {0}'.format(p.info))
-            proc.append({'pid': p.info['pid'], 'status': p.info['status']})
+        if p.info['name'] == 'systray':
+            if p.info['pid'] not in working_pids:
+                log.error('[systray:pgrep_systray()] {0}'.format(p.info))
+                proc.append({'pid': p.info['pid'], 'status': p.info['status']})
     return proc
 
 
