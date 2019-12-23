@@ -8,6 +8,7 @@ import json
 import subprocess
 import hashlib
 import logging
+from exceptions import BadChecksum
 log = logging.getLogger(__name__)
 
 if sys.platform == "win32":
@@ -250,9 +251,8 @@ class OptractInstall():
     def _compare_md5(self, filename, md5_expected):
         md5_seen = hashlib.md5(open(filename, 'rb').read()).hexdigest()
         if md5_seen != md5_expected:
-            msg = 'The md5sum of file {0} is inconsistent with expected hash.'.format(filename)
-            log.error(msg)
-            raise BaseException(msg)
+            msg = 'The md5sum of file \n\t{0}\nis inconsistent with expected value.'.format(filename)
+            raise BadChecksum(msg)
 
     def check_md5(self):
         if sys.platform.startswith('win32'):

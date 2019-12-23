@@ -11,6 +11,7 @@ import threading
 import wx.lib.newevent as NE
 import webbrowser
 from nativeApp import NativeApp
+from exceptions import BadChecksum
 # TODO: help user to move $basedir to another place, or detect and show warnings. Such as
 #       browser nativeMsgHost missing warning (done); and paths in config.json (not done)
 
@@ -50,6 +51,22 @@ logfile = os.path.join(nativeApp.basedir, 'optract.log')
 # TODO: let log level=logging.WARNING for released version? or make a toggle for the level
 logging.basicConfig(filename=logfile, level=logging.INFO, format=log_format,
                     datefmt=log_datefmt)
+
+
+class PropagatingThread(threading.Thread):
+    def run(self):
+        ''' see https://stackoverflow.com/a/31614591 '''
+        self.exc = None
+        try:
+            self.ret = self._target(*self._args, **self._kwargs)
+        except BaseException as e:
+            self.exc = e
+
+    def join(self):
+        super(PropagatingThread, self).join()
+        if self.exc:
+            raise self.exc
+        return self.ret
 
 
 def create_menu_item(menu, label, func, enable=True, parent_menu=None):
@@ -518,8 +535,6 @@ class MainFrame(wx.Frame):
         webbrowser.open("https://11be.org")
 
     def on_evt_install(self, event):
-        # TODO: provide information about the addon is installed locally and only create nativeMsg for
-        #       chrome or firefox
         # TODO: detect existing installation from browser nativeMsg, and confirm to use the data there
         #       (by replacing the dist folder there)
         def _evt_install(win):
@@ -528,7 +543,8 @@ class MainFrame(wx.Frame):
             # note: use wx.CallAfter instead of calling gui from another thread (otherwise core dumped in Ubuntu)
             wx.CallAfter(self.start_server)
             wx.CallAfter(self.dialog_finish_install)
-        t = threading.Thread(target=_evt_install, args=(self, ))
+        # t = threading.Thread(target=_evt_install, args=(self, ))
+        t = PropagatingThread(target=_evt_install, args=(self,))
         t.setDaemon(True)
         t.start()
 
@@ -538,6 +554,19 @@ class MainFrame(wx.Frame):
             ret = dlg.ShowModal()
             if ret == wx.ID_OK:
                 webbrowser.open("https://11be.org")
+
+        # check exceptions from thread
+        try:
+            t.join()  # it blocks, is there better way?
+        except BadChecksum as e:  # note: should not happen this for users (developers has to update OptractInstall.check_md5())
+            msg = '[Error] Wrong checksum: \n{0}\nPlease download again to fix it. Press okay to quit.'.format(e)
+            log.error(msg)
+            wx.MessageBox(msg)
+            sys.exit(1)
+        except Exception as e:
+            log.error(e)
+            wx.MessageBox(e)
+            sys.exit(1)
 
     def on_config_firefox(self, event):
         log.info('createing or config manifest for firefox')
@@ -561,9 +590,23 @@ class MainFrame(wx.Frame):
         def _evt_startserver(win):
             wx.CallAfter(self.st_nativeApp.SetLabel, 'Starting server....')
             wx.CallAfter(self.start_server)
-        t = threading.Thread(target=_evt_startserver, args=(self, ))
+        # t = threading.Thread(target=_evt_startserver, args=(self, ))
+        t = PropagatingThread(target=_evt_startserver, args=(self,))
         t.setDaemon(True)
         t.start()
+
+        # check exceptions
+        try:
+            t.join()  # it blocks, is there better way?
+        except BadChecksum as e:
+            msg = '[Error] Wrong checksum: \n{0}\nPlease download again to fix it. Press okay to quit.'.format(e)
+            log.error(msg)
+            wx.MessageBox(msg)
+            sys.exit(1)
+        except Exception as e:
+            log.error(e)
+            wx.MessageBox(e)
+            sys.exit(1)
 
     def on_about(self, event):
         """Display an About Dialog"""
@@ -593,7 +636,6 @@ class App(wx.App):
         icon = wx.Icon(wx.Bitmap(TRAY_ICON))
         frame.SetIcon(icon)
         return True
-
 
 def pgrep_systray():
     proc = []
