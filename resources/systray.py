@@ -255,6 +255,10 @@ class MainFrame(wx.Frame):
             sys.exit(1)
         self.quit_if_duplicate()  # merge it to "errormsg"?
 
+        # threads
+        self.thread_running = False  # in on_timer(), use it to monitor and join threads
+        self.threads = []
+
         # create a panel in the frame
         self.panel = wx.Panel(self)
         self.init_ui()  # buttons and text
@@ -272,7 +276,7 @@ class MainFrame(wx.Frame):
 
         self.timer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.on_timer)
-        self.timer.Start(1000)  # ms
+        self.timer.Start(900)  # ms
 
     def init_ui(self):
         def _btn_bindings(btn, func, help_string):
@@ -435,6 +439,12 @@ class MainFrame(wx.Frame):
         else:
             return False
 
+    def set_thread_running_true(self):
+        self.thread_running = True
+
+    def set_thread_running_false(self):
+        self.thread_running = False
+
     def on_timer(self, event):
         self.update_status_text()
 
@@ -462,7 +472,7 @@ class MainFrame(wx.Frame):
         if os.path.exists(nativeApp.install_lockFile) \
                 and self.tbIcon.ipfsP_is_running and self.tbIcon.nodeP_is_running:
             self.timer.Stop()
-            self.timer.Start(5000)  # use lower frequency
+            self.timer.Start(4000)  # use lower frequency
             self.st_nativeApp.SetLabel('Optract is running')
         else:
             self.st_nativeApp.SetLabel(nativeApp.installer.message)
@@ -480,6 +490,30 @@ class MainFrame(wx.Frame):
                 self.button_config_chrome.Enable()
             else:
                 self.button_config_chrome.Disable()
+
+        # test: handle exceptions inside threads
+        # the "t.join()" block main thread, so only do it after it terminate
+        if threading.active_count() == 1 and self.thread_running is True:  # one is main thread
+            if self.threads == 0:  # should not happen
+                raise BaseException("bug: thread not found. Probably somehow not recorded?")
+            t = self.threads.pop()
+            # print("threading.active_count() = ", threading.active_count())
+            # print("len(self.threads) = ", len(self.threads))
+            if len(self.threads) == 0:
+                self.set_thread_running_false()
+
+            # check exceptions from thread
+            try:
+                t.join()  # it blocks
+            except BadChecksum as e:
+                msg = '[Error] Wrong checksum: \n{0}\nPlease download again to fix it. Press okay to quit.'.format(e)
+                log.error(msg)
+                wx.MessageBox(msg, "Bad checksum error", wx.OK | wx.ICON_ERROR)
+                sys.exit(1)
+            except Exception as e:
+                log.error(e)
+                wx.MessageBox(e, "Error", wx.OK | wx.ICON_ERROR)
+                sys.exit(1)
 
     def on_mouse_enter(self, event, help_string):
         # self.StatusBar.SetStatusText("button: {0}".format(btn.GetLabel()))
@@ -529,7 +563,6 @@ class MainFrame(wx.Frame):
             ret = dlg.ShowModal()
             if ret == wx.ID_OK:
                 webbrowser.open("https://11be.org")
-        dlg.Destroy()
 
     def on_visit_homepage(self, event):
         webbrowser.open("https://11be.org")
@@ -540,33 +573,23 @@ class MainFrame(wx.Frame):
         def _evt_install(win):
             nativeApp.install()
             wx.CallAfter(self.st_nativeApp.SetLabel, 'Starting server....')
-            # note: use wx.CallAfter instead of calling gui from another thread (otherwise core dumped in Ubuntu)
             wx.CallAfter(self.start_server)
             wx.CallAfter(self.dialog_finish_install)
         # t = threading.Thread(target=_evt_install, args=(self, ))
         t = PropagatingThread(target=_evt_install, args=(self,))
         t.setDaemon(True)
         t.start()
+        # note: deal with exceptions from threads inside on_timer() function
+        self.set_thread_running_true()
+        self.threads.append(t)
 
         if sys.platform.startswith('win32'):
-            dlg = wx.MessageDialog(None, "Press OK to visit https://11be.org to get the browser addon", "Visit homepage",
+            msg = "Installing, will need sometime. Press OK to visit https://11be.org to get the browser addon"
+            dlg = wx.MessageDialog(None, msg, "Visit homepage",
                                    wx.OK | wx.CANCEL | wx.ICON_INFORMATION)
             ret = dlg.ShowModal()
             if ret == wx.ID_OK:
                 webbrowser.open("https://11be.org")
-
-        # check exceptions from thread
-        try:
-            t.join()  # it blocks, is there better way?
-        except BadChecksum as e:  # note: should not happen this for users (developers has to update OptractInstall.check_md5())
-            msg = '[Error] Wrong checksum: \n{0}\nPlease download again to fix it. Press okay to quit.'.format(e)
-            log.error(msg)
-            wx.MessageBox(msg, "Bad checksum error", wx.OK | wx.ICON_ERROR)
-            sys.exit(1)
-        except Exception as e:
-            log.error(e)
-            wx.MessageBox(e, "Error", wx.OK | wx.ICON_ERROR)
-            sys.exit(1)
 
     def on_config_firefox(self, event):
         log.info('createing or config manifest for firefox')
@@ -594,19 +617,9 @@ class MainFrame(wx.Frame):
         t = PropagatingThread(target=_evt_startserver, args=(self,))
         t.setDaemon(True)
         t.start()
-
-        # check exceptions
-        try:
-            t.join()  # it blocks, is there better way?
-        except BadChecksum as e:
-            msg = '[Error] Wrong checksum: \n{0}\nPlease download again to fix it. Press okay to quit.'.format(e)
-            log.error(msg)
-            wx.MessageBox(msg, "Bad checksum error", wx.OK | wx.ICON_ERROR)
-            sys.exit(1)
-        except Exception as e:
-            log.error(e)
-            wx.MessageBox(e, "Error", wx.OK | wx.ICON_ERROR)
-            sys.exit(1)
+        # note: deal with exceptions from threads inside on_timer() function
+        self.thread_running = True
+        self.threads.append(t)
 
     def on_about(self, event):
         """Display an About Dialog"""
@@ -637,10 +650,11 @@ class App(wx.App):
         frame.SetIcon(icon)
         return True
 
+
 def pgrep_systray():
     proc = []
     # if sys.platform.startswith('linux'):
-    working_pids = [ os.getpid(), os.getppid() ]  # todo: test it in all platforms
+    working_pids = [os.getpid(), os.getppid()]  # TODO: test it in all platforms
     for p in psutil.process_iter(attrs=['pid', 'name', 'cmdline', 'status']):
         # note: cmdline may not contain full path if execute manually
         if p.info['name'] == 'systray':
