@@ -34,7 +34,6 @@ class OptractInstall():
         # communicate with GUI components
         self.message = 'Welcome to Optract'
         self.status = {  # TODO: use status in some cases
-            'check_md5': None,  # boolean
             'extract_node_modules': None,  # float
             'create_config': None,  # string (path)
             'init_ipfs': None,  # string (output of init OR use existing one)
@@ -42,14 +41,14 @@ class OptractInstall():
             'chrome': None  # string (path) (or bool?)
         }
 
-    def install(self, force=False):
+    def install(self, force=False, check_md5=True):
         if (not os.path.isdir(self.distdir)) or (not os.path.isdir(self.basedir)):
             # TODO: cannot see this raise... maybe return something to systray then systray popup warning then exit?
             raise BaseException('Cannot find folder \'{0}\' or \'{1}\' (forget to extract zip first?)'.format(self.distdir, self.basedir))
             sys.exit(1)
         if not os.path.isfile(self.installed) or force:
             log.info('Initializing Optract in {0}'.format(self.distdir))
-            self.prepare_files()
+            self.prepare_files(check_md5=check_md5)
             self.create_config()
             self.init_ipfs()
             # install for all supporting browsers
@@ -254,7 +253,7 @@ class OptractInstall():
             msg = 'The md5sum of file \n\t{0}\nis inconsistent with expected value.'.format(filename)
             raise BadChecksum(msg)
 
-    def check_md5(self):
+    def run_check_md5(self):
         if sys.platform.startswith('win32'):
             node_md5_expected = 'f293ba8c28494ecd38416aa37443aa0d'
             ipfs_md5_expected = 'bbed13baf0da782311a97077d8990f27'
@@ -280,11 +279,12 @@ class OptractInstall():
         self._compare_md5(node_modules_tar, node_modules_tar_md5_expected)
         return
 
-    def prepare_files(self):
+    def prepare_files(self, check_md5=True):
         log.info('Preparing folder for optract in: ' + self.basedir)
 
         # check md5sum
-        self.check_md5()
+        if check_md5:
+            self.run_check_md5()
 
         self.extract_node_modules(os.path.join(self.distdir, 'node_modules.tar'), self.distdir)
 

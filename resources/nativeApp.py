@@ -69,6 +69,11 @@ class NativeApp():
         self.message = '[na]Welcome to Optract!'
         log.info('nativeApp path: {0}'.format(distdir))
 
+        self.check_md5 = True
+
+    def no_check_md5(self):
+        self.check_md5 = False
+
     def get_platform(self):
         if sys.platform.startswith('linux'):
             platform = 'linux'
@@ -83,10 +88,10 @@ class NativeApp():
     def install(self, forced=False):
         self.message = '[na]Installing'
         if forced:
-            self.installer.install()
+            self.installer.install(check_md5=self.check_md5)
         else:
             if not os.path.exists(self.install_lockFile):
-                self.installer.install()
+                self.installer.install(check_md5=self.check_md5)
             else:
                 self.message = '[na]Lockfile exists ({0})'.format(self.install_lockFile)
 
@@ -127,8 +132,9 @@ class NativeApp():
             log.error('The md5sum of file or directory {0} is inconsistent with expected hash.'.format(target))
             raise BaseException('The md5sum of file or directory {0} is inconsistent with expected hash.'.format(target))
 
-    def check_md5(self):
+    def run_check_md5(self):
         # TODO: prepare function to generate these checksum for developer
+        # note: there's another run_check_md5() in OptractInstall
         if sys.platform.startswith('win32'):
             node_md5_expected = 'f293ba8c28494ecd38416aa37443aa0d'
             ipfs_md5_expected = 'bbed13baf0da782311a97077d8990f27'
@@ -169,7 +175,7 @@ class NativeApp():
         if not os.path.exists(ipfs_path['config']):
             self.message = '[na] creating a new ipfs repo in {0}'.format(ipfs_path['repo'])
             subprocess.check_call([ipfs_path['bin'], "init"], env=myenv, stdout=FNULL, stderr=subprocess.STDOUT)
-            return self.startServer(check_md5=False)  # is it safe to check_md5=False? if true then need to check frequently while starting
+            return self.startServer(no_check_md5=True)  # is it safe to check_md5=False? if true then need to check frequently while starting
         else:
             try:
                 status = psutil.Process(self.ipfsP.pid).status()
@@ -234,8 +240,10 @@ class NativeApp():
             msg += '\nTo run Optract-gui, please kill/stop existing process(es) and close browser.\n'
         return msg.lstrip()
 
-    def startServer(self, can_exit=True, check_md5=True, check_existing_process=True):
-        ''' note: in GUI, use pgrep_services_msg() to check existing services and exit if necessary'''
+    def startServer(self, can_exit=True, no_check_md5=False, check_existing_process=True):
+        ''' note: in GUI, use pgrep_services_msg() to check existing services and exit if necessary
+        note: set 'no_check_md5' to True to ignore the value of self.check_md5
+        '''
         if check_existing_process:
             msg = self.pgrep_services_msg()
             if msg != '' and can_exit:
@@ -250,8 +258,11 @@ class NativeApp():
                     log.warning('Do nothing: lockFile exists in: {0}'.format(self.lockFile))
                     return
 
-        if check_md5:  # in start_ipfs(), chach_md5 should be False to prevent un-necessary(?) checks
-            self.check_md5()
+        if no_check_md5:
+            pass
+        else:
+            if self.check_md5:  # in start_ipfs(), chach_md5 should be False to prevent un-necessary(?) checks
+                self.run_check_md5()
 
         ipfs_path = self.start_ipfs()
         while (not os.path.exists(ipfs_path['api']) or not os.path.exists(ipfs_path['lock'])):
@@ -301,7 +312,11 @@ def main(nativeApp):
             processes = nativeApp.pgrep_services()
             log.info('got "ping"')
             if processes['node'] is None and processes['ipfs'] is None:
-                systrayP = subprocess.Popen([systray,], shell=True, stdin=FNULL, stdout=FNULL, stderr=FNULL)  # the "shell=True" is essential for windows
+                if nativeApp.check_md5:
+                    cmdline = [systray,]
+                else:
+                    cmdline = [systray, 'nochecksum']
+                systrayP = subprocess.Popen(cmdline, shell=True, stdin=FNULL, stdout=FNULL, stderr=FNULL)  # the "shell=True" is essential for windows
                 log.info('systray (pid:{0}) and server starting...'.format(systrayP.pid))
             elif processes['node'] is not None and processes['ipfs'] is not None:
                 log.info('Servers are running. Do nothing.')
@@ -333,7 +348,14 @@ if __name__ == '__main__':
     log.info('basedir path = {0}'.format(basedir))
 
     # if call nativeApp from browser (chrome and firefox), they add extension id as argument
+    # TODO: use argparse
     if len(sys.argv) > 1:
+        check_md5 = True
+        if len(sys.argv) > 2:
+            if sys.argv[2] == 'False' or sys.argv[2] == 'false':
+                check_md5 = False
+                nativeApp.no_check_md5()
+        print('DEBUG: check_md5 = {0}'.format(check_md5))
         if sys.argv[1] == 'install':
             nativeApp.install()
         elif sys.argv[1] == 'test':
@@ -341,7 +363,10 @@ if __name__ == '__main__':
             input("press <enter> to stop...")  # python3: input(); python2: raw_input()
             nativeApp.stopServer()
         elif sys.argv[1] == 'testtray':
-            systrapP = subprocess.Popen([systray,])
+            if check_md5:
+                systrapP = subprocess.Popen([systray,])
+            else:
+                systrapP = subprocess.Popen([systray, 'nochecksum'])
         else:
             main(nativeApp)
     else:

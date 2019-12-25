@@ -497,8 +497,6 @@ class MainFrame(wx.Frame):
             if self.threads == 0:  # should not happen
                 raise BaseException("bug: thread not found. Probably somehow not recorded?")
             t = self.threads.pop()
-            # print("threading.active_count() = ", threading.active_count())
-            # print("len(self.threads) = ", len(self.threads))
             if len(self.threads) == 0:
                 self.set_thread_running_false()
 
@@ -532,7 +530,7 @@ class MainFrame(wx.Frame):
 
     def on_start_server(self, event):
         self.button_start_server.Disable()
-        self.start_server(False)
+        self.start_server(can_exit=False)
 
     def on_stop_server(self, event):
         self.button_stop_server.Disable()
@@ -667,14 +665,24 @@ def pgrep_systray():
 def main():
     print('DEBUG: running sysatry in {0}'.format(distdir))
     print('DEBUG: sysatry logfile in {0}'.format(logfile))
+    if not check_md5:
+        print('DEBUG: check_md5 is set to False!')
+        log.info('DEBUG: check_md5 is set to False!')
     app = App(False)
     app.MainLoop()
 
 
 if __name__ == '__main__':
-    if len(sys.argv) > 1:
-        errormsg = sys.argv[1]
+    check_md5 = True
+    if len(sys.argv) > 1:  # TODO: use argparse
+        if sys.argv[1] == 'nochecksum':  # TODO: if update this, need to change the Popen in nativeApp as well
+            check_md5 = False
+            errormsg = ''
+        else:
+            errormsg = sys.argv[1]
     else:
         errormsg = ''
     other_systray_proc = pgrep_systray()
+    if not check_md5:
+        nativeApp.no_check_md5()  # so no need to pass the argument everytime
     main()
