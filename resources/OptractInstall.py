@@ -261,7 +261,7 @@ class OptractInstall():
         elif sys.platform.startswith('linux'):
             node_md5_expected = '8a9aa6414470a6c9586689a196ff21e3'
             ipfs_md5_expected = 'ee571b0fcad98688ecdbf8bdf8d353a5'
-            node_modules_tar_md5_expected = '745372d74f1be243764268ac84b4ab8d'
+            node_modules_tar_md5_expected = '3b146f198dfc36ebe1beab390353565c'
         elif sys.platform.startswith('darwin'):
             node_md5_expected = 'b4ba1b40b227378a159212911fc16024'
             ipfs_md5_expected = '5e8321327691d6db14f97392e749223c'

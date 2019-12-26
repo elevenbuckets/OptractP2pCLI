@@ -15,9 +15,10 @@ import logging
 import threading
 import hashlib
 import psutil
-# from checksumdir import dirhash
+from checksumdir import dirhash
 import OptractInstall
 import OptractDaemon
+from exceptions import BadChecksum
 
 # On Windows, the default I/O mode is O_TEXT. Set this to O_BINARY
 # to avoid unwanted modifications of the input/output streams.
@@ -123,14 +124,15 @@ class NativeApp():
     def _compare_md5(self, target, md5_expected):
         if os.path.isfile(target):
             md5_seen = hashlib.md5(open(target, 'rb').read()).hexdigest()
-        # elif os.path.isdir(target):
-        #     md5_seen = dirhash(target, 'md5')
+        elif os.path.isdir(target):
+            md5_seen = dirhash(target, 'md5')
         else:
             log.error('The target {0} is neither file nor directory.'.format(target))
             raise BaseException('The target {0} is neither file nor directory.'.format(target))
         if md5_seen != md5_expected:
-            log.error('The md5sum of file or directory {0} is inconsistent with expected hash.'.format(target))
-            raise BaseException('The md5sum of file or directory {0} is inconsistent with expected hash.'.format(target))
+            msg = 'The md5sum of file or directory {0} is inconsistent with expected hash. Expected:{1}; Got:{2}'.format(target, md5_expected, md5_seen)
+            log.error(msg)
+            raise BadChecksum(msg)
 
     def run_check_md5(self):
         # TODO: prepare function to generate these checksum for developer
@@ -142,7 +144,7 @@ class NativeApp():
         elif sys.platform.startswith('linux'):
             node_md5_expected = '8a9aa6414470a6c9586689a196ff21e3'
             ipfs_md5_expected = 'ee571b0fcad98688ecdbf8bdf8d353a5'
-            node_modules_dir_md5_expected = '11f0140775c0939218afa7790a39cbb5'
+            node_modules_dir_md5_expected = 'f5429cc6ad3e317ed5f993d47eba0ce8'
         elif sys.platform.startswith('darwin'):
             node_md5_expected = 'b4ba1b40b227378a159212911fc16024'
             ipfs_md5_expected = '5e8321327691d6db14f97392e749223c'
@@ -158,8 +160,9 @@ class NativeApp():
         self._compare_md5(ipfsCMD, ipfs_md5_expected)
 
         # note: problem in pyinstaller while use the 'checksumdir' module. Comment here, _compare_md5 before figure it out
-        # node_modules_dir = os.path.join(self.basedir, 'dist', 'node_modules')
-        # self._compare_md5(node_modules_dir, node_modules_md5_expected)
+        node_modules_dir = os.path.join(self.basedir, 'dist', 'node_modules')
+        self._compare_md5(node_modules_dir, node_modules_dir_md5_expected)
+        log.info('checksums of following files/folder are correct: "{0}", "{1}", "{2}"'.format(nodeCMD, ipfsCMD, node_modules_dir))
 
     def start_ipfs(self):
         ipfs_path = {

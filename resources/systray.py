@@ -256,7 +256,6 @@ class MainFrame(wx.Frame):
         self.quit_if_duplicate()  # merge it to "errormsg"?
 
         # threads
-        self.thread_running = False  # in on_timer(), use it to monitor and join threads
         self.threads = []
 
         # create a panel in the frame
@@ -439,12 +438,6 @@ class MainFrame(wx.Frame):
         else:
             return False
 
-    def set_thread_running_true(self):
-        self.thread_running = True
-
-    def set_thread_running_false(self):
-        self.thread_running = False
-
     def on_timer(self, event):
         self.update_status_text()
 
@@ -492,26 +485,24 @@ class MainFrame(wx.Frame):
                 self.button_config_chrome.Disable()
 
         # test: handle exceptions inside threads
-        # the "t.join()" block main thread, so only do it after it terminate
-        if threading.active_count() == 1 and self.thread_running is True:  # one is main thread
-            if self.threads == 0:  # should not happen
-                raise BaseException("bug: thread not found. Probably somehow not recorded?")
-            t = self.threads.pop()
-            if len(self.threads) == 0:
-                self.set_thread_running_false()
+        # note: In the list self.threads, only on_evt_install._evt_install() might be there
+        for i, t in enumerate(self.threads):
+            if not t.is_alive():
+                self.threads.pop(i)
 
-            # check exceptions from thread
-            try:
-                t.join()  # it blocks
-            except BadChecksum as e:
-                msg = '[Error] Wrong checksum: \n{0}\nPlease download again to fix it. Press okay to quit.'.format(e)
-                log.error(msg)
-                wx.MessageBox(msg, "Bad checksum error", wx.OK | wx.ICON_ERROR)
-                sys.exit(1)
-            except Exception as e:
-                log.error(e)
-                wx.MessageBox(e, "Error", wx.OK | wx.ICON_ERROR)
-                sys.exit(1)
+                # check exceptions from thread
+                try:
+                    log.info('thread {0} finished'.format(t))
+                    t.join()  # it blocks
+                except BadChecksum as e:
+                    msg = '[Error] Wrong checksum: \n{0}\nPlease download again to fix it. Press okay to quit.'.format(e)
+                    log.error(msg)
+                    wx.MessageBox(msg, "Bad checksum error", wx.OK | wx.ICON_ERROR)
+                    sys.exit(1)
+                except Exception as e:
+                    log.error(e)
+                    wx.MessageBox(e, "Error", wx.OK | wx.ICON_ERROR)
+                    sys.exit(1)
 
     def on_mouse_enter(self, event, help_string):
         # self.StatusBar.SetStatusText("button: {0}".format(btn.GetLabel()))
@@ -568,21 +559,21 @@ class MainFrame(wx.Frame):
     def on_evt_install(self, event):
         # TODO: detect existing installation from browser nativeMsg, and confirm to use the data there
         #       (by replacing the dist folder there)
+        # note: exceptions from a threading.Thread() object are not caught by main thread.
+        #       So need to use PropagatingThread() instead and join it to mainthread later
+        #       in order to raise and catch exceptions here in GUI.
         def _evt_install(win):
             nativeApp.install()
             wx.CallAfter(self.st_nativeApp.SetLabel, 'Starting server....')
             wx.CallAfter(self.start_server)
             wx.CallAfter(self.dialog_finish_install)
-        # t = threading.Thread(target=_evt_install, args=(self, ))
-        t = PropagatingThread(target=_evt_install, args=(self,))
-        t.setDaemon(True)
+        # t = threading.Thread(target=_evt_install, args=(self, ), daemon=True)
+        t = PropagatingThread(target=_evt_install, args=(self,), daemon=True, name='_evt_install')
         t.start()
-        # note: deal with exceptions from threads inside on_timer() function
-        self.set_thread_running_true()
-        self.threads.append(t)
+        self.threads.append(t)  # use it in 'on_timer()'
 
         if sys.platform.startswith('win32'):
-            msg = "Installing, will need sometime. Press OK to visit https://11be.org to get the browser addon"
+            msg = "Installing, will need sometime. Press OK to visit https://11be.org to get the browser addons."
             dlg = wx.MessageDialog(None, msg, "Visit homepage",
                                    wx.OK | wx.CANCEL | wx.ICON_INFORMATION)
             ret = dlg.ShowModal()
@@ -605,19 +596,28 @@ class MainFrame(wx.Frame):
             wx.MessageBox(msg + '\nQuit now')
             sys.exit(0)
         else:
-            nativeApp.startServer(can_exit=can_exit)
+            try:
+                nativeApp.startServer(can_exit=can_exit)
+            except BadChecksum as e:
+                msg = '[Error] Wrong checksum: \n{0}\nPlease download again to fix it. Press okay to quit.'.format(e)
+                log.error(msg)
+                wx.MessageBox(msg, "Bad checksum error", wx.OK | wx.ICON_ERROR)
+                sys.exit(1)
+            except Exception as e:
+                log.error(e)
+                wx.MessageBox(e, "Error", wx.OK | wx.ICON_ERROR)
+                sys.exit(1)
 
     def on_evt_startserver(self, event):
+        # note: somehow for on_evt_startserver(), using PropagatingThread() cannot raise or
+        #       catch the exceptions (but can see the raise in stdout!). Is it because the
+        #       wx.CallAfter(...) inside the thread?
         def _evt_startserver(win):
             wx.CallAfter(self.st_nativeApp.SetLabel, 'Starting server....')
             wx.CallAfter(self.start_server)
-        # t = threading.Thread(target=_evt_startserver, args=(self, ))
-        t = PropagatingThread(target=_evt_startserver, args=(self,))
-        t.setDaemon(True)
+        t = threading.Thread(target=_evt_startserver, args=(self, ), daemon=True)
+        # t = PropagatingThread(target=_evt_startserver, args=(self,), daemon=True)
         t.start()
-        # note: deal with exceptions from threads inside on_timer() function
-        self.thread_running = True
-        self.threads.append(t)
 
     def on_about(self, event):
         """Display an About Dialog"""
