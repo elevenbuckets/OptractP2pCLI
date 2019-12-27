@@ -261,6 +261,7 @@ class MainFrame(wx.Frame):
         # create a panel in the frame
         self.panel = wx.Panel(self)
         self.init_ui()  # buttons and text
+        self.set_best_size()  # guess and set a best size
 
         # create a menu bar
         self.makeMenuBar()
@@ -360,6 +361,14 @@ class MainFrame(wx.Frame):
 
         # TODO: add buttons to enter config menu (such as re-configure browser manifest)
         self.panel.SetSizer(self.sizer)
+
+    def set_best_size(self):
+        '''Guess a value for the window size
+        Somehow the height from sizer.CalcMin() is not correct so manually add a value
+        for roughly 2 rows text + 1 row button
+        '''
+        (width, height) = self.sizer.CalcMin()
+        self.SetSize(width*1.02, height+118)
 
     def makeMenuBar(self):
         # Make a file menu with Hello and Exit items
