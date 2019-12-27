@@ -178,7 +178,7 @@ class NativeApp():
         if not os.path.exists(ipfs_path['config']):
             self.message = '[na] creating a new ipfs repo in {0}'.format(ipfs_path['repo'])
             subprocess.check_call([ipfs_path['bin'], "init"], env=myenv, stdout=FNULL, stderr=subprocess.STDOUT)
-            return self.startServer(no_check_md5=True)  # is it safe to check_md5=False? if true then need to check frequently while starting
+            return self.startServer(no_check_md5=True)  # should be safe to no_check_md5 since normally startServer checked md5
         else:
             try:
                 status = psutil.Process(self.ipfsP.pid).status()
@@ -244,23 +244,20 @@ class NativeApp():
             msg += '\nTo run Optract, please kill/stop existing process(es) and close browser.\n'
         return msg.lstrip()
 
-    def startServer(self, can_exit=True, no_check_md5=False, check_existing_process=True):
-        ''' note: in GUI, use pgrep_services_msg() to check existing services and exit if necessary
+    def startServer(self, no_check_md5=False, pgreped=False):
+        '''
         note: set 'no_check_md5' to True to ignore the value of self.check_md5
         '''
-        if check_existing_process:
+        if not pgreped:
             msg = self.pgrep_services_msg()
-            if msg != '' and can_exit:
-                log.warning(msg)
+            if msg != '':
+                log.error(msg)
                 sys.exit(0)
-        if not self.platform == 'win32':  # in windows, nativeApp cannot close properly so lockFile is always there
-            if os.path.exists(self.lockFile):
-                if can_exit:
-                    log.warning('Do nothing: lockFile exists in: {0}'.format(self.lockFile))
-                    sys.exit(0)
-                else:
-                    log.warning('Do nothing: lockFile exists in: {0}'.format(self.lockFile))
-                    return
+
+        # note: in windows, nativeApp cannot close properly so lockFile is always there
+        # assume it's safe to remove lockFile since no other instance is running
+        if pgreped and os.path.exists(self.lockFile):
+            os.remove(self.lockFile)
 
         if no_check_md5:
             pass
@@ -281,7 +278,7 @@ class NativeApp():
         if os.path.exists(self.lockFile):
             os.remove(self.lockFile)
 
-        warnmsg = "Got error message while kill process with pid {0}: '{1}: {2}'"
+        warnmsg = "Got error message while kill process: pid:{0}, type:{1}, msg:{2}"
         if self.nodeP is not None:
             log.info('kill process {0}'.format(self.nodeP.pid))
             try:

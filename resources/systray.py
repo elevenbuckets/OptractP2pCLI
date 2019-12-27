@@ -590,14 +590,14 @@ class MainFrame(wx.Frame):
         nativeApp.installer.create_and_write_manifest('chrome')
         wx.MessageBox('create nativeApp for chrome. Please install browser extension from https://11be.org')
 
-    def start_server(self, can_exit=True):
+    def start_server(self):
         msg = nativeApp.pgrep_services_msg()
         if msg != '':
             wx.MessageBox(msg + '\nQuit now')
             sys.exit(0)
         else:
             try:
-                nativeApp.startServer(can_exit=can_exit)
+                nativeApp.startServer(pgreped=True)  # no need to check again
             except BadChecksum as e:
                 msg = '[Error] Wrong checksum: \n{0}\nPlease download again to fix it. Press okay to quit.'.format(e)
                 log.error(msg)
