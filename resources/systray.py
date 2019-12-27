@@ -451,33 +451,29 @@ class MainFrame(wx.Frame):
         self.update_status_text()
 
         # enable/disable buttons
-        if os.path.exists(nativeApp.install_lockFile) and \
-                (not self.tbIcon.ipfsP_is_running) and (not self.tbIcon.nodeP_is_running):
-            self.button_start_server.Enable()
-        else:
-            self.button_start_server.Disable()
-
-        if self.tbIcon.ipfsP_is_running and self.tbIcon.nodeP_is_running:
-            self.button_stop_server.Enable()
-        else:
-            self.button_stop_server.Disable()
-
-        if (not self.tbIcon.ipfsP_is_running) and self.tbIcon.nodeP_is_running and \
-                (time.time() - self.tbIcon.time_ipfs_boot > self.tbIcon.ipfs_boot_required_time):
-            self.button_ipfs_restart.Enable()
-        else:
-            self.button_ipfs_restart.Disable()
-
-        # update information text (or use wx.LogWindow instead?)
         # TODO: also check whether browser manifest are properly configured
-        # TODO: also add nativeApp.message, and ignore nativeApp.installer.message except during installation
-        if os.path.exists(nativeApp.install_lockFile) \
-                and self.tbIcon.ipfsP_is_running and self.tbIcon.nodeP_is_running:
-            self.timer.Stop()
-            self.timer.Start(4000)  # use lower frequency
-            self.st_nativeApp.SetLabel('Optract is running')
-        else:
-            self.st_nativeApp.SetLabel(nativeApp.installer.message)
+        # TODO: also add nativeApp.message, and ignore nativeApp.installer.message except during installation?
+        if os.path.exists(nativeApp.install_lockFile):
+            if (not self.tbIcon.ipfsP_is_running) and (not self.tbIcon.nodeP_is_running):
+                self.button_start_server.Enable()
+            else:
+                self.button_start_server.Disable()
+
+            if (not self.tbIcon.ipfsP_is_running) and self.tbIcon.nodeP_is_running and \
+                    (time.time() - self.tbIcon.time_ipfs_boot > self.tbIcon.ipfs_boot_required_time):
+                self.button_ipfs_restart.Enable()
+            else:
+                self.button_ipfs_restart.Disable()
+
+            if self.tbIcon.ipfsP_is_running and self.tbIcon.nodeP_is_running:
+                self.button_stop_server.Enable()
+                self.timer.Stop()
+                self.timer.Start(4000)  # use lower frequency
+                self.st_nativeApp.SetLabel('Optract is running')
+            else:
+                self.button_stop_server.Disable()
+        else:  # install
+            self.st_nativeApp.SetLabel(nativeApp.installer.message)  # update information text
             self.button_start_server.Disable()
             self.button_stop_server.Disable()
             self.button_ipfs_restart.Disable()
