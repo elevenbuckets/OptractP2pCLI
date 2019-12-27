@@ -208,39 +208,40 @@ class NativeApp():
         os.chdir(self.basedir)
 
     def pgrep_services(self):
-        ''' return dictionary {'ipfs':pid, 'node': pid} where pip is None or int '''
-        result = {'ipfs': None, 'node': None}  # or make it an attribute of this class?
+        ''' return dictionary {'ipfs':[p1,p2,...], 'node': [p3,p4,...]} where p1-p4 are dict '''
+        result = {'ipfs': [], 'node': []}
         for p in psutil.process_iter(attrs=['pid', 'name', 'cmdline']):
             if p.info['name'] == 'ipfs':
-                if result['ipfs'] is not None:
-                    log.warning('There are multiple instances of ipfs running')  # or error?
+                if len(result['ipfs']) > 0:
+                    log.warning('There are multiple instances of ipfs running')
                 if p.info['cmdline'] is not None:
                     if len(p.info['cmdline']) >= 2:
                         if p.info['cmdline'][0] == os.path.join(self.distdir, 'bin', 'ipfs') and p.info['cmdline'][1] == 'daemon':
-                            result['ipfs'] = p.info
+                            result['ipfs'].append(p.info)
             elif p.info['name'] == 'node':
                 if result['node'] is not None:
                     log.warning('There are multiple instances of Optract running')  # or error?
                 if p.info['cmdline'] is not None:
                     if p.info['cmdline'][0] == os.path.join(self.distdir, 'bin', 'node'):
                     # full path to node here; while debugging usually use relative path like ./bin/node so should be safe
-                        result['node'] = p.info
-            # TODO: deal with existing multiple instances of ipfs and node
-            if result['ipfs'] is not None and result['node'] is not None:
-                break
+                        result['node'].append(p.info)
+            # TODO: assume only one ipfs and one node process (should be safe to assume it?)
+            # if result['ipfs'] is not None and result['node'] is not None:
+            #     break
         return result
 
     def pgrep_services_msg(self):
         msg = ''
         processes = self.pgrep_services()
-        if processes['ipfs'] is not None:
-            msg += 'Another instance of ipfs is running with pid {0}:\n\n{1}\n'.format(
-                processes['ipfs']['pid'], ' '.join(processes['ipfs']['cmdline']))
-        if processes['node'] is not None:
-            msg += '\nAnother instance of Optract is running with pid {0}:\n{1}\n'.format(
-                processes['node']['pid'], ' '.join(processes['node']['cmdline']))
+        if len(processes['ipfs']) > 0:
+            msg += 'Another instance of ipfs is running with pid(s): {0}'.format(
+                [ x['pid'] for x in processes['ipfs'] ])
+        if len(processes['node']) > 0:
+            msg += '\nAnother instance of Optract is running with pid(s): {0}'.format(
+                [ x['pid'] for x in processes['node'] ])
+
         if msg != '':
-            msg += '\nTo run Optract-gui, please kill/stop existing process(es) and close browser.\n'
+            msg += '\nTo run Optract, please kill/stop existing process(es) and close browser.\n'
         return msg.lstrip()
 
     def startServer(self, can_exit=True, no_check_md5=False, check_existing_process=True):
@@ -279,28 +280,27 @@ class NativeApp():
     def stopServer(self):
         if os.path.exists(self.lockFile):
             os.remove(self.lockFile)
-        # nodeP.terminate()
+
+        warnmsg = "Got error message while kill process with pid {0}: '{1}: {2}'"
         if self.nodeP is not None:
             log.info('kill process {0}'.format(self.nodeP.pid))
             try:
                 os.kill(self.nodeP.pid, signal.SIGTERM)
             except OSError as err:
-                log.error("Error while stop pid {0}: {1}: {2}".format(
-                               self.nodeP.pid, err.__class__.__name__, err))
+                log.warning(warnmsg.format(self.nodeP.pid, err.__class__.__name__, err))
 
         if self.ipfsP is not None:
             log.info('kill process {0}'.format(self.ipfsP.pid))
             try:
                 os.kill(self.ipfsP.pid, signal.SIGINT)
             except OSError as err:
-                log.error("Can't stop pid {0}: {1}: {2}".format(
-                               self.ipfsP.pid, err.__class__.__name__, err))
+                log.warning(warnmsg.format(self.ipfsP.pid, err.__class__.__name__, err))
 
             # send one more signal (redundant?)
-            time.sleep(0.8)
+            time.sleep(0.4)
             try:
                 os.kill(self.ipfsP.pid, signal.SIGINT)
-            except Exception:
+            except:
                 pass
 
 
@@ -313,22 +313,24 @@ def main(nativeApp):
         if message['text'] == 'ping' and started is False:
             started = True
             processes = nativeApp.pgrep_services()
-            log.info('got "ping"')
-            if processes['node'] is None and processes['ipfs'] is None:
+            log.info('got "ping" from browser')
+            if len(processes['node']) == 0 and len(processes['ipfs']) == 0:
                 if nativeApp.check_md5:
                     cmdline = [systray,]
                 else:
                     cmdline = [systray, 'nochecksum']
                 systrayP = subprocess.Popen(cmdline, shell=True, stdin=FNULL, stdout=FNULL, stderr=FNULL)  # the "shell=True" is essential for windows
                 log.info('systray (pid:{0}) and server starting...'.format(systrayP.pid))
-            elif processes['node'] is not None and processes['ipfs'] is not None:
+            elif len(processes['node']) == 1 and len(processes['ipfs']) == 1:
                 log.info('Servers are running. Do nothing.')
-            else:  # one pid exists and the other does not
-                # TODO: popup a warning?
-                if processes['node'] is None:
-                    log.warning('ipfs is running but node is not running')
-                elif processes['ipfs'] is None:
-                    log.warning('node is running but ipfs is not running')
+            elif len(processes['node']) == 0 and len(processes['ipfs']) == 1:
+                log.warning('ipfs is running but node is not running')
+            elif len(processes['node']) == 1 and len(processes['ipfs']) == 0:
+                log.warning('node is running but ipfs is not running')
+            elif len(processes['node']) > 1 or len(processes['ipfs']) > 1:
+                log.warning('Something\'s wrong. Please close existing instances of node and/or optract.')
+            else:  # is it redundant?
+                log.warning('Something\'s wrong. Please close existing instances of node and/or optract...')
     return
 
 

@@ -492,7 +492,7 @@ class MainFrame(wx.Frame):
 
                 # check exceptions from thread
                 try:
-                    log.info('thread {0} finished'.format(t))
+                    log.info('thread "{0}" finished'.format(t.name))
                     t.join()  # it blocks
                 except BadChecksum as e:
                     msg = '[Error] Wrong checksum: \n{0}\nPlease download again to fix it. Press okay to quit.'.format(e)
@@ -521,11 +521,11 @@ class MainFrame(wx.Frame):
 
     def on_start_server(self, event):
         self.button_start_server.Disable()
-        self.start_server(can_exit=False)
+        self.start_server()
 
     def on_stop_server(self, event):
         self.button_stop_server.Disable()
-        nativeApp.stopServer()  # can_exit=False
+        nativeApp.stopServer()
 
     def on_exit(self, event):
         """Close the frame, terminating the application."""
