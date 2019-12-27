@@ -288,9 +288,22 @@ class MainFrame(wx.Frame):
         self.button_ipfs_restart.Disable()
         self.sizer.Add(self.button_ipfs_restart, pos=(row, 2), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
 
+        # check browser status  # TODO: hide these somewhere?
         row = 1
+        self.button_config_firefox = wx.Button(self.panel, label='link firefox')
+        _btn_bindings(self.button_config_firefox, self.on_config_firefox, "tell firefox the location of Optract-gui")
+        self.sizer.Add(self.button_config_firefox, pos=(row, 0), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
+        self.button_config_firefox.Disable()
+
+        self.button_config_chrome = wx.Button(self.panel, label='link chrome')
+        _btn_bindings(self.button_config_chrome, self.on_config_chrome, "tell chrome the location of Optract-gui")
+        self.sizer.Add(self.button_config_chrome, pos=(row, 1), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
+        self.button_config_chrome.Disable()
+
+        # minimize and exit
+        row = 2
         _ = 0
-        if self.tbIcon.IsAvailable():
+        if self.tbIcon.IsAvailable():  # on unity and some DE it's not available
             self.button_minimize = wx.Button(self.panel, label="Minimize")
             _btn_bindings(self.button_minimize, self.on_iconize, "minimize to tray")
             self.sizer.Add(self.button_minimize, pos=(row, 0), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
@@ -301,25 +314,13 @@ class MainFrame(wx.Frame):
         self.sizer.Add(self.button_exit, pos=(row, _), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
 
         # put some text with a larger bold font on it
-        row = 2
+        row = 3
         self.st = wx.StaticText(self.panel, label=self.get_status_text())
         font = self.st.GetFont()
         font.PointSize += 1
         # font = font.Bold()
         self.st.SetFont(font)
         self.sizer.Add(self.st, pos=(row, 0), span=(1, 3), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
-
-        # check browser status
-        row = 3
-        self.button_config_firefox = wx.Button(self.panel, label='config firefox')
-        _btn_bindings(self.button_config_firefox, self.on_config_firefox, "tell firefox the location of Optract-gui")
-        self.sizer.Add(self.button_config_firefox, pos=(row, 0), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
-        self.button_config_firefox.Disable()
-
-        self.button_config_chrome = wx.Button(self.panel, label='config chrome')
-        _btn_bindings(self.button_config_chrome, self.on_config_chrome, "tell chrome the location of Optract-gui")
-        self.sizer.Add(self.button_config_chrome, pos=(row, 1), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
-        self.button_config_chrome.Disable()
 
         # install if necessary
         row = 4
@@ -330,7 +331,6 @@ class MainFrame(wx.Frame):
         except AttributeError:
             self.check_install = True
             if os.path.exists(nativeApp.install_lockFile):
-                # TODO: deal with Optract.LOCK (rm it in some cases)
                 self.st_nativeApp = wx.StaticText(self.panel, label='Welcome to Optract!')
                 log.info('checking browser nativeMessageHost config: firefox:{0}, chrome:{1}'.format(self.check_browser('firefox'), self.check_browser('chrome')))
                 if not (self.check_browser('firefox') or self.check_browser('chrome')):
