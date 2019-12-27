@@ -148,7 +148,7 @@ class NativeApp():
         elif sys.platform.startswith('darwin'):
             node_md5_expected = 'b4ba1b40b227378a159212911fc16024'
             ipfs_md5_expected = '5e8321327691d6db14f97392e749223c'
-            node_modules_dir_md5_expected = '8a2aae4ca15614c9eef5949bdf78b495'
+            node_modules_dir_md5_expected = 'd04bd10a15e875034853232c5422152d'
 
         if sys.platform.startswith('win32'):
             nodeCMD = os.path.join(self.distdir, 'bin', 'node.exe')

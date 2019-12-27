@@ -50,7 +50,7 @@ After install, `$basedir` contain files and directories:
             - `conda activate py37`
         - to leave virtualenv, use `source deactivate` or `conda deactivate`
     - install python modules:
-        - `pip install pyinstaller pyarmor wxPython psutil`
+        - `pip install pyinstaller pyarmor wxPython psutil checksumdir`
         - need to install at lease several dependencies. Some noticable ones are `python-dev` and `libgtk-3-dev`: https://wxpython.org/blog/2017-08-17-builds-for-linux-with-pip/index.html
           - In a virtual machine (Arch linux with python 3.8 and gcc 9.2.0), even download all libraries mentioned above and use `pip wheel` cannot work (only see g++ fatal error but cannot tell if something's missing or what). But, somehow using `python build.py ...` can work, steps here https://github.com/wxWidgets/Phoenix/issues/1196 (it require 3.7G of space while building):
             1. get `wxpython-4.x.x.tar.gz` from pypi and untar it
@@ -91,6 +91,11 @@ After install, `$basedir` contain files and directories:
 - Even build with pyarmor, if execute systray from command line, one can still see the error
   line number and error message (if the problem is in systray or nativeApp)
 - check the log file in `$basedir/optract.log`
+- In terminal, use something like `./systray/systray nochecksum` to run without check the md5 hashes
+    - for now check `bin/ipfs`, `bin/node`, `bin/node_modules.tar` while install, and
+      check `bin/ipfs`, `bin/node`, `node_modules/` while start server
+    - to check the md5sum of directory, use `checksumdir -a md5 node_modules`
+      - `checksumdir` module comes from https://pypi.org/project/checksumdir/
 - access console
     - in OptractP2PCli folder, `cd lib; cp pubsubNode.js libSampleTickets.js console.js $basedir/dist/lib`
     - `cd $basedir/dist`
