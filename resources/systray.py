@@ -109,18 +109,18 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         create_menu_item(menu, ' node: pid {0} {1}'.format(nodeP_report, node_symbol), self.on_null, enable=False)  # TODO: hide these details
         create_menu_item(menu, ' ipfs: pid {0} {1}'.format(ipfsP_report, ipfs_symbol), self.on_null, enable=False)
         menu.AppendSeparator()
-        create_menu_item(menu, 'Start', self.frame.on_start_server)
-        create_menu_item(menu, 'Stop', self.frame.on_stop_server)
+        create_menu_item(menu, 'Start server', self.frame.on_start_server)
+        create_menu_item(menu, 'Stop server', self.frame.on_stop_server)
         menu.AppendSeparator()
 
         config_menu = wx.Menu()
         # should detect the existence of 'optract.json' (and check if they point to the running instance of optract)
-        create_menu_item(config_menu, 'config firefox', self.frame.on_config_firefox, parent_menu=menu)
-        create_menu_item(config_menu, 'config chrome', self.frame.on_config_chrome, parent_menu=menu)
-        create_menu_item(config_menu, 'reset config file', self.on_create_config, parent_menu=menu)
+        create_menu_item(config_menu, 'link with firefox', self.frame.on_config_firefox, parent_menu=menu)
+        create_menu_item(config_menu, 'link with chrome', self.frame.on_config_chrome, parent_menu=menu)
+        create_menu_item(config_menu, 'reset config file', self.frame.on_reset_config, parent_menu=menu)
         # create_menu_item(config_menu, 'reset ipfs', self.on_null)
         # create_menu_item(config_menu, 'reset', self.on_null)  # remove existing and re-install
-        menu.AppendSubMenu(config_menu, 'config browsers')
+        menu.AppendSubMenu(config_menu, 'configuration')
 
         if not self.ipfsP_is_running and self.nodeP_is_running:
             create_menu_item(menu, 'restart ipfs (experimental)', self.on_restart_ipfs)
@@ -218,22 +218,6 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
 
     def on_restart_ipfs(self, event):
         nativeApp.start_ipfs()
-
-    def on_create_config(self, event):
-        msg = "Are you sure to reset the config?\nIf yes, will take some time to restart server."
-        dlg = wx.MessageDialog(None, msg, "Optract config",
-                               wx.YES_NO | wx.YES_DEFAULT | wx.ICON_EXCLAMATION)
-        ret = dlg.ShowModal()
-        if ret == wx.ID_YES:
-            log.info('regenerate config.json')
-            nativeApp.installer.create_config()
-            config_file = os.path.join(nativeApp.datadir, 'config.json')
-            nativeApp.stopServer()
-            time.sleep(0.5)  # note: already wait inside stopServer
-            nativeApp.startServer()
-            wx.MessageBox('Server restarted!.\nConfig file in: \n{0}'.format(config_file))
-        else:
-            wx.MessageBox('do nothing')
 
     def on_exit(self, event):
         nativeApp.stopServer()
@@ -379,8 +363,9 @@ class MainFrame(wx.Frame):
         stop_item = server_menu.Append(-1, "&Stop...\tCtrl-p", "Stop server")
         restart_ipfs_item = server_menu.Append(-1, "&Restart ipfs", "Restart ipfs")
         server_menu.AppendSeparator()
-        config_firefox_item = server_menu.Append(-1, "create firefox config", "create firefox config")
-        config_chrome_item = server_menu.Append(-1, "create chrome config", "create chrome config")
+        config_firefox_item = server_menu.Append(-1, "link with firefox", "tell firefox the path of Optract")
+        config_chrome_item = server_menu.Append(-1, "link with chrome", "tell chrome the path of Optract")
+        reset_config_item = server_menu.Append(-1, "reset config file", "reset config file")
         # When using a stock ID we don't need to specify the menu item's label
         exit_item = server_menu.Append(wx.ID_EXIT)
 
@@ -408,6 +393,7 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_restart_ipfs, restart_ipfs_item)
         self.Bind(wx.EVT_MENU, self.on_config_firefox, config_firefox_item)
         self.Bind(wx.EVT_MENU, self.on_config_chrome, config_chrome_item)
+        self.Bind(wx.EVT_MENU, self.on_reset_config, reset_config_item)
         self.Bind(wx.EVT_MENU, self.on_visit_homepage, visit_item)
         self.Bind(wx.EVT_MENU, self.on_exit, exit_item)
         self.Bind(wx.EVT_MENU, self.on_about, about_item)
@@ -595,6 +581,22 @@ class MainFrame(wx.Frame):
         nativeApp.installer.create_and_write_manifest('chrome')
         wx.MessageBox('create nativeApp for chrome. Please install browser extension from https://11be.org')
 
+    def on_reset_config(self, event):
+        msg = "Are you sure to reset the config?\nIf yes, will take some time to restart server."
+        dlg = wx.MessageDialog(None, msg, "Optract config",
+                               wx.YES_NO | wx.YES_DEFAULT | wx.ICON_EXCLAMATION)
+        ret = dlg.ShowModal()
+        if ret == wx.ID_YES:
+            log.info('regenerate config.json')
+            nativeApp.installer.create_config()
+            config_file = os.path.join(nativeApp.datadir, 'config.json')
+            nativeApp.stopServer()
+            time.sleep(0.5)  # note: already wait ipfs die inside stopServer
+            nativeApp.startServer()
+            wx.MessageBox('Server restarted!.\nConfig file in: \n{0}'.format(config_file))
+        else:
+            wx.MessageBox('do nothing')
+
     def start_server(self):
         msg = nativeApp.pgrep_services_msg()
         if msg != '':
@@ -635,7 +637,7 @@ class MainFrame(wx.Frame):
 
 class App(wx.App):
     def OnInit(self):
-        frame = MainFrame(None, title='Optract GUI', size=(300, 280))
+        frame = MainFrame(None, title='Optract GUI')  # the size is set by MainFrame.set_best_size()
         self.SetTopWindow(frame)
 
         # install if necessary; show gui only when systray is not available or during install
