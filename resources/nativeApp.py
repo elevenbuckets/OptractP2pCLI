@@ -140,7 +140,7 @@ class NativeApp():
         if sys.platform.startswith('win32'):
             node_md5_expected = 'f293ba8c28494ecd38416aa37443aa0d'
             ipfs_md5_expected = 'bbed13baf0da782311a97077d8990f27'
-            node_modules_dir_md5_expected = '11f0140775c0939218afa7790a39cbb5'
+            node_modules_dir_md5_expected = 'e4c2ea58afbec44fedd7335499c90edf'
         elif sys.platform.startswith('linux'):
             node_md5_expected = '8a9aa6414470a6c9586689a196ff21e3'
             ipfs_md5_expected = 'ee571b0fcad98688ecdbf8bdf8d353a5'
@@ -159,7 +159,7 @@ class NativeApp():
         self._compare_md5(nodeCMD, node_md5_expected)
         self._compare_md5(ipfsCMD, ipfs_md5_expected)
 
-        # note: problem in pyinstaller while use the 'checksumdir' module. Comment here, _compare_md5 before figure it out
+        # note: use 'checksumdir -a md5 node_modules' to get the md5sum of directory
         node_modules_dir = os.path.join(self.basedir, 'dist', 'node_modules')
         self._compare_md5(node_modules_dir, node_modules_dir_md5_expected)
         log.info('checksums of following files/folder are correct: "{0}", "{1}", "{2}"'.format(nodeCMD, ipfsCMD, node_modules_dir))
