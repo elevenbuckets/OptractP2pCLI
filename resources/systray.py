@@ -716,6 +716,8 @@ def pgrep_systray():
 def main():
     print('DEBUG: running sysatry in {0}'.format(distdir))
     print('DEBUG: sysatry logfile in {0}'.format(logfile))
+    if sys.platform.startswith('win32'):
+        print('\nPlease do not close this terminal...')   # TODO: don't popup terminal (limitation of pyinstaller?)
     if not check_md5:
         print('DEBUG: check_md5 is set to False!')
         log.info('DEBUG: check_md5 is set to False!')
