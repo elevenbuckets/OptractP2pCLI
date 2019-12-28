@@ -600,6 +600,7 @@ To use Optract, install the firefox or chrome addons, open the addon page, and r
 
         if sys.platform.startswith('win32'):
             msg = '''Installing, will take some time. To use Optract, install the firefox or chrome addons, open the addon page, and register an account from browser.
+
 Press OK to visit https://11be.org for browser addons and more detail (or CANCEL to ignore it and proceed).'''
             dlg = wx.MessageDialog(None, msg, "Visit homepage",
                                    wx.OK | wx.CANCEL | wx.ICON_INFORMATION)
