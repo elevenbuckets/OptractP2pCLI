@@ -12,8 +12,6 @@ import wx.lib.newevent as NE
 import webbrowser
 from nativeApp import NativeApp
 from exceptions import BadChecksum
-# TODO: help user to move $basedir to another place, or detect and show warnings. Such as
-#       browser nativeMsgHost missing warning (done); and paths in config.json (not done)
 
 InstallEvent, EVT_INSTALL = NE.NewEvent()
 StartserverEvent, EVT_STARTSERVER = NE.NewEvent()
@@ -32,6 +30,7 @@ elif sys.platform.startswith('win32'):
 nativeApp = NativeApp(distdir)
 
 # more global variables
+VERSION = {'OptractClient': '1.0.2', 'firefox': '1.0.9', 'chrome': '1.0.9', 'date': '2019 Dec 31 by 11be'}
 TRAY_TOOLTIP = 'Optract'
 
 icons = {
@@ -120,7 +119,11 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         create_menu_item(config_menu, 'reset config file', self.frame.on_reset_config, parent_menu=menu)
         # create_menu_item(config_menu, 'reset ipfs', self.on_null)
         # create_menu_item(config_menu, 'reset', self.on_null)  # remove existing and re-install
-        menu.AppendSubMenu(config_menu, 'configuration')
+        menu.AppendSubMenu(config_menu, 'config')
+
+        menu.AppendSeparator()
+        create_menu_item(menu, 'visit homepage', self.frame.on_visit_homepage)
+        menu.AppendSeparator()
 
         if not self.ipfsP_is_running and self.nodeP_is_running:
             create_menu_item(menu, 'restart ipfs (experimental)', self.on_restart_ipfs)
@@ -291,12 +294,12 @@ class MainFrame(wx.Frame):
         # check browser status  # TODO: hide these somewhere?
         row = 1
         self.button_config_firefox = wx.Button(self.panel, label='link firefox')
-        _btn_bindings(self.button_config_firefox, self.on_config_firefox, "tell firefox the location of Optract-gui")
+        _btn_bindings(self.button_config_firefox, self.on_config_firefox, "tell firefox the location of OptractClient")
         self.sizer.Add(self.button_config_firefox, pos=(row, 0), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
         self.button_config_firefox.Disable()
 
         self.button_config_chrome = wx.Button(self.panel, label='link chrome')
-        _btn_bindings(self.button_config_chrome, self.on_config_chrome, "tell chrome the location of Optract-gui")
+        _btn_bindings(self.button_config_chrome, self.on_config_chrome, "tell chrome the location of OptractClient")
         self.sizer.Add(self.button_config_chrome, pos=(row, 1), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
         self.button_config_chrome.Disable()
 
@@ -334,7 +337,7 @@ class MainFrame(wx.Frame):
                 self.st_nativeApp = wx.StaticText(self.panel, label='Welcome to Optract!')
                 log.info('checking browser nativeMessageHost config: firefox:{0}, chrome:{1}'.format(self.check_browser('firefox'), self.check_browser('chrome')))
                 if not (self.check_browser('firefox') or self.check_browser('chrome')):
-                    wx.MessageBox('Cannot find config for firefox and chrome. Please click the "config browser" buttons')
+                    wx.MessageBox('Cannot find config for firefox and chrome. Please use "config -> link with firefox/chrome" from menu.')
                 wx.PostEvent(self, StartserverEvent())
             else:
                 self.st_nativeApp = wx.StaticText(self.panel, label='Installing Optract...')
@@ -343,7 +346,6 @@ class MainFrame(wx.Frame):
         self.st_nativeApp.SetFont(font)  # use wx.LogWindow instead?
         self.sizer.Add(self.st_nativeApp, pos=(row, 0), span=(1, 3), flag=wx.ALL | wx.EXPAND | wx.ALIGN_CENTER_HORIZONTAL, border=3)
 
-        # TODO: add buttons to enter config menu (such as re-configure browser manifest)
         self.panel.SetSizer(self.sizer)
 
     def set_best_size(self):
@@ -363,11 +365,13 @@ class MainFrame(wx.Frame):
         stop_item = server_menu.Append(-1, "&Stop...\tCtrl-p", "Stop server")
         restart_ipfs_item = server_menu.Append(-1, "&Restart ipfs", "Restart ipfs")
         server_menu.AppendSeparator()
-        config_firefox_item = server_menu.Append(-1, "link with firefox", "tell firefox the path of Optract")
-        config_chrome_item = server_menu.Append(-1, "link with chrome", "tell chrome the path of Optract")
-        reset_config_item = server_menu.Append(-1, "reset config file", "reset config file")
         # When using a stock ID we don't need to specify the menu item's label
         exit_item = server_menu.Append(wx.ID_EXIT)
+
+        config_menu = wx.Menu()
+        config_firefox_item = config_menu.Append(-1, "link with firefox", "tell firefox the path of Optract")
+        config_chrome_item = config_menu.Append(-1, "link with chrome", "tell chrome the path of Optract")
+        reset_config_item = config_menu.Append(-1, "reset config file", "reset config file")
 
         # Now a help menu for the about item
         helpMenu = wx.Menu()
@@ -380,6 +384,7 @@ class MainFrame(wx.Frame):
         # triggered from the keyboard.
         menuBar = wx.MenuBar()
         menuBar.Append(server_menu, "&Server")
+        menuBar.Append(config_menu, "&Config")
         menuBar.Append(helpMenu, "&Help")
 
         # Give the menu bar to the frame
@@ -400,7 +405,7 @@ class MainFrame(wx.Frame):
 
     def quit_if_duplicate(self):
         if len(other_systray_proc) > 0:
-            wx.MessageBox("Exit due to following reason:\n\nAnother Optract-GUI is running. Please use the Optract-GUI (and start server) or kill the processes using system task manager and start again.\n pid(s): {0}".format(other_systray_proc))
+            wx.MessageBox("Exit due to following reason:\n\nAnother OptractClient is running. Please use the existing OptractClient. If something's wrong with the existing OptractClient, kill the processes using system task manager and start again.\n The pid(s) of existing OptractClient: {0}".format(other_systray_proc))
             # TODO: test the 'zombie' case
             if len([x['status'] for x in other_systray_proc if x['status'] != 'zombie']) > 0:
                 sys.exit(0)
@@ -437,8 +442,7 @@ class MainFrame(wx.Frame):
         self.update_status_text()
 
         # enable/disable buttons
-        # TODO: also check whether browser manifest are properly configured
-        # TODO: also add nativeApp.message, and ignore nativeApp.installer.message except during installation?
+        # TODO?: also add nativeApp.message, and ignore nativeApp.installer.message except during installation
         if os.path.exists(nativeApp.install_lockFile):
             if (not self.tbIcon.ipfsP_is_running) and (not self.tbIcon.nodeP_is_running):
                 self.button_start_server.Enable()
@@ -454,10 +458,11 @@ class MainFrame(wx.Frame):
             if self.tbIcon.ipfsP_is_running and self.tbIcon.nodeP_is_running:
                 self.button_stop_server.Enable()
                 self.timer.Stop()
-                self.timer.Start(4000)  # use lower frequency
+                self.timer.Start(3000)  # use lower frequency
                 self.st_nativeApp.SetLabel('Optract is running')
             else:
                 self.button_stop_server.Disable()
+                self.st_nativeApp.SetLabel('Optract is not running')
         else:  # install
             self.st_nativeApp.SetLabel(nativeApp.installer.message)  # update information text
             self.button_start_server.Disable()
@@ -505,22 +510,39 @@ class MainFrame(wx.Frame):
         event.Skip()
 
     def on_restart_ipfs(self, event):
-        self.button_start_server.Disable()
-        self.button_stop_server.Disable()
-        nativeApp.start_ipfs()
-        # self.sizer.Layout()  # or panel.layout()
+        if os.path.exists(nativeApp.install_lockFile):
+            if not self.tbIcon.ipfsP_is_running and self.tbIcon.nodeP_is_running:
+                self.button_start_server.Disable()
+                self.button_stop_server.Disable()
+                nativeApp.start_ipfs()
+                # self.sizer.Layout()  # or panel.layout()
+            else:
+                wx.MessageBox('Only restart IPFS while IPFS has died and Optract(node) is still running.', 'Info', wx.OK | wx.ICON_INFORMATION)
+        else:  # in theory the nativeApp.install_lockFile exists by now
+            wx.MessageBox('OptractClient is not properly installed.')
 
     def on_start_server(self, event):
-        self.button_start_server.Disable()
-        self.start_server()
+        if os.path.exists(nativeApp.install_lockFile):
+            if (not self.tbIcon.ipfsP_is_running) and (not self.tbIcon.nodeP_is_running):
+                self.button_start_server.Disable()
+                self.start_server()
+            else:
+                wx.MessageBox('Server already running. Do nothing.', 'Info', wx.OK | wx.ICON_INFORMATION)
+        else:  # in theory the nativeApp.install_lockFile exists by now
+            wx.MessageBox('OptractClient is not properly installed.')
 
     def on_stop_server(self, event):
-        self.button_stop_server.Disable()
-        nativeApp.stopServer()
+        if os.path.exists(nativeApp.install_lockFile):
+            if self.tbIcon.ipfsP_is_running and self.tbIcon.nodeP_is_running:
+                self.button_stop_server.Disable()
+                nativeApp.stopServer()
+            else:
+                wx.MessageBox('Server is not running. Do nothing.', 'Info', wx.OK | wx.ICON_INFORMATION)
+        else:  # in theory the nativeApp.install_lockFile exists by now
+            wx.MessageBox('OptractClient is not properly installed.')
 
     def on_exit(self, event):
         """Close the frame, terminating the application."""
-        # TODO: if TaskBarIcon is available, add an event handler which close window and keep servers running
         log.info('Bye!')
         nativeApp.stopServer()
         # time.sleep(0.8)
@@ -530,19 +552,31 @@ class MainFrame(wx.Frame):
 
     def on_iconize(self, event):
         self.Iconize(True)
-        # if self.IsIconized():
-        #     self.Hide()
+        if self.IsIconized():
+            self.Hide()
 
     def dialog_finish_install(self):
-        if sys.platform.startswith('win32'):  # already popup dialog in the beginning of installation for win32
-            dlg = wx.MessageBox("Finish installation")
+        msg_fmt = '''Finish installation and now starting server{0}.
+
+To use Optract, install the firefox or chrome addons, open the addon page, and register an account from browser.
+'''
+        if self.tbIcon.IsAvailable():
+            msg = msg_fmt.format(', will minimize this window to systray')
         else:
-            msg = "Server is starting...\nVisit 11be.org for the browser add-ons and latest information (or cancel to ignore it)?"
+            msg = msg_fmt.format('')
+
+        if sys.platform.startswith('win32'):  # already popup dialog in the beginning of installation for win32
+            dlg = wx.MessageBox(msg)
+        else:
+            msg = msg + '\nPress OK to visit https://11be.org for browser addons and more detail (or CANCEL to ignore it and proceed and use the menu "help -> visit homepage" later).'
             dlg = wx.MessageDialog(None, msg, "Finish installation",
                                    wx.OK | wx.CANCEL | wx.ICON_INFORMATION)
             ret = dlg.ShowModal()
             if ret == wx.ID_OK:
                 webbrowser.open("https://11be.org")
+
+        if self.tbIcon.IsAvailable():  # on unity and some DE it's not available
+            self.Iconize(True)
 
     def on_visit_homepage(self, event):
         webbrowser.open("https://11be.org")
@@ -557,6 +591,7 @@ class MainFrame(wx.Frame):
             nativeApp.install()
             wx.CallAfter(self.st_nativeApp.SetLabel, 'Starting server....')
             wx.CallAfter(self.start_server)
+            # TODO: show whether firefox and chrome nativeApp are properly configured, if not, show warning (put it inside self.dialog_finish_install?)
             wx.CallAfter(self.dialog_finish_install)
         # t = threading.Thread(target=_evt_install, args=(self, ), daemon=True)
         t = PropagatingThread(target=_evt_install, args=(self,), daemon=True, name='_evt_install')
@@ -564,7 +599,8 @@ class MainFrame(wx.Frame):
         self.threads.append(t)  # use it in 'on_timer()'
 
         if sys.platform.startswith('win32'):
-            msg = "Installing, will need sometime. Press OK to visit https://11be.org to get the browser addons."
+            msg = '''Installing, will take some time. To use Optract, install the firefox or chrome addons, open the addon page, and register an account from browser.
+Press OK to visit https://11be.org for browser addons and more detail (or CANCEL to ignore it and proceed).'''
             dlg = wx.MessageDialog(None, msg, "Visit homepage",
                                    wx.OK | wx.CANCEL | wx.ICON_INFORMATION)
             ret = dlg.ShowModal()
@@ -574,12 +610,18 @@ class MainFrame(wx.Frame):
     def on_config_firefox(self, event):
         log.info('createing or config manifest for firefox')
         nativeApp.installer.create_and_write_manifest('firefox')
-        wx.MessageBox('create nativeApp for firefox. Please install browser extension from https://11be.org')
+        if self.check_browser('firefox'):
+            wx.MessageBox('Firefox was already properly configured. To install addon, please visit https://11be.org')
+        else:
+            wx.MessageBox('create nativeApp for firefox.\nPlease also install firefox addon from https://11be.org.')
 
     def on_config_chrome(self, event):
         log.info('createing or config manifest for chrome')
         nativeApp.installer.create_and_write_manifest('chrome')
-        wx.MessageBox('create nativeApp for chrome. Please install browser extension from https://11be.org')
+        if self.check_browser('firefox'):
+            wx.MessageBox('Chrome was already properly configured. To install extension, please visit https://11be.org')
+        else:
+            wx.MessageBox('create nativeApp for chrome. Please install chrome extension from https://11be.org')
 
     def on_reset_config(self, event):
         msg = "Are you sure to reset the config?\nIf yes, will take some time to restart server."
@@ -595,7 +637,7 @@ class MainFrame(wx.Frame):
             nativeApp.startServer()
             wx.MessageBox('Server restarted!.\nConfig file in: \n{0}'.format(config_file))
         else:
-            wx.MessageBox('do nothing')
+            wx.MessageBox('Do nothing')
 
     def start_server(self):
         msg = nativeApp.pgrep_services_msg()
@@ -627,17 +669,18 @@ class MainFrame(wx.Frame):
         t.start()
 
     def on_about(self, event):
-        """Display an About Dialog"""
+        version_info = 'OptractClient: {0}\nFirefox addon: {1}\nChrome extension:{2}\n\n{3}'.format(
+            VERSION['OptractClient'], VERSION['firefox'], VERSION['chrome'], VERISON['date'])
         wx.MessageBox("Optract Optract is a consensus protocol representing collective intelligence\n" +
                       "for the process of assessing the value of any information stream.\n" +
-                      "Please visit https://11be.org for more information",
+                      "Please visit https://11be.org for more information.\n" + version_info,
                       "About",
                       wx.OK | wx.ICON_INFORMATION)
 
 
 class App(wx.App):
     def OnInit(self):
-        frame = MainFrame(None, title='Optract GUI')  # the size is set by MainFrame.set_best_size()
+        frame = MainFrame(None, title='Optract Client')  # the size of window is set by MainFrame.set_best_size()
         self.SetTopWindow(frame)
 
         # install if necessary; show gui only when systray is not available or during install
