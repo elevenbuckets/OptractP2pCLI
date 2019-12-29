@@ -10,6 +10,7 @@ import logging
 import threading
 import wx.lib.newevent as NE
 import webbrowser
+import json
 from nativeApp import NativeApp
 from exceptions import BadChecksum
 
@@ -335,9 +336,23 @@ class MainFrame(wx.Frame):
             self.check_install = True
             if os.path.exists(nativeApp.install_lockFile):
                 self.st_nativeApp = wx.StaticText(self.panel, label='Welcome to Optract!')
-                log.info('checking browser nativeMessageHost config: firefox:{0}, chrome:{1}'.format(self.check_browser('firefox'), self.check_browser('chrome')))
+
+                log.debug('checking config path...')
+                _ = self.check_config_path()
+                if _ != '':
+                    msg = """Something's wrong in the config file, message:\n\n{0}\n\n
+In order to let OptractClient function, press YES to reset config file (or "config -> reset config file").""".format(_)
+                    dlg = wx.MessageDialog(None, msg, "reset config",
+                                           wx.YES_NO | wx.YES_DEFAULT | wx.ICON_ERROR)
+                    ret = dlg.ShowModal()
+                    if ret == wx.ID_YES:
+                        nativeApp.installer.create_config()
+
+                log.debug('checking browser nativeMessageHost config: firefox:{0}, chrome:{1}'.format(self.check_browser('firefox'), self.check_browser('chrome')))
                 if not (self.check_browser('firefox') or self.check_browser('chrome')):
-                    wx.MessageBox('Cannot find config for firefox and chrome. Please use "config -> link with firefox/chrome" from menu.')
+                    nativeApp.installer.create_and_write_manifest('firefox')
+                    nativeApp.installer.create_and_write_manifest('chrome')
+                    wx.MessageBox('Somehow browser(s) does not aware current path of OptractClient (just moved the OptractClient folder?).\n\nReset the path now.')
                 wx.PostEvent(self, StartserverEvent())
             else:
                 self.st_nativeApp = wx.StaticText(self.panel, label='Installing Optract...')
@@ -422,6 +437,21 @@ class MainFrame(wx.Frame):
   node status: {1}
   ipfs status: {2}'''.format(is_running_symbol, node_symbol, ipfs_symbol)
         return status_text
+
+    def check_config_path(self):
+        # Is check datadir in config.json enough?
+        errmsg = ''
+        config_file = os.path.join(nativeApp.datadir, 'config.json')
+        try:
+            with open(config_file, 'r') as f:
+                config = json.load(f)
+            if config['datadir'] == nativeApp.datadir:
+                errmsg = ''
+            else:
+                errmsg = 'The directory in config is not current working directory. Just move OptractClient manually?'
+        except Exception as e:
+            errmsg = e
+        return errmsg
 
     def check_browser(self, browser):
         # check if browser nativeMsg are properly configured
@@ -610,18 +640,18 @@ Press OK to visit https://11be.org for browser addons and more detail (or CANCEL
 
     def on_config_firefox(self, event):
         log.info('createing or config manifest for firefox')
-        nativeApp.installer.create_and_write_manifest('firefox')
         if self.check_browser('firefox'):
             wx.MessageBox('Firefox was already properly configured. To install addon, please visit https://11be.org')
         else:
+            nativeApp.installer.create_and_write_manifest('firefox')
             wx.MessageBox('create nativeApp for firefox.\nPlease also install firefox addon from https://11be.org.')
 
     def on_config_chrome(self, event):
         log.info('createing or config manifest for chrome')
-        nativeApp.installer.create_and_write_manifest('chrome')
         if self.check_browser('firefox'):
             wx.MessageBox('Chrome was already properly configured. To install extension, please visit https://11be.org')
         else:
+            nativeApp.installer.create_and_write_manifest('chrome')
             wx.MessageBox('create nativeApp for chrome. Please install chrome extension from https://11be.org')
 
     def on_reset_config(self, event):
